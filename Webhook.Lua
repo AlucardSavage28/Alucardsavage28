@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (FULL INVENTORY SCANNER + HATCH HOOK)
+-- WEBHOOK TAB (SCANNER ONLY - NO DUPLICATES)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -198,56 +198,6 @@ local function processOnline()
 end
 
 -- ======================================
--- SEND (for regular pets from hatching)
--- ======================================
-local function send(petName, eggName, ex)
-    local info = Pets[petName]
-    if not info then return end
-
-    local rarity = info.Rarity
-    local tracked = false
-    for r in pairs(TRACKED_RARITIES) do
-        if rarity:find(r) then tracked = true; rarity = r; break end
-    end
-    if not tracked then return end
-
-    local variant = getVariant(ex)
-    local variantText = getVariantText(variant)
-    local color = (COLORS[rarity] and COLORS[rarity][variant]) or 16777215
-    local coins, gems, opened = getStats(eggName)
-    local img = getImage(petName, ex)
-    local displayName = hideUsername and "Hidden" or player.Name
-
-    local embed = {
-        title = "Congrats You Hatched A "..variantText.." "..rarity.." "..petName.."!",
-        color = color,
-        fields = {
-            {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false}
-        },
-        footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-    }
-    if img then embed.thumbnail = {url = img} end
-
-    table.insert(hatchQueue, {
-        content = (rarity == "Secret") and "<@"..DISCORD_USER_ID..">" or nil,
-        embeds = {embed}
-    })
-    processHatch()
-
-    local publicEmbed = {
-        title = "Congrats You Hatched A "..variantText.." "..rarity.." "..petName.."!",
-        color = color,
-        fields = {
-            {name = "* User Info", value = "Name : Hidden", inline = false}
-        },
-        footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-    }
-    if img then publicEmbed.thumbnail = {url = img} end
-    table.insert(publicQueue, {embeds = {publicEmbed}})
-    processPublic()
-end
-
--- ======================================
 -- ONLINE PING
 -- ======================================
 local startTime = os.time()
@@ -307,7 +257,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (CATCHES ALL SOURCES)
+-- FULL INVENTORY SCANNER (ALL SOURCES - NO DUPLICATES)
 -- ======================================
 local knownPets = {}
 
@@ -332,7 +282,7 @@ end
 
 task.spawn(function()
     while true do
-        task.wait(10)
+        task.wait(5)
         local data = LocalData:Get()
         if data and data.Pets then
             for _, pet in pairs(data.Pets) do
@@ -446,30 +396,6 @@ task.spawn(function()
         end
     end
 end)
-
--- ======================================
--- HOOK (REGULAR PETS FROM HATCHING)
--- ======================================
-local success, mod = pcall(function()
-    return require(ReplicatedStorage.Client.Effects.HatchEgg)
-end)
-if success and mod then
-    local originalPlay = mod.Play
-    local hookedFunction = newcclosure(function(self, data)
-        if type(data) == "table" and data.Pets then
-            for _, p in ipairs(data.Pets) do
-                local pet = p.Pet or p
-                if pet and pet.Name and not pet.Super then
-                    local ex = {Shiny = pet.Shiny, Mythic = pet.Mythic, XL = pet.XL}
-                    send(pet.Name, data.Name or "Egg", ex)
-                end
-            end
-        end
-        if getgenv().animationHidden then return end
-        return originalPlay(self, data)
-    end)
-    mod.Play = hookedFunction
-end
 
 -- ======================================
 -- UI
