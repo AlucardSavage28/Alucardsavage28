@@ -407,17 +407,19 @@ task.spawn(function()
                                 if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
                                 elseif pet.Shiny then variant = "Shiny"
                                 elseif pet.Mythic then variant = "Mythic" end
+                                local color = (COLORS[rarity] and COLORS[rarity][variant]) or 16777215
+                                local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
                                 local displayName = hideUsername and "Hidden" or player.Name
                                 
                                 local embed = {
-                                    title = "New "..rarity.." Acquired: "..variant.." "..pet.Name.."!",
-                                    color = 0xFFD700,
+                                    title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
+                                    color = color,
                                     fields = {
-                                        {name = "* User Info", value = "Name : "..displayName, inline = false},
-                                        {name = "Source", value = "Obtained from reward/machine", inline = false}
+                                        {name = "* User Info", value = "Name : "..displayName, inline = false}
                                     },
-                                    footer = {text = "Renoa Hub * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
+                                if img then embed.thumbnail = {url = img} end
                                 
                                 table.insert(hatchQueue, {
                                     content = (rarity == "Secret") and "<@"..DISCORD_USER_ID..">" or nil,
@@ -426,14 +428,14 @@ task.spawn(function()
                                 processHatch()
                                 
                                 local publicEmbed = {
-                                    title = "New "..rarity.." Acquired: "..variant.." "..pet.Name.."!",
-                                    color = 0xFFD700,
+                                    title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
+                                    color = color,
                                     fields = {
-                                        {name = "* User Info", value = "Name : Hidden", inline = false},
-                                        {name = "Source", value = "Obtained from reward/machine", inline = false}
+                                        {name = "* User Info", value = "Name : Hidden", inline = false}
                                     },
-                                    footer = {text = "Renoa Hub * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
+                                if img then publicEmbed.thumbnail = {url = img} end
                                 table.insert(publicQueue, {embeds = {publicEmbed}})
                                 processPublic()
                             end
