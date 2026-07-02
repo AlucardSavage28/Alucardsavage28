@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (DUAL WEBHOOK + PUBLIC + HIDE USERNAME)
+-- WEBHOOK TAB (FULL INVENTORY SCANNER + HATCH HOOK)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -104,12 +104,6 @@ local function formatNum(n)
     else return tostring(n) end
 end
 
-local function formatExist(n)
-    if not n then return "0" end
-    local s=tostring(math.floor(n))
-    return s:reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
-end
-
 -- ======================================
 -- STATS
 -- ======================================
@@ -125,19 +119,6 @@ end
 -- ======================================
 -- PET EXTRA
 -- ======================================
-local function getPetExtra(petInfo)
-    local odds="Unknown"
-    local exist="Unknown"
-    if petInfo.Chance then
-        local calc=math.floor(1/petInfo.Chance)
-        if calc>0 then odds="1/"..formatExist(calc) end
-    elseif petInfo.Odds then
-        odds="1/"..formatExist(petInfo.Odds)
-    end
-    if petInfo.Exists then exist=formatExist(petInfo.Exists) end
-    return odds,exist
-end
-
 local function getVariant(ex)
     if ex.Shiny and ex.Mythic then return "ShinyMythic"
     elseif ex.Shiny then return "Shiny"
@@ -217,7 +198,7 @@ local function processOnline()
 end
 
 -- ======================================
--- SEND (for regular pets)
+-- SEND (for regular pets from hatching)
 -- ======================================
 local function send(petName, eggName, ex)
     local info = Pets[petName]
@@ -234,7 +215,6 @@ local function send(petName, eggName, ex)
     local variantText = getVariantText(variant)
     local color = (COLORS[rarity] and COLORS[rarity][variant]) or 16777215
     local coins, gems, opened = getStats(eggName)
-    local odds, exist = getPetExtra(info)
     local img = getImage(petName, ex)
     local displayName = hideUsername and "Hidden" or player.Name
 
@@ -242,8 +222,7 @@ local function send(petName, eggName, ex)
         title = "Congrats You Hatched A "..variantText.." "..rarity.." "..petName.."!",
         color = color,
         fields = {
-            {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
-            {name = "Pet Info", value = "Odds : "..odds.."\nExist : "..exist, inline = false}
+            {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false}
         },
         footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
     }
@@ -259,8 +238,7 @@ local function send(petName, eggName, ex)
         title = "Congrats You Hatched A "..variantText.." "..rarity.." "..petName.."!",
         color = color,
         fields = {
-            {name = "* User Info", value = "Name : Hidden", inline = false},
-            {name = "Pet Info", value = "Odds : "..odds.."\nExist : "..exist, inline = false}
+            {name = "* User Info", value = "Name : Hidden", inline = false}
         },
         footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
     }
@@ -329,7 +307,146 @@ task.spawn(function()
 end)
 
 -- ======================================
--- HOOK (REGULAR PETS ONLY)
+-- FULL INVENTORY SCANNER (CATCHES ALL SOURCES)
+-- ======================================
+local knownPets = {}
+
+local initData = LocalData:Get()
+if initData and initData.Pets then
+    for _, pet in pairs(initData.Pets) do
+        if pet.Super then
+            knownPets[pet.Id] = true
+        else
+            local info = Pets[pet.Name]
+            if info and info.Rarity then
+                for r in pairs(TRACKED_RARITIES) do
+                    if info.Rarity:find(r) then
+                        knownPets[pet.Id] = true
+                        break
+                    end
+                end
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        task.wait(10)
+        local data = LocalData:Get()
+        if data and data.Pets then
+            for _, pet in pairs(data.Pets) do
+                if not knownPets[pet.Id] then
+                    local info = Pets[pet.Name]
+                    if info and info.Rarity then
+                        local rarity = info.Rarity
+                        local isSuper = pet.Super
+                        
+                        if isSuper then rarity = "Super Legendary" end
+                        
+                        local tracked = false
+                        for r in pairs(TRACKED_RARITIES) do
+                            if rarity:find(r) then
+                                tracked = true
+                                rarity = r
+                                break
+                            end
+                        end
+                        
+                        if tracked then
+                            knownPets[pet.Id] = true
+                            
+                            if isSuper then
+                                local enchantNames = {}
+                                if pet.Enchants then
+                                    for _, enchant in pairs(pet.Enchants) do
+                                        if enchant.Id then table.insert(enchantNames, enchant.Id) end
+                                    end
+                                end
+                                local displayEnchants = {}
+                                for _, id in ipairs(enchantNames) do
+                                    table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
+                                end
+                                local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
+                                local variant = "Normal"
+                                if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                                elseif pet.Shiny then variant = "Shiny"
+                                elseif pet.Mythic then variant = "Mythic" end
+                                local displayName = hideUsername and "Hidden" or player.Name
+                                
+                                local embed = {
+                                    title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
+                                    color = 0x1E90FF,
+                                    fields = {
+                                        {name = "* User Info", value = "Name : "..displayName, inline = false},
+                                        {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
+                                    },
+                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                }
+                                local pingMsg = "<@"..DISCORD_USER_ID..">"
+                                if displayStr ~= "None" then
+                                    pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!"
+                                end
+                                
+                                table.insert(hatchQueue, {content = pingMsg, embeds = {embed}})
+                                processHatch()
+                                
+                                local publicEmbed = {
+                                    title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
+                                    color = 0x1E90FF,
+                                    fields = {
+                                        {name = "* User Info", value = "Name : Hidden", inline = false},
+                                        {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
+                                    },
+                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                }
+                                table.insert(publicQueue, {embeds = {publicEmbed}})
+                                processPublic()
+                            else
+                                local variant = "Normal"
+                                if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                                elseif pet.Shiny then variant = "Shiny"
+                                elseif pet.Mythic then variant = "Mythic" end
+                                local displayName = hideUsername and "Hidden" or player.Name
+                                
+                                local embed = {
+                                    title = "New "..rarity.." Acquired: "..variant.." "..pet.Name.."!",
+                                    color = 0xFFD700,
+                                    fields = {
+                                        {name = "* User Info", value = "Name : "..displayName, inline = false},
+                                        {name = "Source", value = "Obtained from reward/machine", inline = false}
+                                    },
+                                    footer = {text = "Renoa Hub * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                }
+                                
+                                table.insert(hatchQueue, {
+                                    content = (rarity == "Secret") and "<@"..DISCORD_USER_ID..">" or nil,
+                                    embeds = {embed}
+                                })
+                                processHatch()
+                                
+                                local publicEmbed = {
+                                    title = "New "..rarity.." Acquired: "..variant.." "..pet.Name.."!",
+                                    color = 0xFFD700,
+                                    fields = {
+                                        {name = "* User Info", value = "Name : Hidden", inline = false},
+                                        {name = "Source", value = "Obtained from reward/machine", inline = false}
+                                    },
+                                    footer = {text = "Renoa Hub * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                }
+                                table.insert(publicQueue, {embeds = {publicEmbed}})
+                                processPublic()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ======================================
+-- HOOK (REGULAR PETS FROM HATCHING)
 -- ======================================
 local success, mod = pcall(function()
     return require(ReplicatedStorage.Client.Effects.HatchEgg)
@@ -351,77 +468,6 @@ if success and mod then
     end)
     mod.Play = hookedFunction
 end
-
--- ======================================
--- SUPER LEGENDARY INVENTORY SCANNER
--- ======================================
-local knownSL = {}
-local initData = LocalData:Get()
-if initData and initData.Pets then
-    for _, pet in pairs(initData.Pets) do
-        if pet.Super then knownSL[pet.Id] = true end
-    end
-end
-
-task.spawn(function()
-    while true do
-        task.wait(10)
-        local data = LocalData:Get()
-        if data and data.Pets then
-            for _, pet in pairs(data.Pets) do
-                if pet.Super and not knownSL[pet.Id] then
-                    knownSL[pet.Id] = true
-                    local enchantNames = {}
-                    if pet.Enchants then
-                        for _, enchant in pairs(pet.Enchants) do
-                            if enchant.Id then table.insert(enchantNames, enchant.Id) end
-                        end
-                    end
-                    local displayEnchants = {}
-                    for _, id in ipairs(enchantNames) do
-                        table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
-                    end
-                    local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
-                    local variant = "Normal"
-                    if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
-                    elseif pet.Shiny then variant = "Shiny"
-                    elseif pet.Mythic then variant = "Mythic" end
-                    local displayName = hideUsername and "Hidden" or player.Name
-
-                    local embed = {
-                        title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
-                        color = 0x1E90FF,
-                        fields = {
-                            {name = "* User Info", value = "Name : "..displayName, inline = false},
-                            {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
-                        },
-                        footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                    }
-                    local pingMsg = "<@"..DISCORD_USER_ID..">"
-                    if displayStr ~= "None" then
-                        pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!"
-                    end
-                    
-                    table.insert(hatchQueue, {content = pingMsg, embeds = {embed}})
-                    processHatch()
-                    
-                    -- Public webhook (same layout, no ping, hidden name)
-                    local publicEmbed = {
-                        title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
-                        color = 0x1E90FF,
-                        fields = {
-                            {name = "* User Info", value = "Name : Hidden", inline = false},
-                            {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
-                        },
-                        footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                    }
-                    table.insert(publicQueue, {embeds = {publicEmbed}})
-                    processPublic()
-                end
-            end
-        end
-    end
-end)
 
 -- ======================================
 -- UI
