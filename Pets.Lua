@@ -15,37 +15,28 @@ local NetworkRemote = ReplicatedStorage:WaitForChild("Shared")
     :WaitForChild("RemoteFunction")
 
 -- ======================================
--- GET UNLOCKED PETS
--- ======================================
-local function getUnlockedPets()
-    local pets = {}
-    local seen = {}
-    local data = LocalData:Get()
-    if data and data.Pets then
-        for _, pet in pairs(data.Pets) do
-            if pet.Name and not pet.Locked and not seen[pet.Name] then
-                seen[pet.Name] = true
-                table.insert(pets, pet.Name)
-            end
-        end
-    end
-    table.sort(pets)
-    return pets
-end
-
--- ======================================
 -- SETTINGS
 -- ======================================
-local petList = getUnlockedPets()
-local selectedPet1 = petList[1] or ""
-local selectedPet2 = petList[1] or ""
-local selectedPet3 = petList[1] or ""
 local fuserActive = false
 local loopThread = nil
+local targetPetNamesString = ""
+local selectedVariant = "Normal"
 
 -- ======================================
 -- FUNCTIONS
 -- ======================================
+local function isCorrectVariant(pet)
+    if selectedVariant == "Shiny Mythic" then
+        return (pet.Shiny and pet.Mythic)
+    elseif selectedVariant == "Shiny" then
+        return pet.Shiny and not pet.Mythic
+    elseif selectedVariant == "Mythic" then
+        return pet.Mythic and not pet.Shiny
+    else
+        return not pet.Shiny and not pet.Mythic
+    end
+end
+
 local function getVariantPriority(pet)
     if pet.Shiny and pet.Mythic then return 4
     elseif pet.Mythic and not pet.Shiny then return 3
@@ -53,49 +44,50 @@ local function getVariantPriority(pet)
     else return 1 end
 end
 
-local function tryFuse(petName)
-    local data = LocalData:Get()
-    if not data or not data.Pets then return false end
-    
-    local matching = {}
-    for _, pet in pairs(data.Pets) do
-        if pet.Name == petName and not pet.Locked then
-            table.insert(matching, pet)
-        end
-    end
-    
-    if #matching >= 5 then
-        table.sort(matching, function(a, b)
-            return getVariantPriority(a) < getVariantPriority(b)
-        end)
-        
-        local payload = {}
-        for i = 1, 5 do
-            table.insert(payload, tostring(matching[i].Id))
-        end
-        
-        pcall(function()
-            NetworkRemote:InvokeServer("UseRebirthMachine", payload)
-        end)
-        return true
-    end
-    return false
-end
-
 local function fusionLoop()
     while fuserActive do
-        local fused = false
+        task.wait(2.5)
         
-        for _, petName in ipairs({selectedPet1, selectedPet2, selectedPet3}) do
-            if petName ~= "" and tryFuse(petName) then
-                fused = true
-                task.wait(1.5)
-                break
+        if targetPetNamesString == "" then continue end
+        
+        local targetNames = {}
+        for chunk in string.gmatch(targetPetNamesString, "[^,]+") do
+            local clean = string.lower(string.gsub(chunk, "^%s*(.-)%s*$", "%1"))
+            if clean ~= "" then table.insert(targetNames, clean) end
+        end
+        
+        local data = LocalData:Get()
+        if not data or not data.Pets then continue end
+        
+        local matching = {}
+        for _, pet in pairs(data.Pets) do
+            if not pet.Locked then
+                if isCorrectVariant(pet) then
+                    local name = string.lower(pet.Name)
+                    for _, t in ipairs(targetNames) do
+                        if name:find(t) then
+                            table.insert(matching, pet)
+                            break
+                        end
+                    end
+                end
             end
         end
         
-        if not fused then
-            task.wait(5)
+        if #matching >= 5 then
+            table.sort(matching, function(a, b)
+                return getVariantPriority(a) < getVariantPriority(b)
+            end)
+            
+            local payload = {}
+            for i = 1, 5 do
+                table.insert(payload, tostring(matching[i].Id))
+            end
+            
+            pcall(function()
+                NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+            end)
+            task.wait(1.5)
         end
     end
 end
@@ -105,45 +97,37 @@ end
 -- ======================================
 PetTab:CreateSection("Rebirth Machine")
 
-PetTab:CreateDropdown({
-    Name = "Pet 1",
-    Options = petList,
-    CurrentOption = {selectedPet1},
-    Callback = function(v)
-        selectedPet1 = v[1] or v
-    end
+PetTab:CreateInput({
+    Name = "Pet Names (comma)",
+    PlaceholderText = "doggy, cat, ufo",
+    CurrentValue = "",
+    Callback = function(V)
+        targetPetNamesString = V
+    end,
 })
 
 PetTab:CreateDropdown({
-    Name = "Pet 2",
-    Options = petList,
-    CurrentOption = {selectedPet2},
-    Callback = function(v)
-        selectedPet2 = v[1] or v
-    end
-})
-
-PetTab:CreateDropdown({
-    Name = "Pet 3",
-    Options = petList,
-    CurrentOption = {selectedPet3},
-    Callback = function(v)
-        selectedPet3 = v[1] or v
-    end
+    Name = "Variant",
+    Options = {"Normal","Shiny","Mythic","Shiny Mythic"},
+    CurrentOption = {"Normal"},
+    Callback = function(V)
+        selectedVariant = V[1]
+    end,
 })
 
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine",
     CurrentValue = false,
-    Callback = function(v)
-        fuserActive = v
-        if v then
+    Callback = function(V)
+        fuserActive = V
+        if V then
             loopThread = task.spawn(fusionLoop)
         else
+            fuserActive = false
             if loopThread then
                 task.cancel(loopThread)
                 loopThread = nil
             end
         end
-    end
+    end,
 })
