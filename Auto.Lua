@@ -38,6 +38,7 @@ local boxThread = nil
 
 local originalRadius = constants.DefaultPickupRadius
 local BUBBLE_CAP = 650000000
+local SELL_POS = Vector3.new(77, 6, -113)
 
 -- ======================================
 -- GET BOXES FROM INVENTORY
@@ -80,20 +81,6 @@ local function getBubbles()
         end
     end
     return 0
-end
-
-local function getSellPosition()
-    local overworld = workspace.Worlds["The Overworld"]
-    if overworld then
-        local sell = overworld:FindFirstChild("Sell")
-        if sell then
-            local ring = sell:FindFirstChild("Ring")
-            if ring then
-                return ring.Position
-            end
-        end
-    end
-    return Vector3.new(77, 6, -113)
 end
 
 local function collectAllPresents()
@@ -189,7 +176,6 @@ AutoTab:CreateToggle({
         sellEnabled = v
         if v then
             sellThread = task.spawn(function()
-                local sellPos = getSellPosition()
                 local needsSell = false
                 
                 while sellEnabled do
@@ -205,7 +191,7 @@ AutoTab:CreateToggle({
                         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
                         local prevCFrame = root and root.CFrame or nil
                         
-                        if root then root.CFrame = CFrame.new(sellPos) end
+                        if root then root.CFrame = CFrame.new(SELL_POS) end
                         task.wait(0.2)
                         
                         for i = 1, 3 do
@@ -217,7 +203,6 @@ AutoTab:CreateToggle({
                         end
                         
                         if prevCFrame and root then
-                            task.wait(0.2)
                             root.CFrame = prevCFrame
                             root.Velocity = Vector3.zero
                             root.RotVelocity = Vector3.zero
