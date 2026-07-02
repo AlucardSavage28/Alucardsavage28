@@ -105,18 +105,6 @@ local function formatNum(n)
 end
 
 -- ======================================
--- STATS
--- ======================================
-local function getStats(eggName)
-    local data = LocalData:Get()
-    if not data then return "0","0","0" end
-    return
-        formatNum(data.Coins or 0),
-        formatNum(data.Gems or 0),
-        formatNum((data.EggsOpened and data.EggsOpened[eggName]) or 0)
-end
-
--- ======================================
 -- PET EXTRA
 -- ======================================
 local function getVariant(ex)
@@ -323,12 +311,14 @@ task.spawn(function()
                                 elseif pet.Shiny then variant = "Shiny"
                                 elseif pet.Mythic then variant = "Mythic" end
                                 local displayName = hideUsername and "Hidden" or player.Name
+                                local coins = formatNum(data.Coins or 0)
+                                local gems = formatNum(data.Gems or 0)
                                 
                                 local embed = {
                                     title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
                                     color = 0x1E90FF,
                                     fields = {
-                                        {name = "* User Info", value = "Name : "..displayName, inline = false},
+                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems, inline = false},
                                         {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
@@ -360,12 +350,15 @@ task.spawn(function()
                                 local color = (COLORS[rarity] and COLORS[rarity][variant]) or 16777215
                                 local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
                                 local displayName = hideUsername and "Hidden" or player.Name
+                                local coins = formatNum(data.Coins or 0)
+                                local gems = formatNum(data.Gems or 0)
+                                local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
                                 
                                 local embed = {
                                     title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
                                     color = color,
                                     fields = {
-                                        {name = "* User Info", value = "Name : "..displayName, inline = false}
+                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
