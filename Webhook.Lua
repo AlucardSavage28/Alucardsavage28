@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER ONLY - NO DUPLICATES)
+-- WEBHOOK TAB (SCANNER ONLY + ANIMATION TOGGLE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -396,6 +396,21 @@ task.spawn(function()
         end
     end
 end)
+
+-- ======================================
+-- ANIMATION TOGGLE (NO HATCH DETECTION)
+-- ======================================
+local success, mod = pcall(function()
+    return require(ReplicatedStorage.Client.Effects.HatchEgg)
+end)
+if success and mod then
+    local originalPlay = mod.Play
+    local hookedFunction = newcclosure(function(self, data)
+        if getgenv().animationHidden then return end
+        return originalPlay(self, data)
+    end)
+    mod.Play = hookedFunction
+end
 
 -- ======================================
 -- UI
