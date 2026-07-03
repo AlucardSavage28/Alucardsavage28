@@ -194,41 +194,8 @@ local function getRiftPosition(name)
     return nil
 end
 
+-- Simple teleport for normal eggs (no rift remote calls)
 local function teleportToEgg(eggName)
-    if eggName == "Doodle Egg" then
-        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
-        task.wait(0.5)
-        return true
-    end
-    
-    if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
-        local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
-        for _, riftName in ipairs(riftNames) do
-            pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
-            task.wait(0.3)
-        end
-        task.wait(0.5)
-        
-        local riftPos = getRiftPosition(eggName)
-        if riftPos then
-            local dist = getDistance(riftPos)
-            if dist > 20 then
-                local root = getRoot()
-                if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-            end
-        else
-            local pos = EGG_LOCATIONS[eggName]
-            if pos then
-                local dist = getDistance(pos)
-                if dist > 20 then
-                    local root = getRoot()
-                    if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-                end
-            end
-        end
-        return true
-    end
-    
     local riftPos = getRiftPosition(eggName)
     if riftPos then
         local dist = getDistance(riftPos)
@@ -488,7 +455,7 @@ EggsTab:CreateToggle({
                     
                     teleportToEgg(selectedEgg)
                     pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
-                    task.wait(0.01)
+                    task.wait(0.05)
                 end
             end)
         else
