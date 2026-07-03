@@ -52,6 +52,7 @@ local EGG_LOCATIONS = {
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
     ["4x Luck Exotic Egg"] = Vector3.new(-3622, 161, 897),
     ["Patriotic Egg"] = Vector3.new(34, 10, -11),
+    ["4x Luck Patriotic Egg"] = Vector3.new(20, 9, -22),
 }
 
 local EGG_WORLDS = {
@@ -69,7 +70,7 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
     ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
     ["Exotic Egg"] = "The Overworld", ["4x Luck Exotic Egg"] = "The Overworld",
-    ["Patriotic Egg"] = "The Overworld",
+    ["Patriotic Egg"] = "The Overworld", ["4x Luck Patriotic Egg"] = "The Overworld",
 }
 
 local ALL_EGG_NAMES = {}
@@ -108,6 +109,7 @@ local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
 local fourXEnabled = false
+local fourXPatrioticEnabled = false
 local doodleEnabled = false
 local autoHatchEnabled = false
 local spamEEnabled = false
@@ -117,6 +119,7 @@ local bountyEnabled = false
 local riftEnabled = false
 
 local fourXThread = nil
+local fourXPatrioticThread = nil
 local doodleThread = nil
 local autoHatchThread = nil
 local spamEThread = nil
@@ -186,8 +189,7 @@ local function getRiftPosition(name)
 end
 
 local function teleportToEgg(eggName)
-    -- Special handling for Patriotic Egg rifts
-    if eggName == "Patriotic Egg" then
+    if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
         local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
         for _, riftName in ipairs(riftNames) do
             pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
@@ -260,6 +262,76 @@ local function getTimeUntilReset()
     end
     return "Unknown"
 end
+
+-- ======================================
+-- UI - 4X LUCK PATRIOTIC EGG (TOP)
+-- ======================================
+EggsTab:CreateSection("------- 4x Luck Patriotic Egg -------")
+
+EggsTab:CreateToggle({
+    Name = "Auto 4x Patriotic",
+    CurrentValue = false,
+    Callback = function(v)
+        fourXPatrioticEnabled = v
+        if v then
+            fourXPatrioticThread = task.spawn(function()
+                while fourXPatrioticEnabled do
+                    while getgenv().questActive and fourXPatrioticEnabled do
+                        task.wait(0.5)
+                    end
+                    
+                    local eggFound = false
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
+                            eggFound = true
+                            getgenv().questActive = true
+                            getgenv().questEgg = "4x Luck Patriotic Egg"
+                            
+                            local pos = obj:GetPivot().Position
+                            local root = getRoot()
+                            if root then
+                                root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
+                            end
+                            
+                            while fourXPatrioticEnabled and eggFound do
+                                if getgenv().questEgg ~= "4x Luck Patriotic Egg" then break end
+                                pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
+                                task.wait(0.05)
+                                
+                                eggFound = false
+                                for _, obj2 in ipairs(workspace:GetDescendants()) do
+                                    if obj2.Name == "4x Luck Patriotic Egg" and obj2:IsA("Model") then
+                                        eggFound = true
+                                        break
+                                    end
+                                end
+                            end
+                            
+                            if not eggFound or getgenv().questEgg ~= "4x Luck Patriotic Egg" then
+                                getgenv().questActive = false
+                                getgenv().questEgg = nil
+                            end
+                            break
+                        end
+                    end
+                    
+                    if not eggFound then
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
+                    end
+                    
+                    task.wait(0.05)
+                end
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end)
+        else
+            if fourXPatrioticThread then task.cancel(fourXPatrioticThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+        end
+    end
+})
 
 -- ======================================
 -- UI - 4X LUCK EXOTIC EGG
