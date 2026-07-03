@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE)
+-- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -92,6 +92,7 @@ local COLORS = {
 -- ======================================
 local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
+local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 
 -- ======================================
 -- FORMAT
@@ -102,6 +103,12 @@ local function formatNum(n)
     elseif n>=1e6 then return string.format("%.1fM",n/1e6)
     elseif n>=1e3 then return string.format("%.1fK",n/1e3)
     else return tostring(n) end
+end
+
+local function formatExist(n)
+    if not n then return "0" end
+    local s = tostring(math.floor(n))
+    return s:reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
 end
 
 -- ======================================
@@ -126,6 +133,23 @@ local function getPetChance(petInfo)
         end
     end
     return "Unknown"
+end
+
+local function getExists(petName, variant)
+    local name = petName
+    if variant and variant ~= "Normal" then
+        name = variant .. " " .. petName
+    end
+    local ok, result = pcall(function()
+        return Remote:InvokeServer("GetExisting", name)
+    end)
+    if ok and result then
+        local num = tonumber(result) or 0
+        if num > 0 then
+            return formatExist(num)
+        end
+    end
+    return "N/A"
 end
 
 local function getVariant(ex)
@@ -375,13 +399,14 @@ task.spawn(function()
                                 local gems = formatNum(data.Gems or 0)
                                 local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
                                 local chance = getPetChance(info)
+                                local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variant) or nil)
                                 
                                 local embed = {
                                     title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
                                     color = color,
                                     fields = {
                                         {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
-                                        {name = "Pet Info", value = "Chance : "..chance, inline = false}
+                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
@@ -398,7 +423,7 @@ task.spawn(function()
                                     color = color,
                                     fields = {
                                         {name = "* User Info", value = "Name : Hidden", inline = false},
-                                        {name = "Pet Info", value = "Chance : "..chance, inline = false}
+                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
