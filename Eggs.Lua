@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (HATCH + 4X + INVENTORY + BOUNTY + RIFT)
+-- EGGS TAB (HATCH + 4X + DOODLE + INVENTORY + BOUNTY + RIFT)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -51,6 +51,7 @@ local EGG_LOCATIONS = {
     ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
     ["4x Luck Exotic Egg"] = Vector3.new(-3622, 161, 897),
+    ["Patriotic Egg"] = Vector3.new(34, 10, -11),
 }
 
 local EGG_WORLDS = {
@@ -68,6 +69,7 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
     ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
     ["Exotic Egg"] = "The Overworld", ["4x Luck Exotic Egg"] = "The Overworld",
+    ["Patriotic Egg"] = "The Overworld",
 }
 
 local ALL_EGG_NAMES = {}
@@ -106,6 +108,7 @@ local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
 local fourXEnabled = false
+local doodleEnabled = false
 local autoHatchEnabled = false
 local spamEEnabled = false
 local hideAnimEnabled = false
@@ -114,6 +117,7 @@ local bountyEnabled = false
 local riftEnabled = false
 
 local fourXThread = nil
+local doodleThread = nil
 local autoHatchThread = nil
 local spamEThread = nil
 local inventoryThread = nil
@@ -246,6 +250,44 @@ local function getTimeUntilReset()
     end
     return "Unknown"
 end
+
+-- ======================================
+-- UI - DOODLE EGG RIFT
+-- ======================================
+EggsTab:CreateSection("------- Doodle Egg (Rift Only) -------")
+
+EggsTab:CreateToggle({
+    Name = "Auto Doodle Egg Rift (TP + Hatch)",
+    CurrentValue = false,
+    Callback = function(v)
+        doodleEnabled = v
+        if v then
+            doodleThread = task.spawn(function()
+                while doodleEnabled do
+                    while getgenv().questActive and doodleEnabled do
+                        task.wait(1)
+                    end
+                    
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Doodle Egg"
+                    
+                    pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                    task.wait(0.5)
+                    pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                    
+                    getgenv().questActive = false
+                    getgenv().questEgg = nil
+                    
+                    task.wait(0.05)
+                end
+            end)
+        else
+            if doodleThread then task.cancel(doodleThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+        end
+    end
+})
 
 -- ======================================
 -- UI - 4X LUCK EXOTIC EGG
