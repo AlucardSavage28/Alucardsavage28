@@ -169,12 +169,6 @@ local function getRiftPosition(name)
                         bestRift = rift
                     end
                 end
-                if name == "Patriotic Egg" or name == "4x Luck Patriotic Egg" then
-                    if rift.Name:find("july4th") then
-                        bestRift = rift
-                        break
-                    end
-                end
             end
             
             if bestRift then
@@ -194,8 +188,23 @@ local function getRiftPosition(name)
     return nil
 end
 
--- Simple teleport for normal eggs (no rift remote calls)
 local function teleportToEgg(eggName)
+    -- Doodle Egg: always use rift teleport
+    if eggName == "Doodle Egg" then
+        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+        return true
+    end
+    
+    -- Patriotic Eggs: just fire rift teleports
+    if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
+        local riftNames = {"july4th-rift-1", "july4th-rift-2", "july4th-rift-3"}
+        for _, riftName in ipairs(riftNames) do
+            pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
+        end
+        return true
+    end
+    
+    -- Normal eggs: prefer rift CFrame, then normal CFrame
     local riftPos = getRiftPosition(eggName)
     if riftPos then
         local dist = getDistance(riftPos)
