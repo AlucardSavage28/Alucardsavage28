@@ -51,7 +51,6 @@ local EGG_LOCATIONS = {
     ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
     ["4x Luck Exotic Egg"] = Vector3.new(-3622, 161, 897),
-    ["Patriotic Egg"] = Vector3.new(34, 10, -11),
     ["4x Luck Patriotic Egg"] = Vector3.new(20, 9, -22),
 }
 
@@ -70,7 +69,7 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
     ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
     ["Exotic Egg"] = "The Overworld", ["4x Luck Exotic Egg"] = "The Overworld",
-    ["Patriotic Egg"] = "The Overworld", ["4x Luck Patriotic Egg"] = "The Overworld",
+    ["4x Luck Patriotic Egg"] = "The Overworld",
 }
 
 local ALL_EGG_NAMES = {}
@@ -189,28 +188,6 @@ local function getRiftPosition(name)
 end
 
 local function teleportToEgg(eggName)
-    -- Doodle Egg: always use rift teleport
-    if eggName == "Doodle Egg" then
-        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
-        return true
-    end
-    
-    -- Patriotic Eggs: fire rift teleports, wait, then CFrame fallback
-    if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
-        local riftNames = {"july4th-rift-1", "july4th-rift-2", "july4th-rift-3"}
-        for _, riftName in ipairs(riftNames) do
-            pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
-        end
-        task.wait(0.5)
-        local pos = EGG_LOCATIONS[eggName]
-        if pos then
-            local root = getRoot()
-            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-        end
-        return true
-    end
-    
-    -- Normal eggs: prefer rift CFrame, then normal CFrame
     local riftPos = getRiftPosition(eggName)
     if riftPos then
         local dist = getDistance(riftPos)
