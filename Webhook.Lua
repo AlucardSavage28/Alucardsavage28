@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER ONLY + ANIMATION TOGGLE)
+-- WEBHOOK TAB (SCANNER ONLY + ANIMATION TOGGLE + CHANCE/EXISTS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -104,9 +104,26 @@ local function formatNum(n)
     else return tostring(n) end
 end
 
+local function formatExist(n)
+    if not n then return "0" end
+    local s = tostring(math.floor(n))
+    return s:reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
+end
+
 -- ======================================
 -- PET EXTRA
 -- ======================================
+local function getPetChance(petInfo)
+    if petInfo.Chance then
+        if petInfo.Chance >= 1 then
+            return petInfo.Chance .. "%"
+        else
+            return "1/" .. formatExist(math.floor(1 / petInfo.Chance))
+        end
+    end
+    return "Unknown"
+end
+
 local function getVariant(ex)
     if ex.Shiny and ex.Mythic then return "ShinyMythic"
     elseif ex.Shiny then return "Shiny"
@@ -245,7 +262,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (ALL SOURCES - NO DUPLICATES)
+-- FULL INVENTORY SCANNER
 -- ======================================
 local knownPets = {}
 
@@ -295,6 +312,7 @@ task.spawn(function()
                             knownPets[pet.Id] = true
                             
                             if isSuper then
+                                -- Super Legendary (unchanged)
                                 local enchantNames = {}
                                 if pet.Enchants then
                                     for _, enchant in pairs(pet.Enchants) do
@@ -343,6 +361,7 @@ task.spawn(function()
                                 table.insert(publicQueue, {embeds = {publicEmbed}})
                                 processPublic()
                             else
+                                -- Regular rare pet
                                 local variant = "Normal"
                                 if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
                                 elseif pet.Shiny then variant = "Shiny"
@@ -353,12 +372,16 @@ task.spawn(function()
                                 local coins = formatNum(data.Coins or 0)
                                 local gems = formatNum(data.Gems or 0)
                                 local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
+                                local chance = getPetChance(info)
+                                local existStr = info.Exists and formatExist(info.Exists) or "Unknown"
                                 
+                                -- Your own webhook (full stats + pet info)
                                 local embed = {
                                     title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
                                     color = color,
                                     fields = {
-                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false}
+                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
+                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
@@ -370,11 +393,13 @@ task.spawn(function()
                                 })
                                 processHatch()
                                 
+                                -- Public webhook (Hidden name + pet info only)
                                 local publicEmbed = {
                                     title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
                                     color = color,
                                     fields = {
-                                        {name = "* User Info", value = "Name : Hidden", inline = false}
+                                        {name = "* User Info", value = "Name : Hidden", inline = false},
+                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
@@ -391,7 +416,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- ANIMATION TOGGLE (NO HATCH DETECTION)
+-- ANIMATION TOGGLE
 -- ======================================
 local success, mod = pcall(function()
     return require(ReplicatedStorage.Client.Effects.HatchEgg)
