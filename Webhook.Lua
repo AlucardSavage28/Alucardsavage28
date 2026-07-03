@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS)
+-- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -104,12 +104,6 @@ local function formatNum(n)
     else return tostring(n) end
 end
 
-local function formatExist(n)
-    if not n then return "0" end
-    local s = tostring(math.floor(n))
-    return s:reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
-end
-
 -- ======================================
 -- PET EXTRA
 -- ======================================
@@ -132,16 +126,6 @@ local function getPetChance(petInfo)
         end
     end
     return "Unknown"
-end
-
-local function getExists(petName)
-    local count = 0
-    for name, _ in pairs(Pets) do
-        if name == petName then
-            count = count + 1
-        end
-    end
-    return count > 0 and formatExist(count) or "N/A"
 end
 
 local function getVariant(ex)
@@ -391,14 +375,13 @@ task.spawn(function()
                                 local gems = formatNum(data.Gems or 0)
                                 local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
                                 local chance = getPetChance(info)
-                                local existStr = getExists(pet.Name)
                                 
                                 local embed = {
                                     title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
                                     color = color,
                                     fields = {
                                         {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
-                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
+                                        {name = "Pet Info", value = "Chance : "..chance, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
@@ -415,7 +398,7 @@ task.spawn(function()
                                     color = color,
                                     fields = {
                                         {name = "* User Info", value = "Name : Hidden", inline = false},
-                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
+                                        {name = "Pet Info", value = "Chance : "..chance, inline = false}
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
