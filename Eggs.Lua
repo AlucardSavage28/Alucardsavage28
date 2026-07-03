@@ -394,11 +394,11 @@ EggsTab:CreateToggle({
                     
                     task.wait(3)
                     
-                    pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
-                    task.wait(1)
-                    
                     while doodleEnabled do
                         if getgenv().questEgg ~= "Doodle Egg" then break end
+                        
+                        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                        task.wait(0.3)
                         
                         local riftExists = false
                         local riftFolder = workspace:FindFirstChild("Rendered")
