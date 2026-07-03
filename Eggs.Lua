@@ -169,6 +169,7 @@ local function getRiftPosition(name)
                         bestRift = rift
                     end
                 end
+                -- Also check patriotic rifts
                 if name == "Patriotic Egg" or name == "4x Luck Patriotic Egg" then
                     if rift.Name:find("july4th") then
                         bestRift = rift
@@ -195,20 +196,14 @@ local function getRiftPosition(name)
 end
 
 local function teleportToEgg(eggName)
-    local riftPos = getRiftPosition(eggName)
-    local normalPos = EGG_LOCATIONS[eggName]
-    
-    -- Already very close to rift? Skip
-    if riftPos then
-        if getDistance(riftPos) <= 5 then return true end
+    -- Doodle Egg: always use rift teleport
+    if eggName == "Doodle Egg" then
+        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+        task.wait(0.5)
+        return true
     end
     
-    -- Already very close to normal pos (no rift)? Skip
-    if not riftPos and normalPos then
-        if getDistance(normalPos) <= 5 then return true end
-    end
-    
-    -- Need to teleport
+    -- Patriotic Eggs: try rift teleport first, then CFrame to position
     if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
         local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
         for _, riftName in ipairs(riftNames) do
@@ -217,37 +212,47 @@ local function teleportToEgg(eggName)
         end
         task.wait(0.5)
         
-        riftPos = getRiftPosition(eggName)
+        -- After rift teleport, check if we need CFrame correction
+        local riftPos = getRiftPosition(eggName)
         if riftPos then
+            local dist = getDistance(riftPos)
+            if dist > 20 then
+                local root = getRoot()
+                if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+            end
+        else
+            local pos = EGG_LOCATIONS[eggName]
+            if pos then
+                local dist = getDistance(pos)
+                if dist > 20 then
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+                end
+            end
+        end
+        return true
+    end
+    
+    -- Normal eggs: prefer rift CFrame, then normal CFrame
+    local riftPos = getRiftPosition(eggName)
+    if riftPos then
+        local dist = getDistance(riftPos)
+        if dist > 20 then
             local root = getRoot()
             if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-            return true
         end
-        
-        if normalPos then
+        return true
+    end
+    
+    local pos = EGG_LOCATIONS[eggName]
+    if pos then
+        local dist = getDistance(pos)
+        if dist > 20 then
             local root = getRoot()
-            if root then root.CFrame = CFrame.new(normalPos + Vector3.new(0, 5, 0)) end
+            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
         end
         return true
     end
-    
-    if eggName == "Doodle Egg" then
-        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
-        return true
-    end
-    
-    if riftPos then
-        local root = getRoot()
-        if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-        return true
-    end
-    
-    if normalPos then
-        local root = getRoot()
-        if root then root.CFrame = CFrame.new(normalPos + Vector3.new(0, 5, 0)) end
-        return true
-    end
-    
     return false
 end
 
@@ -487,7 +492,6 @@ EggsTab:CreateToggle({
                     end
                     
                     teleportToEgg(selectedEgg)
-                    task.wait(0.1)
                     pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -594,7 +598,6 @@ EggsTab:CreateToggle({
                     
                     refreshBountyLabels()
                     teleportToEgg(currentBountyEgg)
-                    task.wait(0.1)
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
