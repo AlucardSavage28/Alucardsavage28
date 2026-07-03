@@ -393,13 +393,33 @@ EggsTab:CreateToggle({
                     getgenv().questEgg = "Doodle Egg"
                     
                     pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
-                    task.wait(0.5)
-                    pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                    task.wait(1)
                     
-                    getgenv().questActive = false
-                    getgenv().questEgg = nil
+                    while doodleEnabled do
+                        local riftExists = false
+                        local riftFolder = workspace:FindFirstChild("Rendered")
+                        if riftFolder then
+                            riftFolder = riftFolder:FindFirstChild("Rifts")
+                            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then
+                                riftExists = true
+                            end
+                        end
+                        
+                        if not riftExists then
+                            getgenv().questActive = false
+                            getgenv().questEgg = nil
+                            break
+                        end
+                        
+                        if getgenv().questEgg ~= "Doodle Egg" then break end
+                        pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                        task.wait(0.05)
+                    end
+                    
                     task.wait(0.1)
                 end
+                getgenv().questActive = false
+                getgenv().questEgg = nil
             end)
         else
             if doodleThread then task.cancel(doodleThread) end
