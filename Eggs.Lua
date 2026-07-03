@@ -198,19 +198,17 @@ local function teleportToEgg(eggName)
     local riftPos = getRiftPosition(eggName)
     local normalPos = EGG_LOCATIONS[eggName]
     
-    -- Already near a rift? Skip teleport
+    -- Already very close to rift? Skip
     if riftPos then
-        local dist = getDistance(riftPos)
-        if dist <= 15 then return true end
+        if getDistance(riftPos) <= 5 then return true end
     end
     
-    -- Already near normal position (and no rift exists)? Skip teleport
+    -- Already very close to normal pos (no rift)? Skip
     if not riftPos and normalPos then
-        local dist = getDistance(normalPos)
-        if dist <= 15 then return true end
+        if getDistance(normalPos) <= 5 then return true end
     end
     
-    -- Not nearby, need to teleport
+    -- Need to teleport
     if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
         local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
         for _, riftName in ipairs(riftNames) do
@@ -238,14 +236,12 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    -- Normal egg: prefer rift
     if riftPos then
         local root = getRoot()
         if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
         return true
     end
     
-    -- Fallback to normal position
     if normalPos then
         local root = getRoot()
         if root then root.CFrame = CFrame.new(normalPos + Vector3.new(0, 5, 0)) end
@@ -491,6 +487,7 @@ EggsTab:CreateToggle({
                     end
                     
                     teleportToEgg(selectedEgg)
+                    task.wait(0.1)
                     pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -597,6 +594,7 @@ EggsTab:CreateToggle({
                     
                     refreshBountyLabels()
                     teleportToEgg(currentBountyEgg)
+                    task.wait(0.1)
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
