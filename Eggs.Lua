@@ -195,11 +195,17 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    -- Patriotic Eggs: just fire rift teleports
+    -- Patriotic Eggs: fire rift teleports, wait, then CFrame fallback
     if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
         local riftNames = {"july4th-rift-1", "july4th-rift-2", "july4th-rift-3"}
         for _, riftName in ipairs(riftNames) do
             pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
+        end
+        task.wait(0.5)
+        local pos = EGG_LOCATIONS[eggName]
+        if pos then
+            local root = getRoot()
+            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
         end
         return true
     end
