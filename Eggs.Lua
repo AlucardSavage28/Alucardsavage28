@@ -169,7 +169,6 @@ local function getRiftPosition(name)
                         bestRift = rift
                     end
                 end
-                -- Also check patriotic rifts
                 if name == "Patriotic Egg" or name == "4x Luck Patriotic Egg" then
                     if rift.Name:find("july4th") then
                         bestRift = rift
@@ -196,14 +195,12 @@ local function getRiftPosition(name)
 end
 
 local function teleportToEgg(eggName)
-    -- Doodle Egg: always use rift teleport
     if eggName == "Doodle Egg" then
         pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
         task.wait(0.5)
         return true
     end
     
-    -- Patriotic Eggs: try rift teleport first, then CFrame to position
     if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
         local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
         for _, riftName in ipairs(riftNames) do
@@ -212,7 +209,6 @@ local function teleportToEgg(eggName)
         end
         task.wait(0.5)
         
-        -- After rift teleport, check if we need CFrame correction
         local riftPos = getRiftPosition(eggName)
         if riftPos then
             local dist = getDistance(riftPos)
@@ -233,7 +229,6 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    -- Normal eggs: prefer rift CFrame, then normal CFrame
     local riftPos = getRiftPosition(eggName)
     if riftPos then
         local dist = getDistance(riftPos)
@@ -493,7 +488,7 @@ EggsTab:CreateToggle({
                     
                     teleportToEgg(selectedEgg)
                     pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
-                    task.wait(0.05)
+                    task.wait(0.01)
                 end
             end)
         else
