@@ -186,6 +186,16 @@ local function getRiftPosition(name)
 end
 
 local function teleportToEgg(eggName)
+    -- Special handling for Patriotic Egg rifts
+    if eggName == "Patriotic Egg" then
+        local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
+        for _, riftName in ipairs(riftNames) do
+            pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
+            task.wait(0.3)
+        end
+        return true
+    end
+    
     local riftPos = getRiftPosition(eggName)
     if riftPos then
         local dist = getDistance(riftPos)
@@ -252,44 +262,6 @@ local function getTimeUntilReset()
 end
 
 -- ======================================
--- UI - DOODLE EGG RIFT
--- ======================================
-EggsTab:CreateSection("------- Doodle Egg (Rift Only) -------")
-
-EggsTab:CreateToggle({
-    Name = "Auto Doodle Egg Rift (TP + Hatch)",
-    CurrentValue = false,
-    Callback = function(v)
-        doodleEnabled = v
-        if v then
-            doodleThread = task.spawn(function()
-                while doodleEnabled do
-                    while getgenv().questActive and doodleEnabled do
-                        task.wait(1)
-                    end
-                    
-                    getgenv().questActive = true
-                    getgenv().questEgg = "Doodle Egg"
-                    
-                    pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
-                    task.wait(0.5)
-                    pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
-                    
-                    getgenv().questActive = false
-                    getgenv().questEgg = nil
-                    
-                    task.wait(0.05)
-                end
-            end)
-        else
-            if doodleThread then task.cancel(doodleThread) end
-            getgenv().questActive = false
-            getgenv().questEgg = nil
-        end
-    end
-})
-
--- ======================================
 -- UI - 4X LUCK EXOTIC EGG
 -- ======================================
 EggsTab:CreateSection("------- 4x Luck Exotic Egg -------")
@@ -353,6 +325,44 @@ EggsTab:CreateToggle({
             end)
         else
             if fourXThread then task.cancel(fourXThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+        end
+    end
+})
+
+-- ======================================
+-- UI - DOODLE EGG RIFT
+-- ======================================
+EggsTab:CreateSection("------- Doodle Egg (Rift Only) -------")
+
+EggsTab:CreateToggle({
+    Name = "Auto Doodle Egg Rift (TP + Hatch)",
+    CurrentValue = false,
+    Callback = function(v)
+        doodleEnabled = v
+        if v then
+            doodleThread = task.spawn(function()
+                while doodleEnabled do
+                    while getgenv().questActive and doodleEnabled do
+                        task.wait(1)
+                    end
+                    
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Doodle Egg"
+                    
+                    pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                    task.wait(0.5)
+                    pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                    
+                    getgenv().questActive = false
+                    getgenv().questEgg = nil
+                    
+                    task.wait(0.1)
+                end
+            end)
+        else
+            if doodleThread then task.cancel(doodleThread) end
             getgenv().questActive = false
             getgenv().questEgg = nil
         end
