@@ -169,6 +169,12 @@ local function getRiftPosition(name)
                         bestRift = rift
                     end
                 end
+                if name == "Patriotic Egg" or name == "4x Luck Patriotic Egg" then
+                    if rift.Name:find("july4th") then
+                        bestRift = rift
+                        break
+                    end
+                end
             end
             
             if bestRift then
@@ -189,14 +195,24 @@ local function getRiftPosition(name)
 end
 
 local function teleportToEgg(eggName)
-    -- Try rift teleport for Patriotic/Doodle eggs
     if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
         local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
         for _, riftName in ipairs(riftNames) do
             pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
             task.wait(0.3)
         end
-        -- Also try normal position
+        task.wait(0.5)
+        
+        local riftPos = getRiftPosition(eggName)
+        if riftPos then
+            local dist = getDistance(riftPos)
+            if dist > 20 then
+                local root = getRoot()
+                if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+            end
+            return true
+        end
+        
         local pos = EGG_LOCATIONS[eggName]
         if pos then
             local root = getRoot()
@@ -210,7 +226,6 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    -- Normal egg teleport
     local riftPos = getRiftPosition(eggName)
     if riftPos then
         local dist = getDistance(riftPos)
@@ -273,31 +288,10 @@ local function getTimeUntilReset()
 end
 
 -- ======================================
--- UI - HATCH EGG
+-- UI - SPECIAL EGGS (4X + DOODLE)
 -- ======================================
-EggsTab:CreateSection("------- Hatch Egg -------")
+EggsTab:CreateSection("------- Special Eggs -------")
 
-EggsTab:CreateDropdown({
-    Name = "Select Egg",
-    CurrentOption = {"Common Egg"},
-    Options = ALL_EGG_NAMES,
-    Callback = function(v)
-        selectedEgg = v[1] or v
-    end
-})
-
-EggsTab:CreateInput({
-    Name = "Hatch Amount",
-    CurrentValue = tostring(HATCH_AMOUNT),
-    PlaceholderText = "12",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        local n = tonumber(v)
-        if n then HATCH_AMOUNT = n end
-    end
-})
-
--- 4x Patriotic
 EggsTab:CreateToggle({
     Name = "Auto 4x Patriotic",
     CurrentValue = false,
@@ -359,9 +353,8 @@ EggsTab:CreateToggle({
     end
 })
 
--- 4x Exotic
 EggsTab:CreateToggle({
-    Name = "Auto 4x Luck Exotic Egg (Admin Spawn)",
+    Name = "Auto 4x Exotic",
     CurrentValue = false,
     Callback = function(v)
         fourXEnabled = v
@@ -421,9 +414,8 @@ EggsTab:CreateToggle({
     end
 })
 
--- Doodle Rift
 EggsTab:CreateToggle({
-    Name = "Auto Doodle Egg Rift (TP + Hatch)",
+    Name = "Auto Doodle Rift",
     CurrentValue = false,
     Callback = function(v)
         doodleEnabled = v
@@ -454,7 +446,31 @@ EggsTab:CreateToggle({
     end
 })
 
--- Auto Hatch
+-- ======================================
+-- UI - HATCH SELECTED EGG
+-- ======================================
+EggsTab:CreateSection("------- Hatch Selected Egg -------")
+
+EggsTab:CreateDropdown({
+    Name = "Select Egg",
+    CurrentOption = {"Common Egg"},
+    Options = ALL_EGG_NAMES,
+    Callback = function(v)
+        selectedEgg = v[1] or v
+    end
+})
+
+EggsTab:CreateInput({
+    Name = "Hatch Amount",
+    CurrentValue = tostring(HATCH_AMOUNT),
+    PlaceholderText = "12",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        local n = tonumber(v)
+        if n then HATCH_AMOUNT = n end
+    end
+})
+
 EggsTab:CreateToggle({
     Name = "Auto Hatch (Teleport + Hatch)",
     CurrentValue = false,
