@@ -50,6 +50,7 @@ local EGG_LOCATIONS = {
     ["Popcorn Egg"] = Vector3.new(-3601, 162, 882),
     ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
+    ["Patriotic Egg"] = Vector3.new(34, 10, -11),
     ["4x Luck Exotic Egg"] = Vector3.new(-3622, 161, 897),
     ["4x Luck Patriotic Egg"] = Vector3.new(20, 9, -22),
 }
@@ -68,8 +69,8 @@ local EGG_WORLDS = {
     ["Hell Egg"] = "The Overworld", ["Secret Egg"] = "The Overworld",
     ["Showman Egg"] = "The Overworld",
     ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
-    ["Exotic Egg"] = "The Overworld", ["4x Luck Exotic Egg"] = "The Overworld",
-    ["4x Luck Patriotic Egg"] = "The Overworld",
+    ["Exotic Egg"] = "The Overworld", ["Patriotic Egg"] = "The Overworld",
+    ["4x Luck Exotic Egg"] = "The Overworld", ["4x Luck Patriotic Egg"] = "The Overworld",
 }
 
 local ALL_EGG_NAMES = {}
