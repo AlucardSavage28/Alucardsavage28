@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (CARNIVAL CHEST + REBIRTH + UPGRADE)
+-- EVENT TAB (CARNIVAL CHEST + SHOP + 7DAYS + REBIRTH + UPGRADE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -22,6 +22,10 @@ end
 -- ======================================
 local carnivalRunning = false
 local carnivalThread = nil
+local shopRunning = false
+local shopThread = nil
+local loginRunning = false
+local loginThread = nil
 local rebirthRunning = false
 local rebirthThread = nil
 local upgradeRunning = false
@@ -46,6 +50,52 @@ EventTab:CreateToggle({
             end)
         else
             if carnivalThread then task.cancel(carnivalThread) end
+        end
+    end
+})
+
+-- ======================================
+-- UI - CARNIVAL SHOP
+-- ======================================
+EventTab:CreateSection("Carnival Shop")
+
+EventTab:CreateToggle({
+    Name = "Buy Shadow Crystal with Carnival Coin",
+    CurrentValue = false,
+    Callback = function(v)
+        shopRunning = v
+        if v then
+            shopThread = task.spawn(function()
+                while shopRunning do
+                    pcall(function() RE:FireServer("BuyShopItem", "carnival-shop", 2, true) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if shopThread then task.cancel(shopThread) end
+        end
+    end
+})
+
+-- ======================================
+-- UI - 7DAYS LOGIN
+-- ======================================
+EventTab:CreateSection("7Days Login")
+
+EventTab:CreateToggle({
+    Name = "Auto Claim Daily Login",
+    CurrentValue = false,
+    Callback = function(v)
+        loginRunning = v
+        if v then
+            loginThread = task.spawn(function()
+                while loginRunning do
+                    pcall(function() RE:FireServer("July4thEventLoginsClaim") end)
+                    task.wait(86400)
+                end
+            end)
+        else
+            if loginThread then task.cancel(loginThread) end
         end
     end
 })
