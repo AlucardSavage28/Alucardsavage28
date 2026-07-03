@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER ONLY + ANIMATION TOGGLE + CHANCE/EXISTS)
+-- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -115,13 +115,33 @@ end
 -- ======================================
 local function getPetChance(petInfo)
     if petInfo.Chance then
-        if petInfo.Chance >= 1 then
-            return petInfo.Chance .. "%"
-        else
-            return "1/" .. formatExist(math.floor(1 / petInfo.Chance))
+        local chance = tonumber(petInfo.Chance) or 0
+        if chance >= 1 then
+            return chance .. "%"
+        elseif chance > 0 then
+            local oneIn = 100 / chance
+            if oneIn >= 1e9 then
+                return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
+            elseif oneIn >= 1e6 then
+                return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
+            elseif oneIn >= 1e3 then
+                return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
+            else
+                return "1/" .. string.format("%.0f", oneIn)
+            end
         end
     end
     return "Unknown"
+end
+
+local function getExists(petName)
+    local count = 0
+    for name, _ in pairs(Pets) do
+        if name == petName then
+            count = count + 1
+        end
+    end
+    return count > 0 and formatExist(count) or "N/A"
 end
 
 local function getVariant(ex)
@@ -312,7 +332,6 @@ task.spawn(function()
                             knownPets[pet.Id] = true
                             
                             if isSuper then
-                                -- Super Legendary (unchanged)
                                 local enchantNames = {}
                                 if pet.Enchants then
                                     for _, enchant in pairs(pet.Enchants) do
@@ -361,7 +380,6 @@ task.spawn(function()
                                 table.insert(publicQueue, {embeds = {publicEmbed}})
                                 processPublic()
                             else
-                                -- Regular rare pet
                                 local variant = "Normal"
                                 if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
                                 elseif pet.Shiny then variant = "Shiny"
@@ -373,9 +391,8 @@ task.spawn(function()
                                 local gems = formatNum(data.Gems or 0)
                                 local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
                                 local chance = getPetChance(info)
-                                local existStr = info.Exists and formatExist(info.Exists) or "Unknown"
+                                local existStr = getExists(pet.Name)
                                 
-                                -- Your own webhook (full stats + pet info)
                                 local embed = {
                                     title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
                                     color = color,
@@ -393,7 +410,6 @@ task.spawn(function()
                                 })
                                 processHatch()
                                 
-                                -- Public webhook (Hidden name + pet info only)
                                 local publicEmbed = {
                                     title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
                                     color = color,
