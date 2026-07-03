@@ -195,6 +195,22 @@ local function getRiftPosition(name)
 end
 
 local function teleportToEgg(eggName)
+    local riftPos = getRiftPosition(eggName)
+    local normalPos = EGG_LOCATIONS[eggName]
+    
+    -- Already near a rift? Skip teleport
+    if riftPos then
+        local dist = getDistance(riftPos)
+        if dist <= 15 then return true end
+    end
+    
+    -- Already near normal position (and no rift exists)? Skip teleport
+    if not riftPos and normalPos then
+        local dist = getDistance(normalPos)
+        if dist <= 15 then return true end
+    end
+    
+    -- Not nearby, need to teleport
     if eggName == "Patriotic Egg" or eggName == "4x Luck Patriotic Egg" then
         local riftNames = {"july4th-rift-3", "july4th-rift-2", "july4th-rift-1"}
         for _, riftName in ipairs(riftNames) do
@@ -203,20 +219,16 @@ local function teleportToEgg(eggName)
         end
         task.wait(0.5)
         
-        local riftPos = getRiftPosition(eggName)
+        riftPos = getRiftPosition(eggName)
         if riftPos then
-            local dist = getDistance(riftPos)
-            if dist > 20 then
-                local root = getRoot()
-                if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-            end
+            local root = getRoot()
+            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
             return true
         end
         
-        local pos = EGG_LOCATIONS[eggName]
-        if pos then
+        if normalPos then
             local root = getRoot()
-            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+            if root then root.CFrame = CFrame.new(normalPos + Vector3.new(0, 5, 0)) end
         end
         return true
     end
@@ -226,25 +238,20 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    local riftPos = getRiftPosition(eggName)
+    -- Normal egg: prefer rift
     if riftPos then
-        local dist = getDistance(riftPos)
-        if dist > 20 then
-            local root = getRoot()
-            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-        end
+        local root = getRoot()
+        if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
         return true
     end
     
-    local pos = EGG_LOCATIONS[eggName]
-    if pos then
-        local dist = getDistance(pos)
-        if dist > 20 then
-            local root = getRoot()
-            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-        end
+    -- Fallback to normal position
+    if normalPos then
+        local root = getRoot()
+        if root then root.CFrame = CFrame.new(normalPos + Vector3.new(0, 5, 0)) end
         return true
     end
+    
     return false
 end
 
