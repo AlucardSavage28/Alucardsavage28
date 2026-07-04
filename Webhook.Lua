@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS)
+-- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + SPECIAL EVENTS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -440,6 +440,60 @@ task.spawn(function()
 end)
 
 -- ======================================
+-- SPECIAL EVENTS SCANNER (4X + DOODLE)
+-- ======================================
+local was4xPatrioticActive = false
+local wasDoodleRiftActive = false
+
+task.spawn(function()
+    while true do
+        task.wait(10)
+        
+        local fourXFound = false
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
+                fourXFound = true
+                break
+            end
+        end
+        
+        local riftFolder = workspace:FindFirstChild("Rendered")
+        local doodleRiftFound = false
+        if riftFolder then
+            riftFolder = riftFolder:FindFirstChild("Rifts")
+            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then
+                doodleRiftFound = true
+            end
+        end
+        
+        if (fourXFound ~= was4xPatrioticActive) or (doodleRiftFound ~= wasDoodleRiftActive) then
+            if fourXFound or doodleRiftFound then
+                local payload = {
+                    content = "<@"..DISCORD_USER_ID.."> Rare Egg Has Spawned!",
+                    embeds = {{
+                        title = "Rare Egg Has Spawned!",
+                        description = "4x Patriotic Egg : **" .. tostring(fourXFound) .. "**\nDoodle Rift : **" .. tostring(doodleRiftFound) .. "**",
+                        color = 0xFF4500,
+                        footer = {text = "Good Luck Hatching! | Renoa Hub"}
+                    }}
+                }
+                pcall(function()
+                    request({
+                        Url = HATCH_WEBHOOK_URL,
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = HttpService:JSONEncode(payload)
+                    })
+                end)
+            end
+        end
+        
+        was4xPatrioticActive = fourXFound
+        wasDoodleRiftActive = doodleRiftFound
+    end
+end)
+
+-- ======================================
 -- ANIMATION TOGGLE
 -- ======================================
 local success, mod = pcall(function()
@@ -470,6 +524,7 @@ WebhookTab:CreateToggle({
 WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary")
+WebhookTab:CreateLabel("Alerts: 4x Patriotic Egg + Doodle Rift")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
