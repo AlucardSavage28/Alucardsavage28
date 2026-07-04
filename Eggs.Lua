@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (HATCH + DOODLE + INVENTORY + BOUNTY + RIFT)
+-- EGGS TAB (HATCH + 4X + DOODLE + INVENTORY + BOUNTY + RIFT)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -50,6 +50,8 @@ local EGG_LOCATIONS = {
     ["Popcorn Egg"] = Vector3.new(-3601, 162, 882),
     ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
+    ["Patriotic Egg"] = Vector3.new(34, 10, -11),
+    ["4x Luck Patriotic Egg"] = Vector3.new(20, 9, -22),
 }
 
 local EGG_WORLDS = {
@@ -67,6 +69,7 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
     ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
     ["Exotic Egg"] = "The Overworld",
+    ["Patriotic Egg"] = "The Overworld", ["4x Luck Patriotic Egg"] = "The Overworld",
 }
 
 local ALL_EGG_NAMES = {}
@@ -104,6 +107,7 @@ local currentBountyPet = "Unknown"
 local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
+local fourXPatrioticEnabled = false
 local doodleEnabled = false
 local autoHatchEnabled = false
 local spamEEnabled = false
@@ -112,6 +116,7 @@ local inventoryEnabled = false
 local bountyEnabled = false
 local riftEnabled = false
 
+local fourXPatrioticThread = nil
 local doodleThread = nil
 local autoHatchThread = nil
 local spamEThread = nil
@@ -186,9 +191,7 @@ local function teleportToEgg(eggName)
         local dist = getDistance(riftPos)
         if dist > 20 then
             local root = getRoot()
-            if root then
-                root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0))
-            end
+            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
         end
         return true
     end
@@ -198,9 +201,7 @@ local function teleportToEgg(eggName)
         local dist = getDistance(pos)
         if dist > 20 then
             local root = getRoot()
-            if root then
-                root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
-            end
+            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
         end
         return true
     end
@@ -247,9 +248,70 @@ local function getTimeUntilReset()
 end
 
 -- ======================================
--- UI - DOODLE RIFT
+-- UI - SPECIAL EGGS
 -- ======================================
-EggsTab:CreateSection("------- Doodle Rift -------")
+EggsTab:CreateSection("------- Special Eggs -------")
+
+EggsTab:CreateToggle({
+    Name = "Auto 4x Patriotic",
+    CurrentValue = false,
+    Callback = function(v)
+        fourXPatrioticEnabled = v
+        if v then
+            fourXPatrioticThread = task.spawn(function()
+                while fourXPatrioticEnabled do
+                    while getgenv().questActive and fourXPatrioticEnabled do
+                        task.wait(0.5)
+                    end
+                    
+                    local eggFound = false
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
+                            eggFound = true
+                            getgenv().questActive = true
+                            getgenv().questEgg = "4x Luck Patriotic Egg"
+                            
+                            local pos = obj:GetPivot().Position
+                            local root = getRoot()
+                            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+                            
+                            while fourXPatrioticEnabled and eggFound do
+                                if getgenv().questEgg ~= "4x Luck Patriotic Egg" then break end
+                                pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
+                                task.wait(0.05)
+                                
+                                eggFound = false
+                                for _, obj2 in ipairs(workspace:GetDescendants()) do
+                                    if obj2.Name == "4x Luck Patriotic Egg" and obj2:IsA("Model") then
+                                        eggFound = true; break
+                                    end
+                                end
+                            end
+                            
+                            if not eggFound or getgenv().questEgg ~= "4x Luck Patriotic Egg" then
+                                getgenv().questActive = false
+                                getgenv().questEgg = nil
+                            end
+                            break
+                        end
+                    end
+                    
+                    if not eggFound then
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
+                    end
+                    task.wait(0.05)
+                end
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end)
+        else
+            if fourXPatrioticThread then task.cancel(fourXPatrioticThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+        end
+    end
+})
 
 EggsTab:CreateToggle({
     Name = "Auto Doodle Rift",
@@ -287,9 +349,9 @@ EggsTab:CreateToggle({
 })
 
 -- ======================================
--- UI - HATCH EGG
+-- UI - HATCH SELECTED EGG
 -- ======================================
-EggsTab:CreateSection("------- Hatch Egg -------")
+EggsTab:CreateSection("------- Hatch Selected Egg -------")
 
 EggsTab:CreateDropdown({
     Name = "Select Egg",
@@ -324,9 +386,7 @@ EggsTab:CreateToggle({
                     end
                     
                     teleportToEgg(selectedEgg)
-                    pcall(function()
-                        Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT)
-                    end)
+                    pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
             end)
@@ -432,9 +492,7 @@ EggsTab:CreateToggle({
                     
                     refreshBountyLabels()
                     teleportToEgg(currentBountyEgg)
-                    pcall(function()
-                        Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT)
-                    end)
+                    pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
             end)
