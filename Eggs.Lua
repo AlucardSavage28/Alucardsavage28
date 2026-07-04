@@ -185,6 +185,17 @@ local function getRiftPosition(name)
     return nil
 end
 
+local function isDoodleRiftExists()
+    local riftFolder = workspace:FindFirstChild("Rendered")
+    if riftFolder then
+        riftFolder = riftFolder:FindFirstChild("Rifts")
+        if riftFolder and riftFolder:FindFirstChild("doodle-rift") then
+            return true
+        end
+    end
+    return false
+end
+
 local function teleportToEgg(eggName)
     local riftPos = getRiftPosition(eggName)
     if riftPos then
@@ -288,22 +299,14 @@ EggsTab:CreateToggle({
                                 end
                             end
                             
-                            if not eggFound or getgenv().questEgg ~= "4x Luck Patriotic Egg" then
-                                getgenv().questActive = false
-                                getgenv().questEgg = nil
-                            end
+                            getgenv().questActive = false
+                            getgenv().questEgg = nil
                             break
                         end
                     end
                     
-                    if not eggFound then
-                        getgenv().questActive = false
-                        getgenv().questEgg = nil
-                    end
                     task.wait(0.05)
                 end
-                getgenv().questActive = false
-                getgenv().questEgg = nil
             end)
         else
             if fourXPatrioticThread then task.cancel(fourXPatrioticThread) end
@@ -325,18 +328,23 @@ EggsTab:CreateToggle({
                         task.wait(1)
                     end
                     
-                    getgenv().questActive = true
-                    getgenv().questEgg = "Doodle Egg"
-                    
-                    while doodleEnabled and getgenv().questEgg == "Doodle Egg" do
+                    if isDoodleRiftExists() then
+                        getgenv().questActive = true
+                        getgenv().questEgg = "Doodle Egg"
+                        
                         pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
                         task.wait(0.5)
-                        pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
-                        task.wait(0.1)
+                        
+                        while doodleEnabled and isDoodleRiftExists() do
+                            if getgenv().questEgg ~= "Doodle Egg" then break end
+                            pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                            task.wait(0.05)
+                        end
+                        
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
                     end
                     
-                    getgenv().questActive = false
-                    getgenv().questEgg = nil
                     task.wait(0.1)
                 end
             end)
