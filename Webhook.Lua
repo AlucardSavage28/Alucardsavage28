@@ -51,6 +51,7 @@ end
 -- SETTINGS
 -- ======================================
 local hideUsername = false
+local rareEggNotify = true
 
 -- ======================================
 -- FILTER
@@ -449,6 +450,8 @@ task.spawn(function()
     while true do
         task.wait(10)
         
+        if not rareEggNotify then continue end
+        
         local fourXFound = false
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
@@ -518,6 +521,14 @@ WebhookTab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         hideUsername = v
+    end
+})
+
+WebhookTab:CreateToggle({
+    Name = "On/Off Rare Egg Notification",
+    CurrentValue = true,
+    Callback = function(v)
+        rareEggNotify = v
     end
 })
 
