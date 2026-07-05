@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + SPECIAL EVENTS)
+-- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + XL)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -176,6 +176,7 @@ local function getImage(petName, ex)
     if ex.Shiny and ex.Mythic then prefix = "shiny-mythic-"
     elseif ex.Shiny then prefix = "shiny-"
     elseif ex.Mythic then prefix = "mythic-" end
+    if ex.XL then prefix = "xl-" .. prefix end
     return "https://cdn.bgsi.gg/items/" .. prefix .. n .. ".png"
 end
 
@@ -291,7 +292,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER
+-- FULL INVENTORY SCANNER (WITH XL DETECTION)
 -- ======================================
 local knownPets = {}
 
@@ -304,7 +305,7 @@ if initData and initData.Pets then
             local info = Pets[pet.Name]
             if info and info.Rarity then
                 for r in pairs(TRACKED_RARITIES) do
-                    if info.Rarity:find(r) then
+                    if info.Rarity:find(r) or pet.XL then
                         knownPets[pet.Id] = true
                         break
                     end
@@ -322,116 +323,121 @@ task.spawn(function()
             for _, pet in pairs(data.Pets) do
                 if not knownPets[pet.Id] then
                     local info = Pets[pet.Name]
+                    local isXL = pet.XL
+                    
+                    -- Track XL pets even if rarity is lower
+                    local shouldTrack = false
                     if info and info.Rarity then
-                        local rarity = info.Rarity
-                        local isSuper = pet.Super
-                        
-                        if isSuper then rarity = "Super Legendary" end
-                        
-                        local tracked = false
                         for r in pairs(TRACKED_RARITIES) do
-                            if rarity:find(r) then
-                                tracked = true
-                                rarity = r
+                            if info.Rarity:find(r) then
+                                shouldTrack = true
                                 break
                             end
                         end
+                    end
+                    if isXL then shouldTrack = true end
+                    
+                    if shouldTrack then
+                        local rarity = info and info.Rarity or "Unknown"
+                        local isSuper = pet.Super
                         
-                        if tracked then
-                            knownPets[pet.Id] = true
-                            
-                            if isSuper then
-                                local enchantNames = {}
-                                if pet.Enchants then
-                                    for _, enchant in pairs(pet.Enchants) do
-                                        if enchant.Id then table.insert(enchantNames, enchant.Id) end
-                                    end
+                        if isSuper then rarity = "Super Legendary" end
+                        if isXL then rarity = "XL " .. rarity end
+                        
+                        knownPets[pet.Id] = true
+                        
+                        if isSuper then
+                            -- Super Legendary (unchanged)
+                            local enchantNames = {}
+                            if pet.Enchants then
+                                for _, enchant in pairs(pet.Enchants) do
+                                    if enchant.Id then table.insert(enchantNames, enchant.Id) end
                                 end
-                                local displayEnchants = {}
-                                for _, id in ipairs(enchantNames) do
-                                    table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
-                                end
-                                local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
-                                local variant = "Normal"
-                                if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
-                                elseif pet.Shiny then variant = "Shiny"
-                                elseif pet.Mythic then variant = "Mythic" end
-                                local displayName = hideUsername and "Hidden" or player.Name
-                                local coins = formatNum(data.Coins or 0)
-                                local gems = formatNum(data.Gems or 0)
-                                
-                                local embed = {
-                                    title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
-                                    color = 0x1E90FF,
-                                    fields = {
-                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems, inline = false},
-                                        {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
-                                    },
-                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                                }
-                                local pingMsg = "<@"..DISCORD_USER_ID..">"
-                                if displayStr ~= "None" then
-                                    pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!"
-                                end
-                                
-                                table.insert(hatchQueue, {content = pingMsg, embeds = {embed}})
-                                processHatch()
-                                
-                                local publicEmbed = {
-                                    title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
-                                    color = 0x1E90FF,
-                                    fields = {
-                                        {name = "* User Info", value = "Name : Hidden", inline = false},
-                                        {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
-                                    },
-                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                                }
-                                table.insert(publicQueue, {embeds = {publicEmbed}})
-                                processPublic()
-                            else
-                                local variant = "Normal"
-                                if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
-                                elseif pet.Shiny then variant = "Shiny"
-                                elseif pet.Mythic then variant = "Mythic" end
-                                local color = (COLORS[rarity] and COLORS[rarity][variant]) or 16777215
-                                local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
-                                local displayName = hideUsername and "Hidden" or player.Name
-                                local coins = formatNum(data.Coins or 0)
-                                local gems = formatNum(data.Gems or 0)
-                                local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
-                                local chance = getPetChance(info)
-                                local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variant) or nil)
-                                
-                                local embed = {
-                                    title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
-                                    color = color,
-                                    fields = {
-                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
-                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
-                                    },
-                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                                }
-                                if img then embed.thumbnail = {url = img} end
-                                
-                                table.insert(hatchQueue, {
-                                    content = (rarity == "Secret") and "<@"..DISCORD_USER_ID..">" or nil,
-                                    embeds = {embed}
-                                })
-                                processHatch()
-                                
-                                local publicEmbed = {
-                                    title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
-                                    color = color,
-                                    fields = {
-                                        {name = "* User Info", value = "Name : Hidden", inline = false},
-                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
-                                    },
-                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                                }
-                                if img then publicEmbed.thumbnail = {url = img} end
-                                table.insert(publicQueue, {embeds = {publicEmbed}})
-                                processPublic()
                             end
+                            local displayEnchants = {}
+                            for _, id in ipairs(enchantNames) do
+                                table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
+                            end
+                            local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
+                            local variant = "Normal"
+                            if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                            elseif pet.Shiny then variant = "Shiny"
+                            elseif pet.Mythic then variant = "Mythic" end
+                            local displayName = hideUsername and "Hidden" or player.Name
+                            local coins = formatNum(data.Coins or 0)
+                            local gems = formatNum(data.Gems or 0)
+                            
+                            local embed = {
+                                title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
+                                color = 0x1E90FF,
+                                fields = {
+                                    {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems, inline = false},
+                                    {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
+                                },
+                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                            }
+                            local pingMsg = "<@"..DISCORD_USER_ID..">"
+                            if displayStr ~= "None" then
+                                pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!"
+                            end
+                            
+                            table.insert(hatchQueue, {content = pingMsg, embeds = {embed}})
+                            processHatch()
+                            
+                            local publicEmbed = {
+                                title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
+                                color = 0x1E90FF,
+                                fields = {
+                                    {name = "* User Info", value = "Name : Hidden", inline = false},
+                                    {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
+                                },
+                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                            }
+                            table.insert(publicQueue, {embeds = {publicEmbed}})
+                            processPublic()
+                        else
+                            local variant = "Normal"
+                            if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                            elseif pet.Shiny then variant = "Shiny"
+                            elseif pet.Mythic then variant = "Mythic" end
+                            local color = (COLORS[rarity:gsub("XL ", "")] and COLORS[rarity:gsub("XL ", "")][variant]) or 16777215
+                            local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic, XL=isXL})
+                            local displayName = hideUsername and "Hidden" or player.Name
+                            local coins = formatNum(data.Coins or 0)
+                            local gems = formatNum(data.Gems or 0)
+                            local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
+                            local chance = info and getPetChance(info) or "Unknown"
+                            local existStr = "N/A"
+                            
+                            local embed = {
+                                title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
+                                color = color,
+                                fields = {
+                                    {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
+                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
+                                },
+                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                            }
+                            if img then embed.thumbnail = {url = img} end
+                            
+                            table.insert(hatchQueue, {
+                                content = (rarity:find("Secret")) and "<@"..DISCORD_USER_ID..">" or nil,
+                                embeds = {embed}
+                            })
+                            processHatch()
+                            
+                            local publicEmbed = {
+                                title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
+                                color = color,
+                                fields = {
+                                    {name = "* User Info", value = "Name : Hidden", inline = false},
+                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
+                                },
+                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                            }
+                            if img then publicEmbed.thumbnail = {url = img} end
+                            table.insert(publicQueue, {embeds = {publicEmbed}})
+                            processPublic()
                         end
                     end
                 end
@@ -441,7 +447,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- SPECIAL EVENTS SCANNER (4X + DOODLE)
+-- SPECIAL EVENTS SCANNER
 -- ======================================
 local was4xPatrioticActive = false
 local wasDoodleRiftActive = false
@@ -449,7 +455,6 @@ local wasDoodleRiftActive = false
 task.spawn(function()
     while true do
         task.wait(10)
-        
         if not rareEggNotify then continue end
         
         local fourXFound = false
@@ -534,7 +539,7 @@ WebhookTab:CreateToggle({
 
 WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
-WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary")
+WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Patriotic Egg + Doodle Rift")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
