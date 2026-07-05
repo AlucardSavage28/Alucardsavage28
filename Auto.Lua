@@ -175,6 +175,9 @@ AutoTab:CreateToggle({
     Callback = function(v)
         sellEnabled = v
         if v then
+            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            local returnCFrame = root and root.CFrame or nil
+            
             sellThread = task.spawn(function()
                 local needsSell = false
                 
@@ -189,7 +192,6 @@ AutoTab:CreateToggle({
                     
                     if needsSell and bubbles >= BUBBLE_CAP then
                         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                        local prevCFrame = root and root.CFrame or nil
                         
                         if root then root.CFrame = CFrame.new(SELL_POS) end
                         task.wait(0.2)
@@ -202,8 +204,8 @@ AutoTab:CreateToggle({
                             if after < before then break end
                         end
                         
-                        if prevCFrame and root then
-                            root.CFrame = prevCFrame
+                        if returnCFrame and root then
+                            root.CFrame = returnCFrame
                             root.Velocity = Vector3.zero
                             root.RotVelocity = Vector3.zero
                         end
