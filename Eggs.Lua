@@ -287,7 +287,20 @@ EggsTab:CreateToggle({
                             if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
                             
                             while fourXPatrioticEnabled and eggFound do
+                                if getgenv().questEgg ~= "4x Luck Patriotic Egg" then
+                                    while getgenv().questActive and getgenv().questEgg ~= "4x Luck Patriotic Egg" and fourXPatrioticEnabled do
+                                        task.wait(0.5)
+                                    end
+                                    if eggFound and fourXPatrioticEnabled then
+                                        getgenv().questActive = true
+                                        getgenv().questEgg = "4x Luck Patriotic Egg"
+                                    end
+                                end
+                                
+                                if not eggFound then break end
+                                if not fourXPatrioticEnabled then break end
                                 if getgenv().questEgg ~= "4x Luck Patriotic Egg" then break end
+                                
                                 pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
                                 task.wait(0.05)
                                 
@@ -336,7 +349,22 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                         
                         while doodleEnabled and isDoodleRiftExists() do
+                            if getgenv().questEgg ~= "Doodle Egg" then
+                                while getgenv().questActive and getgenv().questEgg ~= "Doodle Egg" and doodleEnabled do
+                                    task.wait(0.5)
+                                end
+                                if isDoodleRiftExists() and doodleEnabled then
+                                    getgenv().questActive = true
+                                    getgenv().questEgg = "Doodle Egg"
+                                    pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                                    task.wait(0.5)
+                                end
+                            end
+                            
+                            if not isDoodleRiftExists() then break end
+                            if not doodleEnabled then break end
                             if getgenv().questEgg ~= "Doodle Egg" then break end
+                            
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
