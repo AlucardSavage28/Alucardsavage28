@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (CARNIVAL CHEST + SHOP + 7DAYS + REBIRTH + UPGRADE)
+-- EVENT TAB (CARNIVAL CHEST + 7DAYS + REBIRTH + SHOP + UPGRADE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -22,12 +22,14 @@ end
 -- ======================================
 local carnivalRunning = false
 local carnivalThread = nil
-local shopRunning = false
-local shopThread = nil
 local loginRunning = false
 local loginThread = nil
 local rebirthRunning = false
 local rebirthThread = nil
+local shopRunning = false
+local shopThread = nil
+local koiXLRunning = false
+local koiXLThread = nil
 local upgradeRunning = false
 local upgradeThread = nil
 
@@ -50,29 +52,6 @@ EventTab:CreateToggle({
             end)
         else
             if carnivalThread then task.cancel(carnivalThread) end
-        end
-    end
-})
-
--- ======================================
--- UI - CARNIVAL SHOP
--- ======================================
-EventTab:CreateSection("Carnival Shop")
-
-EventTab:CreateToggle({
-    Name = "Buy Shadow Crystal with Carnival Coin",
-    CurrentValue = false,
-    Callback = function(v)
-        shopRunning = v
-        if v then
-            shopThread = task.spawn(function()
-                while shopRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "carnival-shop", 2, true) end)
-                    task.wait(1)
-                end
-            end)
-        else
-            if shopThread then task.cancel(shopThread) end
         end
     end
 })
@@ -119,6 +98,48 @@ EventTab:CreateToggle({
             end)
         else
             if rebirthThread then task.cancel(rebirthThread) end
+        end
+    end
+})
+
+-- ======================================
+-- UI - CARNIVAL SHOP
+-- ======================================
+EventTab:CreateSection("Carnival Shop")
+
+EventTab:CreateToggle({
+    Name = "Buy Shadow Crystal with Carnival Coin",
+    CurrentValue = false,
+    Callback = function(v)
+        shopRunning = v
+        if v then
+            shopThread = task.spawn(function()
+                while shopRunning do
+                    pcall(function() RE:FireServer("BuyShopItem", "carnival-shop", 2, true) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if shopThread then task.cancel(shopThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Carnival Koi and XL",
+    CurrentValue = false,
+    Callback = function(v)
+        koiXLRunning = v
+        if v then
+            koiXLThread = task.spawn(function()
+                while koiXLRunning do
+                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 9, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 10, false) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if koiXLThread then task.cancel(koiXLThread) end
         end
     end
 })
