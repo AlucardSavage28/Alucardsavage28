@@ -168,7 +168,7 @@ local function getVariantText(v)
 end
 
 -- ======================================
--- IMAGE (BG.SI CDN)
+-- IMAGE (BG.SI CDN) - NO XL PREFIX
 -- ======================================
 local function getImage(petName, ex)
     local n = petName:lower():gsub("%s+", "-"):gsub("[^%w%-]", "")
@@ -176,7 +176,6 @@ local function getImage(petName, ex)
     if ex.Shiny and ex.Mythic then prefix = "shiny-mythic-"
     elseif ex.Shiny then prefix = "shiny-"
     elseif ex.Mythic then prefix = "mythic-" end
-    if ex.XL then prefix = "xl-" .. prefix end
     return "https://cdn.bgsi.gg/items/" .. prefix .. n .. ".png"
 end
 
@@ -325,7 +324,6 @@ task.spawn(function()
                     local info = Pets[pet.Name]
                     local isXL = pet.XL
                     
-                    -- Track XL pets even if rarity is lower
                     local shouldTrack = false
                     if info and info.Rarity then
                         for r in pairs(TRACKED_RARITIES) do
@@ -347,7 +345,6 @@ task.spawn(function()
                         knownPets[pet.Id] = true
                         
                         if isSuper then
-                            -- Super Legendary (unchanged)
                             local enchantNames = {}
                             if pet.Enchants then
                                 for _, enchant in pairs(pet.Enchants) do
@@ -401,7 +398,7 @@ task.spawn(function()
                             elseif pet.Shiny then variant = "Shiny"
                             elseif pet.Mythic then variant = "Mythic" end
                             local color = (COLORS[rarity:gsub("XL ", "")] and COLORS[rarity:gsub("XL ", "")][variant]) or 16777215
-                            local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic, XL=isXL})
+                            local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
                             local displayName = hideUsername and "Hidden" or player.Name
                             local coins = formatNum(data.Coins or 0)
                             local gems = formatNum(data.Gems or 0)
