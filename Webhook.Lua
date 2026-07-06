@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + XL)
+-- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + XL + ALERTS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -291,7 +291,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (WITH XL + EXISTS)
+-- FULL INVENTORY SCANNER (XL ONLY FOR TRACKED RARITIES)
 -- ======================================
 local knownPets = {}
 
@@ -304,7 +304,7 @@ if initData and initData.Pets then
             local info = Pets[pet.Name]
             if info and info.Rarity then
                 for r in pairs(TRACKED_RARITIES) do
-                    if info.Rarity:find(r) or pet.XL then
+                    if info.Rarity:find(r) then
                         knownPets[pet.Id] = true
                         break
                     end
@@ -333,10 +333,9 @@ task.spawn(function()
                             end
                         end
                     end
-                    if isXL then shouldTrack = true end
                     
                     if shouldTrack then
-                        local rarity = info and info.Rarity or "Unknown"
+                        local rarity = info.Rarity
                         local isSuper = pet.Super
                         
                         if isSuper then rarity = "Super Legendary" end
@@ -444,14 +443,14 @@ task.spawn(function()
 end)
 
 -- ======================================
--- SPECIAL EVENTS SCANNER
+-- SPECIAL EVENTS SCANNER (ALERT ONCE PER SPAWN)
 -- ======================================
-local was4xPatrioticActive = false
-local wasDoodleRiftActive = false
+local fourXAlertSent = false
+local doodleAlertSent = false
 
 task.spawn(function()
     while true do
-        task.wait(10)
+        task.wait(15)
         if not rareEggNotify then continue end
         
         local fourXFound = false
@@ -471,30 +470,51 @@ task.spawn(function()
             end
         end
         
-        if (fourXFound ~= was4xPatrioticActive) or (doodleRiftFound ~= wasDoodleRiftActive) then
-            if fourXFound or doodleRiftFound then
-                local payload = {
-                    content = "<@"..DISCORD_USER_ID.."> Rare Egg Has Spawned!",
-                    embeds = {{
-                        title = "Rare Egg Has Spawned!",
-                        description = "4x Patriotic Egg : **" .. tostring(fourXFound) .. "**\nDoodle Rift : **" .. tostring(doodleRiftFound) .. "**",
-                        color = 0xFF4500,
-                        footer = {text = "Good Luck Hatching! | Renoa Hub"}
-                    }}
-                }
-                pcall(function()
-                    request({
-                        Url = HATCH_WEBHOOK_URL,
-                        Method = "POST",
-                        Headers = {["Content-Type"] = "application/json"},
-                        Body = HttpService:JSONEncode(payload)
-                    })
-                end)
-            end
+        if fourXFound and not fourXAlertSent then
+            fourXAlertSent = true
+            local payload = {
+                content = "<@"..DISCORD_USER_ID.."> 4x Patriotic Egg Has Spawned!",
+                embeds = {{
+                    title = "4x Patriotic Egg Spawned!",
+                    description = "Go hatch it now!",
+                    color = 0xFF4500,
+                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
+                }}
+            }
+            pcall(function()
+                request({
+                    Url = HATCH_WEBHOOK_URL,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode(payload)
+                })
+            end)
+        elseif not fourXFound then
+            fourXAlertSent = false
         end
         
-        was4xPatrioticActive = fourXFound
-        wasDoodleRiftActive = doodleRiftFound
+        if doodleRiftFound and not doodleAlertSent then
+            doodleAlertSent = true
+            local payload = {
+                content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!",
+                embeds = {{
+                    title = "Doodle Rift Appeared!",
+                    description = "Go summon and hatch!",
+                    color = 0xFF4500,
+                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
+                }}
+            }
+            pcall(function()
+                request({
+                    Url = HATCH_WEBHOOK_URL,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode(payload)
+                })
+            end)
+        elseif not doodleRiftFound then
+            doodleAlertSent = false
+        end
     end
 end)
 
