@@ -168,7 +168,7 @@ local function getVariantText(v)
 end
 
 -- ======================================
--- IMAGE (BG.SI CDN) - NO XL PREFIX
+-- IMAGE (BG.SI CDN)
 -- ======================================
 local function getImage(petName, ex)
     local n = petName:lower():gsub("%s+", "-"):gsub("[^%w%-]", "")
@@ -291,7 +291,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (WITH XL DETECTION)
+-- FULL INVENTORY SCANNER (WITH XL + EXISTS)
 -- ======================================
 local knownPets = {}
 
@@ -404,7 +404,7 @@ task.spawn(function()
                             local gems = formatNum(data.Gems or 0)
                             local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
                             local chance = info and getPetChance(info) or "Unknown"
-                            local existStr = "N/A"
+                            local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variant) or nil)
                             
                             local embed = {
                                 title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
