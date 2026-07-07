@@ -291,7 +291,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (XL ONLY FOR TRACKED RARITIES)
+-- FULL INVENTORY SCANNER
 -- ======================================
 local knownPets = {}
 
@@ -339,7 +339,6 @@ task.spawn(function()
                         local isSuper = pet.Super
                         
                         if isSuper then rarity = "Super Legendary" end
-                        if isXL then rarity = "XL " .. rarity end
                         
                         knownPets[pet.Id] = true
                         
@@ -393,20 +392,26 @@ task.spawn(function()
                             processPublic()
                         else
                             local variant = "Normal"
-                            if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                            if isXL and pet.Shiny and pet.Mythic then variant = "XL Shiny Mythic"
+                            elseif isXL and pet.Shiny then variant = "XL Shiny"
+                            elseif isXL and pet.Mythic then variant = "XL Mythic"
+                            elseif isXL then variant = "XL"
+                            elseif pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
                             elseif pet.Shiny then variant = "Shiny"
                             elseif pet.Mythic then variant = "Mythic" end
-                            local color = (COLORS[rarity:gsub("XL ", "")] and COLORS[rarity:gsub("XL ", "")][variant]) or 16777215
+                            local color = (COLORS[rarity] and COLORS[rarity][variant:gsub("^XL ", "")]) or 16777215
+                            if isXL then color = 0xFFA500 end
                             local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
                             local displayName = hideUsername and "Hidden" or player.Name
                             local coins = formatNum(data.Coins or 0)
                             local gems = formatNum(data.Gems or 0)
                             local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
                             local chance = info and getPetChance(info) or "Unknown"
-                            local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variant) or nil)
+                            local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variant:gsub("^XL ", "")) or nil)
+                            local displayRarity = isXL and ("XL " .. rarity) or rarity
                             
                             local embed = {
-                                title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
+                                title = "Congrats You Hatched A "..variant.." "..displayRarity.." "..pet.Name.."!",
                                 color = color,
                                 fields = {
                                     {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
@@ -423,7 +428,7 @@ task.spawn(function()
                             processHatch()
                             
                             local publicEmbed = {
-                                title = "Congrats You Hatched A "..variant.." "..rarity.." "..pet.Name.."!",
+                                title = "Congrats You Hatched A "..variant.." "..displayRarity.." "..pet.Name.."!",
                                 color = color,
                                 fields = {
                                     {name = "* User Info", value = "Name : Hidden", inline = false},
