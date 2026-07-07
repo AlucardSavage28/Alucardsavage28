@@ -284,9 +284,7 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                         
                         while doodleEnabled and isDoodleRiftExists() do
-                            if not doodleEnabled then break end
-                            if not isDoodleRiftExists() then break end
-                            
+                            if getgenv().questEgg ~= "Doodle Egg" then break end
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
@@ -306,7 +304,7 @@ EggsTab:CreateToggle({
     end
 })
 
--- 4X PATRIOTIC (Lower Priority)
+-- 4X PATRIOTIC (Lower Priority - waits for Doodle)
 EggsTab:CreateToggle({
     Name = "Auto 4x Patriotic",
     CurrentValue = false,
@@ -315,41 +313,38 @@ EggsTab:CreateToggle({
         if v then
             fourXPatrioticThread = task.spawn(function()
                 while fourXPatrioticEnabled do
-                    while getgenv().questActive and fourXPatrioticEnabled do
+                    while getgenv().questActive and getgenv().questEgg ~= "4x Luck Patriotic Egg" and fourXPatrioticEnabled do
                         task.wait(0.5)
                     end
                     
-                    if not isDoodleRiftExists() then
-                        local eggFound = false
-                        for _, obj in ipairs(workspace:GetDescendants()) do
-                            if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
-                                eggFound = true
-                                getgenv().questActive = true
-                                getgenv().questEgg = "4x Luck Patriotic Egg"
+                    local eggFound = false
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
+                            eggFound = true
+                            getgenv().questActive = true
+                            getgenv().questEgg = "4x Luck Patriotic Egg"
+                            
+                            local pos = obj:GetPivot().Position
+                            local root = getRoot()
+                            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+                            
+                            while fourXPatrioticEnabled and eggFound do
+                                if getgenv().questEgg ~= "4x Luck Patriotic Egg" then break end
                                 
-                                local pos = obj:GetPivot().Position
-                                local root = getRoot()
-                                if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+                                pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
+                                task.wait(0.05)
                                 
-                                while fourXPatrioticEnabled and eggFound do
-                                    if not fourXPatrioticEnabled then break end
-                                    if isDoodleRiftExists() then break end
-                                    
-                                    pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
-                                    task.wait(0.05)
-                                    
-                                    eggFound = false
-                                    for _, obj2 in ipairs(workspace:GetDescendants()) do
-                                        if obj2.Name == "4x Luck Patriotic Egg" and obj2:IsA("Model") then
-                                            eggFound = true; break
-                                        end
+                                eggFound = false
+                                for _, obj2 in ipairs(workspace:GetDescendants()) do
+                                    if obj2.Name == "4x Luck Patriotic Egg" and obj2:IsA("Model") then
+                                        eggFound = true; break
                                     end
                                 end
-                                
-                                getgenv().questActive = false
-                                getgenv().questEgg = nil
-                                break
                             end
+                            
+                            getgenv().questActive = false
+                            getgenv().questEgg = nil
+                            break
                         end
                     end
                     
