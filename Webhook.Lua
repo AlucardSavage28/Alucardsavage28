@@ -445,12 +445,12 @@ end)
 -- ======================================
 -- SPECIAL EVENTS SCANNER (ALERT ONCE PER SPAWN)
 -- ======================================
-local fourXAlertSent = false
-local doodleAlertSent = false
+local was4xPatrioticActive = false
+local wasDoodleRiftActive = false
 
 task.spawn(function()
     while true do
-        task.wait(15)
+        task.wait(10)
         if not rareEggNotify then continue end
         
         local fourXFound = false
@@ -470,8 +470,7 @@ task.spawn(function()
             end
         end
         
-        if fourXFound and not fourXAlertSent then
-            fourXAlertSent = true
+        if fourXFound and not was4xPatrioticActive then
             local payload = {
                 content = "<@"..DISCORD_USER_ID.."> 4x Patriotic Egg Has Spawned!",
                 embeds = {{
@@ -489,12 +488,9 @@ task.spawn(function()
                     Body = HttpService:JSONEncode(payload)
                 })
             end)
-        elseif not fourXFound then
-            fourXAlertSent = false
         end
         
-        if doodleRiftFound and not doodleAlertSent then
-            doodleAlertSent = true
+        if doodleRiftFound and not wasDoodleRiftActive then
             local payload = {
                 content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!",
                 embeds = {{
@@ -512,9 +508,10 @@ task.spawn(function()
                     Body = HttpService:JSONEncode(payload)
                 })
             end)
-        elseif not doodleRiftFound then
-            doodleAlertSent = false
         end
+        
+        was4xPatrioticActive = fourXFound
+        wasDoodleRiftActive = doodleRiftFound
     end
 end)
 
