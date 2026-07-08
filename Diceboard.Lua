@@ -1,3 +1,6 @@
+-- ================================================
+-- DICE BOARD TAB
+-- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 
@@ -112,27 +115,22 @@ local function loop()
         end
 
         local target, dist = getClosest(node, TILE_TYPES[targetTile])
-
-        local goldenAvailable = hasGoldenDice()
         local diceName = "Dice"
         local waitTime = 2.5
 
-        if goldenAvailable and dist <= 3 then
+        if hasGoldenDice() and dist <= 3 then
             diceName = "Golden Dice"
             waitTime = 1.5
         elseif dist >= 10 then
             diceName = "Giant Dice"
             waitTime = 4.5
-        else
-            diceName = "Dice"
-            waitTime = 2.5
         end
 
         local selected = selectDice(diceName)
         if not selected then
-            selectDice("Dice")
             diceName = "Dice"
             waitTime = 2.5
+            selectDice("Dice")
         end
 
         task.wait(0.3)
