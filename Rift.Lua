@@ -33,13 +33,6 @@ local chestLoop = false
 local eggThread = nil
 local chestThread = nil
 
--- ======================================
--- FUNCTIONS
--- ======================================
-local function getChestRiftKey(chestName)
-    return chestName:lower():gsub("%s+", "-")
-end
-
 -- =========================
 -- EGG RIFT
 -- =========================
@@ -141,10 +134,7 @@ RiftTab:CreateToggle({
                     
                     task.wait(3)
                     
-                    local riftKey = getChestRiftKey(selectedChest)
-                    pcall(function() Remote:FireServer("TeleportToRift", riftKey) end)
-                    task.wait(0.5)
-                    pcall(function() Remote:FireServer("UnlockRiftChest", riftKey, false) end)
+                    pcall(function() Remote:FireServer("ClaimChest", selectedChest, true) end)
                     
                     task.wait(1860)
                 end
