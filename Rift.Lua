@@ -21,7 +21,7 @@ local WORLD_EGGS = {
 }
 
 local WORLD_CHESTS = {
-    ["The Overworld"] = {"Golden Chest","Royal Chest","Super Chest","Obsidian Chest"},
+    ["The Overworld"] = {"Golden Chest","Royal Chest","Super Chest"},
     ["Minigame Paradise"] = {"Dice Chest"},
 }
 
@@ -39,36 +39,8 @@ local chestThread = nil
 -- ======================================
 -- FUNCTIONS
 -- ======================================
-local function getRoot()
-    local char = player.Character
-    if char then return char:FindFirstChild("HumanoidRootPart") end
-end
-
-local function getChestRiftPosition(chestName)
-    local key = chestName:lower():gsub("%s+", "-")
-    local riftFolder = workspace:FindFirstChild("Rendered")
-    if riftFolder then
-        riftFolder = riftFolder:FindFirstChild("Rifts")
-        if riftFolder then
-            local rift = riftFolder:FindFirstChild(key)
-            if rift then
-                local chest = rift:FindFirstChild("Chest")
-                if chest then
-                    for _, child in ipairs(chest:GetDescendants()) do
-                        if child:IsA("BasePart") then
-                            return child.Position
-                        end
-                    end
-                end
-                for _, child in ipairs(rift:GetDescendants()) do
-                    if child:IsA("BasePart") then
-                        return child.Position
-                    end
-                end
-            end
-        end
-    end
-    return nil
+local function getChestRiftKey(chestName)
+    return chestName:lower():gsub("%s+", "-")
 end
 
 -- =========================
@@ -174,21 +146,10 @@ RiftTab:CreateToggle({
                     
                     task.wait(3)
                     
-                    -- Teleport to chest rift
-                    local pos = getChestRiftPosition(selectedChest)
-                    if pos then
-                        local root = getRoot()
-                        if root then
-                            root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
-                        end
-                    end
-                    
+                    local riftKey = getChestRiftKey(selectedChest)
+                    pcall(function() Remote:FireServer("TeleportToRift", riftKey) end)
                     task.wait(0.5)
-                    
-                    -- Open/Claim chest
-                    pcall(function()
-                        Remote:FireServer("ClaimChest", selectedChest, true)
-                    end)
+                    pcall(function() Remote:FireServer("UnlockRiftChest", riftKey, false) end)
                     
                     task.wait(1860)
                 end
