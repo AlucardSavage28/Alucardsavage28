@@ -103,17 +103,18 @@ RiftTab:CreateToggle({
 -- =========================
 RiftTab:CreateSection("Chest Rift")
 
-RiftTab:CreateDropdown({
+local chestWorldDropdown = RiftTab:CreateDropdown({
     Name = "Chest World",
     Options = WORLDS,
     CurrentOption = {selectedChestWorld},
     Callback = function(v)
         selectedChestWorld = v[1]
         selectedChest = WORLD_CHESTS[selectedChestWorld][1]
+        chestDropdown:Set({selectedChest})
     end
 })
 
-RiftTab:CreateDropdown({
+local chestDropdown = RiftTab:CreateDropdown({
     Name = "Chest",
     Options = WORLD_CHESTS[selectedChestWorld],
     CurrentOption = {selectedChest},
@@ -131,7 +132,6 @@ RiftTab:CreateToggle({
         if v then
             chestThread = task.spawn(function()
                 while chestLoop do
-                    -- Summon
                     pcall(function()
                         RemoteFunction:InvokeServer(
                             "SummonRift",
