@@ -272,9 +272,13 @@ EggsTab:CreateToggle({
         if v then
             doodleThread = task.spawn(function()
                 while doodleEnabled do
-                    while getgenv().questActive and getgenv().questEgg ~= "Doodle Egg" and doodleEnabled do
-                        task.wait(0.5)
+                    if getgenv().questActive and getgenv().questEgg ~= "Doodle Egg" then
+                        while getgenv().questActive and getgenv().questEgg ~= "Doodle Egg" and doodleEnabled do
+                            task.wait(0.5)
+                        end
                     end
+                    
+                    if not doodleEnabled then break end
                     
                     if isDoodleRiftExists() then
                         getgenv().questActive = true
