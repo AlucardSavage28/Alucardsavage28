@@ -20,11 +20,15 @@ local WORLD_EGGS = {
     ["Minigame Paradise"] = {"Mining Egg","Cyber Egg","Neon Egg"},
 }
 
-local ALL_CHESTS = {"Golden Chest","Royal Chest","Super Chest","Dice Chest"}
+local WORLD_CHESTS = {
+    ["The Overworld"] = {"Golden Chest","Royal Chest","Super Chest"},
+    ["Minigame Paradise"] = {"Dice Chest"},
+}
 
 local selectedEggWorld = "The Overworld"
 local selectedEgg = "Spikey Egg"
 
+local selectedChestWorld = "The Overworld"
 local selectedChest = "Golden Chest"
 
 local eggLoop = false
@@ -99,9 +103,20 @@ RiftTab:CreateToggle({
 -- =========================
 RiftTab:CreateSection("Chest Rift")
 
-RiftTab:CreateDropdown({
+local chestWorldDropdown = RiftTab:CreateDropdown({
+    Name = "Chest World",
+    Options = WORLDS,
+    CurrentOption = {selectedChestWorld},
+    Callback = function(v)
+        selectedChestWorld = v[1]
+        selectedChest = WORLD_CHESTS[selectedChestWorld][1]
+        chestDropdown:Set({selectedChest})
+    end
+})
+
+local chestDropdown = RiftTab:CreateDropdown({
     Name = "Chest",
-    Options = ALL_CHESTS,
+    Options = WORLD_CHESTS[selectedChestWorld],
     CurrentOption = {selectedChest},
     Callback = function(v)
         selectedChest = v[1]
@@ -124,7 +139,7 @@ RiftTab:CreateToggle({
                                 Type="Chest",
                                 Name=selectedChest,
                                 Time=5,
-                                World="The Overworld"
+                                World=selectedChestWorld
                             }
                         )
                     end)
