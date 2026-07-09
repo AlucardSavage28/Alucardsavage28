@@ -333,6 +333,7 @@ task.spawn(function()
                             end
                         end
                     end
+                    if pet.Super then shouldTrack = true end
                     
                     if shouldTrack then
                         local rarity = info.Rarity
