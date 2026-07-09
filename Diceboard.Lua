@@ -55,14 +55,8 @@ local function getClosest(current, list)
 end
 
 local function hasGoldenDice()
-    local ok, LocalData = pcall(function()
-        return require(ReplicatedStorage.Client.Framework.Services.LocalData)
-    end)
-    if not ok then return false end
-    local data = LocalData:Get()
-    if data and data.Powerups then
-        local gd = data.Powerups["Golden Dice"] or 0
-        return gd > 0
+    if getgenv().remainingItems and getgenv().remainingItems["Golden Dice"] then
+        return getgenv().remainingItems["Golden Dice"] > 0
     end
     return false
 end
@@ -115,15 +109,19 @@ local function loop()
         end
 
         local target, dist = getClosest(node, TILE_TYPES[targetTile])
+        local goldenAvailable = hasGoldenDice()
         local diceName = "Dice"
         local waitTime = 2.5
 
-        if hasGoldenDice() and dist <= 3 then
+        if goldenAvailable and dist <= 2 then
             diceName = "Golden Dice"
             waitTime = 1.5
         elseif dist >= 10 then
             diceName = "Giant Dice"
             waitTime = 4.5
+        else
+            diceName = "Dice"
+            waitTime = 2.5
         end
 
         local selected = selectDice(diceName)
