@@ -20,7 +20,10 @@ local WORLD_EGGS = {
     ["Minigame Paradise"] = {"Mining Egg","Cyber Egg","Neon Egg"},
 }
 
-local ALL_CHESTS = {"Golden Chest","Royal Chest","Super Chest","Dice Chest"}
+local WORLD_CHESTS = {
+    ["The Overworld"] = {"Golden Chest","Royal Chest","Super Chest","Obsidian Chest"},
+    ["Minigame Paradise"] = {"Dice Chest"},
+}
 
 local selectedEggWorld = "The Overworld"
 local selectedEgg = "Spikey Egg"
@@ -32,6 +35,41 @@ local eggLoop = false
 local chestLoop = false
 local eggThread = nil
 local chestThread = nil
+
+-- ======================================
+-- FUNCTIONS
+-- ======================================
+local function getRoot()
+    local char = player.Character
+    if char then return char:FindFirstChild("HumanoidRootPart") end
+end
+
+local function getChestRiftPosition(chestName)
+    local key = chestName:lower():gsub("%s+", "-")
+    local riftFolder = workspace:FindFirstChild("Rendered")
+    if riftFolder then
+        riftFolder = riftFolder:FindFirstChild("Rifts")
+        if riftFolder then
+            local rift = riftFolder:FindFirstChild(key)
+            if rift then
+                local chest = rift:FindFirstChild("Chest")
+                if chest then
+                    for _, child in ipairs(chest:GetDescendants()) do
+                        if child:IsA("BasePart") then
+                            return child.Position
+                        end
+                    end
+                end
+                for _, child in ipairs(rift:GetDescendants()) do
+                    if child:IsA("BasePart") then
+                        return child.Position
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
 
 -- =========================
 -- EGG RIFT
@@ -99,12 +137,13 @@ RiftTab:CreateDropdown({
     CurrentOption = {selectedChestWorld},
     Callback = function(v)
         selectedChestWorld = v[1]
+        selectedChest = WORLD_CHESTS[selectedChestWorld][1]
     end
 })
 
 RiftTab:CreateDropdown({
     Name = "Chest",
-    Options = ALL_CHESTS,
+    Options = WORLD_CHESTS[selectedChestWorld],
     CurrentOption = {selectedChest},
     Callback = function(v)
         selectedChest = v[1]
@@ -134,7 +173,19 @@ RiftTab:CreateToggle({
                     
                     task.wait(3)
                     
-                    pcall(function() Remote:FireServer("ClaimChest", selectedChest, true) end)
+                    local pos = getChestRiftPosition(selectedChest)
+                    if pos then
+                        local root = getRoot()
+                        if root then
+                            root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+                        end
+                    end
+                    
+                    task.wait(0.5)
+                    
+                    pcall(function()
+                        Remote:FireServer("ClaimChest", selectedChest, true)
+                    end)
                     
                     task.wait(1860)
                 end
