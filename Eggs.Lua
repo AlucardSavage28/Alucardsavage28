@@ -263,7 +263,7 @@ end
 -- ======================================
 EggsTab:CreateSection("------- Special Eggs -------")
 
--- DOODLE RIFT (Higher Priority)
+-- DOODLE RIFT (Priority 1)
 EggsTab:CreateToggle({
     Name = "Auto Doodle Rift",
     CurrentValue = false,
@@ -272,14 +272,6 @@ EggsTab:CreateToggle({
         if v then
             doodleThread = task.spawn(function()
                 while doodleEnabled do
-                    if getgenv().questActive and getgenv().questEgg ~= "Doodle Egg" then
-                        while getgenv().questActive and getgenv().questEgg ~= "Doodle Egg" and doodleEnabled do
-                            task.wait(0.5)
-                        end
-                    end
-                    
-                    if not doodleEnabled then break end
-                    
                     if isDoodleRiftExists() then
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
@@ -288,7 +280,6 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                         
                         while doodleEnabled and isDoodleRiftExists() do
-                            if getgenv().questEgg ~= "Doodle Egg" then break end
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
@@ -308,7 +299,7 @@ EggsTab:CreateToggle({
     end
 })
 
--- 4X PATRIOTIC (Lower Priority - waits for Doodle)
+-- 4X PATRIOTIC (Priority 2)
 EggsTab:CreateToggle({
     Name = "Auto 4x Patriotic",
     CurrentValue = false,
@@ -317,38 +308,35 @@ EggsTab:CreateToggle({
         if v then
             fourXPatrioticThread = task.spawn(function()
                 while fourXPatrioticEnabled do
-                    while getgenv().questActive and getgenv().questEgg ~= "4x Luck Patriotic Egg" and fourXPatrioticEnabled do
-                        task.wait(0.5)
-                    end
-                    
-                    local eggFound = false
-                    for _, obj in ipairs(workspace:GetDescendants()) do
-                        if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
-                            eggFound = true
-                            getgenv().questActive = true
-                            getgenv().questEgg = "4x Luck Patriotic Egg"
-                            
-                            local pos = obj:GetPivot().Position
-                            local root = getRoot()
-                            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-                            
-                            while fourXPatrioticEnabled and eggFound do
-                                if getgenv().questEgg ~= "4x Luck Patriotic Egg" then break end
+                    if not isDoodleRiftExists() then
+                        local eggFound = false
+                        for _, obj in ipairs(workspace:GetDescendants()) do
+                            if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
+                                eggFound = true
+                                getgenv().questActive = true
+                                getgenv().questEgg = "4x Luck Patriotic Egg"
                                 
-                                pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
-                                task.wait(0.05)
+                                local pos = obj:GetPivot().Position
+                                local root = getRoot()
+                                if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
                                 
-                                eggFound = false
-                                for _, obj2 in ipairs(workspace:GetDescendants()) do
-                                    if obj2.Name == "4x Luck Patriotic Egg" and obj2:IsA("Model") then
-                                        eggFound = true; break
+                                while fourXPatrioticEnabled and eggFound do
+                                    if isDoodleRiftExists() then break end
+                                    pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
+                                    task.wait(0.05)
+                                    
+                                    eggFound = false
+                                    for _, obj2 in ipairs(workspace:GetDescendants()) do
+                                        if obj2.Name == "4x Luck Patriotic Egg" and obj2:IsA("Model") then
+                                            eggFound = true; break
+                                        end
                                     end
                                 end
+                                
+                                getgenv().questActive = false
+                                getgenv().questEgg = nil
+                                break
                             end
-                            
-                            getgenv().questActive = false
-                            getgenv().questEgg = nil
-                            break
                         end
                     end
                     
