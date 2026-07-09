@@ -36,41 +36,6 @@ local chestLoop = false
 local eggThread = nil
 local chestThread = nil
 
--- ======================================
--- FUNCTIONS
--- ======================================
-local function getRoot()
-    local char = player.Character
-    if char then return char:FindFirstChild("HumanoidRootPart") end
-end
-
-local function getChestRiftPosition(chestName)
-    local key = chestName:lower():gsub("%s+", "-")
-    local riftFolder = workspace:FindFirstChild("Rendered")
-    if riftFolder then
-        riftFolder = riftFolder:FindFirstChild("Rifts")
-        if riftFolder then
-            local rift = riftFolder:FindFirstChild(key)
-            if rift then
-                local chest = rift:FindFirstChild("Chest")
-                if chest then
-                    for _, child in ipairs(chest:GetDescendants()) do
-                        if child:IsA("BasePart") then
-                            return child.Position
-                        end
-                    end
-                end
-                for _, child in ipairs(rift:GetDescendants()) do
-                    if child:IsA("BasePart") then
-                        return child.Position
-                    end
-                end
-            end
-        end
-    end
-    return nil
-end
-
 -- =========================
 -- EGG RIFT
 -- =========================
@@ -159,6 +124,7 @@ RiftTab:CreateToggle({
         if v then
             chestThread = task.spawn(function()
                 while chestLoop do
+                    -- Summon
                     pcall(function()
                         RemoteFunction:InvokeServer(
                             "SummonRift",
@@ -173,18 +139,19 @@ RiftTab:CreateToggle({
                     
                     task.wait(3)
                     
-                    local pos = getChestRiftPosition(selectedChest)
-                    if pos then
-                        local root = getRoot()
-                        if root then
-                            root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
-                        end
-                    end
+                    -- Get rift key name
+                    local riftKey = selectedChest:lower():gsub("%s+", "-")
+                    if selectedChest == "Dice Chest" then riftKey = "dice-rift" end
                     
+                    -- Teleport to rift
+                    pcall(function()
+                        Remote:FireServer("TeleportToRift", riftKey)
+                    end)
                     task.wait(0.5)
                     
+                    -- Open chest
                     pcall(function()
-                        Remote:FireServer("ClaimChest", selectedChest, true)
+                        Remote:FireServer("UnlockRiftChest", riftKey, false)
                     end)
                     
                     task.wait(1860)
