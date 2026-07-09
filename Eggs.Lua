@@ -272,7 +272,11 @@ EggsTab:CreateToggle({
         if v then
             doodleThread = task.spawn(function()
                 while doodleEnabled do
-                    if isDoodleRiftExists() then
+                    local riftExists = isDoodleRiftExists()
+                    print("[DOODLE] Rift check: " .. tostring(riftExists))
+                    
+                    if riftExists then
+                        print("[DOODLE] Rift found! Taking over...")
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
                         
@@ -284,6 +288,7 @@ EggsTab:CreateToggle({
                             task.wait(0.05)
                         end
                         
+                        print("[DOODLE] Rift gone, releasing control")
                         getgenv().questActive = false
                         getgenv().questEgg = nil
                     end
