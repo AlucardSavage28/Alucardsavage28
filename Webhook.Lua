@@ -333,7 +333,6 @@ task.spawn(function()
                             end
                         end
                     end
-                    if pet.Super then shouldTrack = true end
                     
                     if shouldTrack then
                         local rarity = info.Rarity
@@ -449,9 +448,9 @@ task.spawn(function()
 end)
 
 -- ======================================
--- SPECIAL EVENTS SCANNER (ALERT ONCE PER SPAWN)
+-- SPECIAL EVENTS SCANNER (4X PLUSHIE + DOODLE)
 -- ======================================
-local was4xPatrioticActive = false
+local was4xPlushieActive = false
 local wasDoodleRiftActive = false
 
 task.spawn(function()
@@ -461,7 +460,7 @@ task.spawn(function()
         
         local fourXFound = false
         for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
+            if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
                 fourXFound = true
                 break
             end
@@ -476,11 +475,11 @@ task.spawn(function()
             end
         end
         
-        if fourXFound and not was4xPatrioticActive then
+        if fourXFound and not was4xPlushieActive then
             local payload = {
-                content = "<@"..DISCORD_USER_ID.."> 4x Patriotic Egg Has Spawned!",
+                content = "<@"..DISCORD_USER_ID.."> 4x Plushie Egg Has Spawned!",
                 embeds = {{
-                    title = "4x Patriotic Egg Spawned!",
+                    title = "4x Plushie Egg Spawned!",
                     description = "Go hatch it now!",
                     color = 0xFF4500,
                     footer = {text = "Good Luck Hatching! | Renoa Hub"}
@@ -516,7 +515,7 @@ task.spawn(function()
             end)
         end
         
-        was4xPatrioticActive = fourXFound
+        was4xPlushieActive = fourXFound
         wasDoodleRiftActive = doodleRiftFound
     end
 end)
@@ -560,7 +559,7 @@ WebhookTab:CreateToggle({
 WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
-WebhookTab:CreateLabel("Alerts: 4x Patriotic Egg + Doodle Rift")
+WebhookTab:CreateLabel("Alerts: 4x Plushie Egg + Doodle Rift")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
