@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (CARNIVAL CHEST + 7DAYS + REBIRTH + SHOP + UPGRADE)
+-- EVENT TAB (CARNIVAL CHEST + REBIRTH + SHRINE + SHOP + UPGRADE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -22,16 +22,29 @@ end
 -- ======================================
 local carnivalRunning = false
 local carnivalThread = nil
-local loginRunning = false
-local loginThread = nil
 local rebirthRunning = false
 local rebirthThread = nil
+local shrineRunning = false
+local shrineThread = nil
 local shopRunning = false
 local shopThread = nil
 local koiXLRunning = false
 local koiXLThread = nil
+local fragRunning = false
+local fragThread = nil
 local upgradeRunning = false
 local upgradeThread = nil
+
+-- ======================================
+-- FUNCTIONS
+-- ======================================
+local function carnivalShrine()
+    pcall(function()
+        Remote:InvokeServer("DonateToCarnivalShrine", "Mythic", 6, 400)
+        task.wait(1)
+        RE:FireServer("ClaimCarnivalShrineBuff", "PlushieEgg")
+    end)
+end
 
 -- ======================================
 -- UI - CARNIVAL CHEST
@@ -52,29 +65,6 @@ EventTab:CreateToggle({
             end)
         else
             if carnivalThread then task.cancel(carnivalThread) end
-        end
-    end
-})
-
--- ======================================
--- UI - 7DAYS LOGIN
--- ======================================
-EventTab:CreateSection("7Days Login")
-
-EventTab:CreateToggle({
-    Name = "Auto Claim Daily Login",
-    CurrentValue = false,
-    Callback = function(v)
-        loginRunning = v
-        if v then
-            loginThread = task.spawn(function()
-                while loginRunning do
-                    pcall(function() RE:FireServer("July4thEventLoginsClaim") end)
-                    task.wait(86400)
-                end
-            end)
-        else
-            if loginThread then task.cancel(loginThread) end
         end
     end
 })
@@ -103,6 +93,30 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
+-- UI - CARNIVAL SHRINE
+-- ======================================
+EventTab:CreateSection("Carnival Shrine")
+
+EventTab:CreateToggle({
+    Name = "Auto Carnival Shrine",
+    CurrentValue = false,
+    Callback = function(v)
+        shrineRunning = v
+        if v then
+            carnivalShrine()
+            shrineThread = task.spawn(function()
+                while shrineRunning do
+                    task.wait(43200)
+                    carnivalShrine()
+                end
+            end)
+        else
+            if shrineThread then task.cancel(shrineThread) end
+        end
+    end
+})
+
+-- ======================================
 -- UI - CARNIVAL SHOP
 -- ======================================
 EventTab:CreateSection("Carnival Shop")
@@ -126,7 +140,7 @@ EventTab:CreateToggle({
 })
 
 EventTab:CreateToggle({
-    Name = "Auto Buy Carnival Koi and XL",
+    Name = "Auto Buy Unicorn Plushie and XL",
     CurrentValue = false,
     Callback = function(v)
         koiXLRunning = v
@@ -140,6 +154,25 @@ EventTab:CreateToggle({
             end)
         else
             if koiXLThread then task.cancel(koiXLThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Purple and Rainbow Frag",
+    CurrentValue = false,
+    Callback = function(v)
+        fragRunning = v
+        if v then
+            fragThread = task.spawn(function()
+                while fragRunning do
+                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 7, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 8, false) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if fragThread then task.cancel(fragThread) end
         end
     end
 })
