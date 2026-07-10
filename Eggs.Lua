@@ -51,7 +51,8 @@ local EGG_LOCATIONS = {
     ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
     ["Patriotic Egg"] = Vector3.new(34, 10, -11),
-    ["4x Luck Patriotic Egg"] = Vector3.new(20, 9, -22),
+    ["Plushie Egg"] = Vector3.new(-3567, 162, 879),
+    ["4x Luck Plushie Egg"] = Vector3.new(-3556, 162, 889),
 }
 
 local EGG_WORLDS = {
@@ -68,8 +69,8 @@ local EGG_WORLDS = {
     ["Hell Egg"] = "The Overworld", ["Secret Egg"] = "The Overworld",
     ["Showman Egg"] = "The Overworld",
     ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
-    ["Exotic Egg"] = "The Overworld",
-    ["Patriotic Egg"] = "The Overworld", ["4x Luck Patriotic Egg"] = "The Overworld",
+    ["Exotic Egg"] = "The Overworld", ["Patriotic Egg"] = "The Overworld",
+    ["Plushie Egg"] = "The Overworld", ["4x Luck Plushie Egg"] = "The Overworld",
 }
 
 local ALL_EGG_NAMES = {}
@@ -107,7 +108,7 @@ local currentBountyPet = "Unknown"
 local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
-local fourXPatrioticEnabled = false
+local fourXPlushieEnabled = false
 local doodleEnabled = false
 local autoHatchEnabled = false
 local spamEEnabled = false
@@ -116,7 +117,7 @@ local inventoryEnabled = false
 local bountyEnabled = false
 local riftEnabled = false
 
-local fourXPatrioticThread = nil
+local fourXPlushieThread = nil
 local doodleThread = nil
 local autoHatchThread = nil
 local spamEThread = nil
@@ -272,11 +273,7 @@ EggsTab:CreateToggle({
         if v then
             doodleThread = task.spawn(function()
                 while doodleEnabled do
-                    local riftExists = isDoodleRiftExists()
-                    print("[DOODLE] Rift check: " .. tostring(riftExists))
-                    
-                    if riftExists then
-                        print("[DOODLE] Rift found! Taking over...")
+                    if isDoodleRiftExists() then
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
                         
@@ -288,12 +285,11 @@ EggsTab:CreateToggle({
                             task.wait(0.05)
                         end
                         
-                        print("[DOODLE] Rift gone, releasing control")
                         getgenv().questActive = false
                         getgenv().questEgg = nil
                     end
                     
-                    task.wait(0.1)
+                    task.wait(5)
                 end
             end)
         else
@@ -304,35 +300,35 @@ EggsTab:CreateToggle({
     end
 })
 
--- 4X PATRIOTIC (Priority 2)
+-- 4X PLUSHIE (Priority 2)
 EggsTab:CreateToggle({
-    Name = "Auto 4x Patriotic",
+    Name = "Auto 4x Plushie",
     CurrentValue = false,
     Callback = function(v)
-        fourXPatrioticEnabled = v
+        fourXPlushieEnabled = v
         if v then
-            fourXPatrioticThread = task.spawn(function()
-                while fourXPatrioticEnabled do
+            fourXPlushieThread = task.spawn(function()
+                while fourXPlushieEnabled do
                     if not isDoodleRiftExists() then
                         local eggFound = false
                         for _, obj in ipairs(workspace:GetDescendants()) do
-                            if obj.Name == "4x Luck Patriotic Egg" and obj:IsA("Model") then
+                            if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
                                 eggFound = true
                                 getgenv().questActive = true
-                                getgenv().questEgg = "4x Luck Patriotic Egg"
+                                getgenv().questEgg = "4x Luck Plushie Egg"
                                 
                                 local pos = obj:GetPivot().Position
                                 local root = getRoot()
                                 if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
                                 
-                                while fourXPatrioticEnabled and eggFound do
+                                while fourXPlushieEnabled and eggFound do
                                     if isDoodleRiftExists() then break end
-                                    pcall(function() Remote:FireServer("HatchEgg", "4x Luck Patriotic Egg", HATCH_AMOUNT) end)
+                                    pcall(function() Remote:FireServer("HatchEgg", "4x Luck Plushie Egg", HATCH_AMOUNT) end)
                                     task.wait(0.05)
                                     
                                     eggFound = false
                                     for _, obj2 in ipairs(workspace:GetDescendants()) do
-                                        if obj2.Name == "4x Luck Patriotic Egg" and obj2:IsA("Model") then
+                                        if obj2.Name == "4x Luck Plushie Egg" and obj2:IsA("Model") then
                                             eggFound = true; break
                                         end
                                     end
@@ -349,7 +345,7 @@ EggsTab:CreateToggle({
                 end
             end)
         else
-            if fourXPatrioticThread then task.cancel(fourXPatrioticThread) end
+            if fourXPlushieThread then task.cancel(fourXPlushieThread) end
             getgenv().questActive = false
             getgenv().questEgg = nil
         end
