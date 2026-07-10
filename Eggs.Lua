@@ -341,7 +341,7 @@ EggsTab:CreateToggle({
                         end
                     end
                     
-                    task.wait(0.05)
+                    task.wait(1)
                 end
             end)
         else
