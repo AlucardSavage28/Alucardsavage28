@@ -30,8 +30,10 @@ local shopRunning = false
 local shopThread = nil
 local koiXLRunning = false
 local koiXLThread = nil
-local fragRunning = false
-local fragThread = nil
+local purpleFragRunning = false
+local purpleFragThread = nil
+local rainbowFragRunning = false
+local rainbowFragThread = nil
 local upgradeRunning = false
 local upgradeThread = nil
 
@@ -159,20 +161,37 @@ EventTab:CreateToggle({
 })
 
 EventTab:CreateToggle({
-    Name = "Auto Buy Purple and Rainbow Frag",
+    Name = "Auto Buy Purple Fragment",
     CurrentValue = false,
     Callback = function(v)
-        fragRunning = v
+        purpleFragRunning = v
         if v then
-            fragThread = task.spawn(function()
-                while fragRunning do
+            purpleFragThread = task.spawn(function()
+                while purpleFragRunning do
                     pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 7, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 8, false) end)
-                    task.wait(1)
+                    task.wait(10)
                 end
             end)
         else
-            if fragThread then task.cancel(fragThread) end
+            if purpleFragThread then task.cancel(purpleFragThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Rainbow Fragment",
+    CurrentValue = false,
+    Callback = function(v)
+        rainbowFragRunning = v
+        if v then
+            rainbowFragThread = task.spawn(function()
+                while rainbowFragRunning do
+                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 8, false) end)
+                    task.wait(10)
+                end
+            end)
+        else
+            if rainbowFragThread then task.cancel(rainbowFragThread) end
         end
     end
 })
