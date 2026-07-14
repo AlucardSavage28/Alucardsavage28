@@ -51,7 +51,22 @@ local function summonAndOpen(riftKey, world)
     task.wait(3)
     pcall(function() Remote:FireServer("TeleportToRift", riftKey) end)
     task.wait(0.5)
-    pcall(function() Remote:FireServer("UnlockRiftChest", riftKey, false) end)
+    
+    while true do
+        local riftFolder = workspace:FindFirstChild("Rendered")
+        local riftExists = false
+        if riftFolder then
+            riftFolder = riftFolder:FindFirstChild("Rifts")
+            if riftFolder and riftFolder:FindFirstChild(riftKey) then
+                riftExists = true
+            end
+        end
+        
+        if not riftExists then break end
+        
+        pcall(function() Remote:FireServer("UnlockRiftChest", riftKey, false) end)
+        task.wait(0.5)
+    end
 end
 
 -- =========================
