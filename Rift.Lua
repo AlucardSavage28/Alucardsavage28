@@ -1,5 +1,5 @@
 -- ================================================
--- RIFT TAB (SUMMON + AUTO TP + OPEN CHEST)
+-- RIFT TAB (EGG RIFT + CHEST RIFT)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -20,21 +20,39 @@ local WORLD_EGGS = {
     ["Minigame Paradise"] = {"Mining Egg","Cyber Egg","Neon Egg"},
 }
 
-local WORLD_CHESTS = {
-    ["The Overworld"] = {"Golden Chest","Royal Chest","Super Chest","Obsidian Chest"},
-    ["Minigame Paradise"] = {"Dice Chest"},
-}
-
 local selectedEggWorld = "The Overworld"
 local selectedEgg = "Spikey Egg"
 
-local selectedChestWorld = "The Overworld"
-local selectedChest = "Golden Chest"
-
 local eggLoop = false
-local chestLoop = false
 local eggThread = nil
-local chestThread = nil
+
+-- Chest rift settings
+local goldenRunning = false
+local goldenThread = nil
+local royalRunning = false
+local royalThread = nil
+local superRunning = false
+local superThread = nil
+local diceRunning = false
+local diceThread = nil
+
+-- ======================================
+-- FUNCTIONS
+-- ======================================
+local function summonAndOpen(riftKey, world)
+    pcall(function()
+        RemoteFunction:InvokeServer("SummonRift", {
+            ["Time"] = 5,
+            ["Type"] = "Chest",
+            ["Name"] = riftKey,
+            ["World"] = world
+        })
+    end)
+    task.wait(3)
+    pcall(function() Remote:FireServer("TeleportToRift", riftKey) end)
+    task.wait(0.5)
+    pcall(function() Remote:FireServer("UnlockRiftChest", riftKey, false) end)
+end
 
 -- =========================
 -- EGG RIFT
@@ -92,74 +110,78 @@ RiftTab:CreateToggle({
 })
 
 -- =========================
--- CHEST RIFT
+-- AUTO CHEST RIFT
 -- =========================
-RiftTab:CreateSection("Chest Rift")
-
-RiftTab:CreateDropdown({
-    Name = "Chest World",
-    Options = WORLDS,
-    CurrentOption = {selectedChestWorld},
-    Callback = function(v)
-        selectedChestWorld = v[1]
-        selectedChest = WORLD_CHESTS[selectedChestWorld][1]
-    end
-})
-
-RiftTab:CreateDropdown({
-    Name = "Chest",
-    Options = WORLD_CHESTS[selectedChestWorld],
-    CurrentOption = {selectedChest},
-    Callback = function(v)
-        selectedChest = v[1]
-    end
-})
+RiftTab:CreateSection("Auto Chest Rift")
 
 RiftTab:CreateToggle({
-    Name = "Auto Chest Rift (Summon + TP + Open)",
+    Name = "Auto Golden Chest",
     CurrentValue = false,
     Callback = function(v)
-        chestLoop = v
-
+        goldenRunning = v
         if v then
-            chestThread = task.spawn(function()
-                while chestLoop do
-                    -- Summon
-                    pcall(function()
-                        RemoteFunction:InvokeServer(
-                            "SummonRift",
-                            {
-                                Type="Chest",
-                                Name=selectedChest,
-                                Time=5,
-                                World=selectedChestWorld
-                            }
-                        )
-                    end)
-                    
-                    task.wait(3)
-                    
-                    -- Get rift key name
-                    local riftKey = selectedChest:lower():gsub("%s+", "-")
-                    if selectedChest == "Dice Chest" then riftKey = "dice-rift" end
-                    
-                    -- Teleport to rift
-                    pcall(function()
-                        Remote:FireServer("TeleportToRift", riftKey)
-                    end)
-                    task.wait(0.5)
-                    
-                    -- Open chest
-                    pcall(function()
-                        Remote:FireServer("UnlockRiftChest", riftKey, false)
-                    end)
-                    
+            goldenThread = task.spawn(function()
+                while goldenRunning do
+                    summonAndOpen("golden-chest", "The Overworld")
                     task.wait(1860)
                 end
             end)
         else
-            chestLoop = false
-            if chestThread then task.cancel(chestThread) end
+            if goldenThread then task.cancel(goldenThread) end
+        end
+    end
+})
+
+RiftTab:CreateToggle({
+    Name = "Auto Royal Chest",
+    CurrentValue = false,
+    Callback = function(v)
+        royalRunning = v
+        if v then
+            royalThread = task.spawn(function()
+                while royalRunning do
+                    summonAndOpen("royal-chest", "The Overworld")
+                    task.wait(1860)
+                end
+            end)
+        else
+            if royalThread then task.cancel(royalThread) end
+        end
+    end
+})
+
+RiftTab:CreateToggle({
+    Name = "Auto Super Chest",
+    CurrentValue = false,
+    Callback = function(v)
+        superRunning = v
+        if v then
+            superThread = task.spawn(function()
+                while superRunning do
+                    summonAndOpen("super-chest", "The Overworld")
+                    task.wait(1860)
+                end
+            end)
+        else
+            if superThread then task.cancel(superThread) end
+        end
+    end
+})
+
+RiftTab:CreateToggle({
+    Name = "Auto Dice Chest",
+    CurrentValue = false,
+    Callback = function(v)
+        diceRunning = v
+        if v then
+            diceThread = task.spawn(function()
+                while diceRunning do
+                    summonAndOpen("dice-rift", "Minigame Paradise")
+                    task.wait(1860)
+                end
+            end)
+        else
+            if diceThread then task.cancel(diceThread) end
         end
     end
 })
