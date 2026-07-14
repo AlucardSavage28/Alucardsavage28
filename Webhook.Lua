@@ -321,11 +321,20 @@ task.spawn(function()
         if data and data.Pets then
             for _, pet in pairs(data.Pets) do
                 if not knownPets[pet.Id] then
+                    local isSuper = pet.Super
                     local info = Pets[pet.Name]
                     local isXL = pet.XL
                     
+                    -- If Super but info not found, try stripping variant prefixes
+                    if isSuper and not info then
+                        local baseName = pet.Name:gsub("^Shiny ", ""):gsub("^Mythic ", ""):gsub("^Shiny Mythic ", ""):gsub("^XL ", "")
+                        info = Pets[baseName]
+                    end
+                    
                     local shouldTrack = false
-                    if info and info.Rarity then
+                    if isSuper then
+                        shouldTrack = true
+                    elseif info and info.Rarity then
                         for r in pairs(TRACKED_RARITIES) do
                             if info.Rarity:find(r) then
                                 shouldTrack = true
@@ -335,9 +344,7 @@ task.spawn(function()
                     end
                     
                     if shouldTrack then
-                        local rarity = info.Rarity
-                        local isSuper = pet.Super
-                        
+                        local rarity = info and info.Rarity or "Super Legendary"
                         if isSuper then rarity = "Super Legendary" end
                         
                         knownPets[pet.Id] = true
@@ -458,14 +465,28 @@ task.spawn(function()
         task.wait(10)
         if not rareEggNotify then continue end
         
+        -- Check 4x Plushie in Rendered first (more reliable)
         local fourXFound = false
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
-                fourXFound = true
-                break
+        local rendered = workspace:FindFirstChild("Rendered")
+        if rendered then
+            for _, obj in ipairs(rendered:GetDescendants()) do
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
+                    fourXFound = true
+                    break
+                end
+            end
+        end
+        -- Fallback to workspace
+        if not fourXFound then
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
+                    fourXFound = true
+                    break
+                end
             end
         end
         
+        -- Check Doodle Rift
         local riftFolder = workspace:FindFirstChild("Rendered")
         local doodleRiftFound = false
         if riftFolder then
@@ -475,7 +496,9 @@ task.spawn(function()
             end
         end
         
+        -- Only alert on change from false to true
         if fourXFound and not was4xPlushieActive then
+            was4xPlushieActive = true
             local payload = {
                 content = "<@"..DISCORD_USER_ID.."> 4x Plushie Egg Has Spawned!",
                 embeds = {{
@@ -493,9 +516,12 @@ task.spawn(function()
                     Body = HttpService:JSONEncode(payload)
                 })
             end)
+        elseif not fourXFound then
+            was4xPlushieActive = false
         end
         
         if doodleRiftFound and not wasDoodleRiftActive then
+            wasDoodleRiftActive = true
             local payload = {
                 content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!",
                 embeds = {{
@@ -513,10 +539,9 @@ task.spawn(function()
                     Body = HttpService:JSONEncode(payload)
                 })
             end)
+        elseif not doodleRiftFound then
+            wasDoodleRiftActive = false
         end
-        
-        was4xPlushieActive = fourXFound
-        wasDoodleRiftActive = doodleRiftFound
     end
 end)
 
