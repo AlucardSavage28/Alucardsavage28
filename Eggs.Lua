@@ -52,7 +52,6 @@ local EGG_LOCATIONS = {
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
     ["Patriotic Egg"] = Vector3.new(34, 10, -11),
     ["Plushie Egg"] = Vector3.new(-3567, 162, 879),
-    ["4x Luck Plushie Egg"] = Vector3.new(-3556, 162, 889),
 }
 
 local EGG_WORLDS = {
@@ -70,7 +69,7 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
     ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
     ["Exotic Egg"] = "The Overworld", ["Patriotic Egg"] = "The Overworld",
-    ["Plushie Egg"] = "The Overworld", ["4x Luck Plushie Egg"] = "The Overworld",
+    ["Plushie Egg"] = "The Overworld",
 }
 
 local ALL_EGG_NAMES = {}
@@ -108,7 +107,7 @@ local currentBountyPet = "Unknown"
 local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
-local fourXPlushieEnabled = false
+local fourXEnabled = false
 local doodleEnabled = false
 local autoHatchEnabled = false
 local spamEEnabled = false
@@ -117,7 +116,7 @@ local inventoryEnabled = false
 local bountyEnabled = false
 local riftEnabled = false
 
-local fourXPlushieThread = nil
+local fourXThread = nil
 local doodleThread = nil
 local autoHatchThread = nil
 local spamEThread = nil
@@ -201,7 +200,7 @@ local function teleportToEgg(eggName)
     local riftPos = getRiftPosition(eggName)
     if riftPos then
         local dist = getDistance(riftPos)
-        if dist > 20 then
+        if dist > 10 then
             local root = getRoot()
             if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
         end
@@ -211,7 +210,7 @@ local function teleportToEgg(eggName)
     local pos = EGG_LOCATIONS[eggName]
     if pos then
         local dist = getDistance(pos)
-        if dist > 20 then
+        if dist > 10 then
             local root = getRoot()
             if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
         end
@@ -280,6 +279,23 @@ EggsTab:CreateToggle({
                         pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
                         task.wait(0.5)
                         
+                        local riftFolder = workspace:FindFirstChild("Rendered")
+                        if riftFolder then
+                            local rifts = riftFolder:FindFirstChild("Rifts")
+                            if rifts then
+                                local doodleRift = rifts:FindFirstChild("doodle-rift")
+                                if doodleRift then
+                                    for _, child in ipairs(doodleRift:GetDescendants()) do
+                                        if child:IsA("BasePart") then
+                                            local root = getRoot()
+                                            if root then root.CFrame = CFrame.new(child.Position + Vector3.new(0, 5, 0)) end
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        
                         while doodleEnabled and isDoodleRiftExists() do
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
@@ -300,44 +316,52 @@ EggsTab:CreateToggle({
     end
 })
 
--- 4X PLUSHIE (Priority 2)
+-- 4X EGG (Priority 2 - Auto Detect)
 EggsTab:CreateToggle({
-    Name = "Auto 4x Plushie",
+    Name = "Auto 4x Egg",
     CurrentValue = false,
     Callback = function(v)
-        fourXPlushieEnabled = v
+        fourXEnabled = v
         if v then
-            fourXPlushieThread = task.spawn(function()
-                while fourXPlushieEnabled do
+            fourXThread = task.spawn(function()
+                while fourXEnabled do
                     if not isDoodleRiftExists() then
                         local eggFound = false
+                        local eggName = nil
+                        local eggObj = nil
+                        
                         for _, obj in ipairs(workspace:GetDescendants()) do
-                            if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
+                            if obj.Name:find("4x Luck") and obj:IsA("Model") then
                                 eggFound = true
-                                getgenv().questActive = true
-                                getgenv().questEgg = "4x Luck Plushie Egg"
-                                
-                                local pos = obj:GetPivot().Position
-                                local root = getRoot()
-                                if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-                                
-                                while fourXPlushieEnabled and eggFound do
-                                    if isDoodleRiftExists() then break end
-                                    pcall(function() Remote:FireServer("HatchEgg", "4x Luck Plushie Egg", HATCH_AMOUNT) end)
-                                    task.wait(0.05)
-                                    
-                                    eggFound = false
-                                    for _, obj2 in ipairs(workspace:GetDescendants()) do
-                                        if obj2.Name == "4x Luck Plushie Egg" and obj2:IsA("Model") then
-                                            eggFound = true; break
-                                        end
-                                    end
-                                end
-                                
-                                getgenv().questActive = false
-                                getgenv().questEgg = nil
+                                eggName = obj.Name
+                                eggObj = obj
                                 break
                             end
+                        end
+                        
+                        if eggFound and eggObj then
+                            getgenv().questActive = true
+                            getgenv().questEgg = eggName
+                            
+                            local pos = eggObj:GetPivot().Position
+                            local root = getRoot()
+                            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+                            
+                            while fourXEnabled and eggFound do
+                                if isDoodleRiftExists() then break end
+                                pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
+                                task.wait(0.05)
+                                
+                                eggFound = false
+                                for _, obj2 in ipairs(workspace:GetDescendants()) do
+                                    if obj2.Name == eggName and obj2:IsA("Model") then
+                                        eggFound = true; break
+                                    end
+                                end
+                            end
+                            
+                            getgenv().questActive = false
+                            getgenv().questEgg = nil
                         end
                     end
                     
@@ -345,7 +369,7 @@ EggsTab:CreateToggle({
                 end
             end)
         else
-            if fourXPlushieThread then task.cancel(fourXPlushieThread) end
+            if fourXThread then task.cancel(fourXThread) end
             getgenv().questActive = false
             getgenv().questEgg = nil
         end
