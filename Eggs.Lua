@@ -22,36 +22,11 @@ local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteF
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 -- ======================================
--- EGG LOCATIONS
+-- EGG LOCATIONS (HARDCODED FALLBACK)
 -- ======================================
-local EGG_LOCATIONS = {
-    ["Common Egg"] = Vector3.new(-80, 7, 5),
-    ["Classic Egg"] = Vector3.new(-90, 13, 30),
-    ["Vine Egg"] = Vector3.new(-61, 13, 11),
-    ["Lava Egg"] = Vector3.new(-69, 14, 19),
-    ["Icy Egg"] = Vector3.new(-55, 14, 0),
-    ["Iceshard Egg"] = Vector3.new(-119, 11, 13),
-    ["Spotted Egg"] = Vector3.new(-11, 10, -69),
-    ["Atlantis Egg"] = Vector3.new(-79, 14, 25),
-    ["Mining Egg"] = Vector3.new(-122, 11, -69),
-    ["Neon Egg"] = Vector3.new(-81, 10, -61),
-    ["Cyber Egg"] = Vector3.new(-92, 10, -67),
-    ["Rainbow Egg"] = Vector3.new(-140, 10, -57),
-    ["Nightmare Egg"] = Vector3.new(-146, 10, -47),
-    ["Infinity Egg"] = Vector3.new(-106, 12, -28),
-    ["Spikey Egg"] = Vector3.new(-128, 10, 9),
-    ["Magma Egg"] = Vector3.new(-137, 11, 3),
-    ["Crystal Egg"] = Vector3.new(-144, 10, -5),
-    ["Lunar Egg"] = Vector3.new(-148, 11, -15),
-    ["Void Egg"] = Vector3.new(-150, 11, -26),
-    ["Hell Egg"] = Vector3.new(-149, 11, -37),
+local EGG_FALLBACKS = {
     ["Secret Egg"] = Vector3.new(-19438, 8, 18839),
     ["Showman Egg"] = Vector3.new(-130, 10, -60),
-    ["Popcorn Egg"] = Vector3.new(-3601, 162, 882),
-    ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
-    ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
-    ["Patriotic Egg"] = Vector3.new(34, 10, -11),
-    ["Plushie Egg"] = Vector3.new(-3567, 162, 879),
 }
 
 local EGG_WORLDS = {
@@ -62,21 +37,9 @@ local EGG_WORLDS = {
     ["Atlantis Egg"] = "The Overworld", ["Mining Egg"] = "Minigame Paradise",
     ["Neon Egg"] = "Minigame Paradise", ["Cyber Egg"] = "Minigame Paradise",
     ["Rainbow Egg"] = "The Overworld", ["Nightmare Egg"] = "The Overworld",
-    ["Infinity Egg"] = "The Overworld", ["Spikey Egg"] = "The Overworld",
-    ["Magma Egg"] = "The Overworld", ["Crystal Egg"] = "The Overworld",
-    ["Lunar Egg"] = "The Overworld", ["Void Egg"] = "The Overworld",
-    ["Hell Egg"] = "The Overworld", ["Secret Egg"] = "The Overworld",
-    ["Showman Egg"] = "The Overworld",
-    ["Popcorn Egg"] = "The Overworld", ["Sweet Egg"] = "The Overworld",
-    ["Exotic Egg"] = "The Overworld", ["Patriotic Egg"] = "The Overworld",
-    ["Plushie Egg"] = "The Overworld",
+    ["Infinity Egg"] = "The Overworld", ["Secret Egg"] = "The Overworld",
+    ["Showman Egg"] = "The Overworld", ["Crystal Ore Egg"] = "The Overworld",
 }
-
-local ALL_EGG_NAMES = {}
-for eggName, _ in pairs(EGG_LOCATIONS) do
-    table.insert(ALL_EGG_NAMES, eggName)
-end
-table.sort(ALL_EGG_NAMES)
 
 -- ======================================
 -- INVENTORY EGGS LIST
@@ -196,6 +159,70 @@ local function isDoodleRiftExists()
     return false
 end
 
+-- AUTO-DETECT EGG POSITION
+local function getEggPosition(eggName)
+    -- Scan workspace
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == eggName and obj:IsA("Model") then
+            return obj:GetPivot().Position
+        end
+    end
+    -- Scan Worlds folder
+    local worlds = workspace:FindFirstChild("Worlds")
+    if worlds then
+        for _, world in ipairs(worlds:GetChildren()) do
+            for _, obj in ipairs(world:GetDescendants()) do
+                if obj.Name == eggName and obj:IsA("Model") then
+                    return obj:GetPivot().Position
+                end
+            end
+        end
+    end
+    -- Fallback
+    return EGG_FALLBACKS[eggName]
+end
+
+-- AUTO-DETECT ALL EGG NAMES FOR DROPDOWN
+local function getAllEggNames()
+    local eggs = {}
+    local seen = {}
+    local function isRealEgg(name)
+        return name:find(" Egg$") and not name:find("Spawn") and not name:find("Platform") and not name:find("Stairs") and not name:find("Text")
+    end
+    -- Scan workspace
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and isRealEgg(obj.Name) then
+            if not seen[obj.Name] then
+                seen[obj.Name] = true
+                table.insert(eggs, obj.Name)
+            end
+        end
+    end
+    -- Scan Worlds folder
+    local worlds = workspace:FindFirstChild("Worlds")
+    if worlds then
+        for _, world in ipairs(worlds:GetChildren()) do
+            for _, obj in ipairs(world:GetDescendants()) do
+                if obj:IsA("Model") and isRealEgg(obj.Name) then
+                    if not seen[obj.Name] then
+                        seen[obj.Name] = true
+                        table.insert(eggs, obj.Name)
+                    end
+                end
+            end
+        end
+    end
+    -- Add fallbacks
+    for name, _ in pairs(EGG_FALLBACKS) do
+        if not seen[name] then
+            seen[name] = true
+            table.insert(eggs, name)
+        end
+    end
+    table.sort(eggs)
+    return eggs
+end
+
 local function teleportToEgg(eggName)
     local riftPos = getRiftPosition(eggName)
     if riftPos then
@@ -207,7 +234,7 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    local pos = EGG_LOCATIONS[eggName]
+    local pos = getEggPosition(eggName)
     if pos then
         local dist = getDistance(pos)
         if dist > 10 then
@@ -381,10 +408,12 @@ EggsTab:CreateToggle({
 -- ======================================
 EggsTab:CreateSection("------- Hatch Selected Egg -------")
 
+local allEggs = getAllEggNames()
+
 EggsTab:CreateDropdown({
     Name = "Select Egg",
     CurrentOption = {"Common Egg"},
-    Options = ALL_EGG_NAMES,
+    Options = allEggs,
     Callback = function(v)
         selectedEgg = v[1] or v
     end
