@@ -22,9 +22,24 @@ local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteF
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 -- ======================================
--- EGG LOCATIONS (HARDCODED FALLBACK)
+-- EGG LOCATIONS (HARDCODED - RELIABLE)
 -- ======================================
-local EGG_FALLBACKS = {
+local EGG_LOCATIONS = {
+    ["Common Egg"] = Vector3.new(-69, 14, -74),
+    ["Classic Egg"] = Vector3.new(-90, 14, 30),
+    ["Vine Egg"] = Vector3.new(-61, 14, 11),
+    ["Lava Egg"] = Vector3.new(-69, 14, 19),
+    ["Icy Egg"] = Vector3.new(-55, 14, 0),
+    ["Iceshard Egg"] = Vector3.new(-11, 10, -58),
+    ["Spotted Egg"] = Vector3.new(-11, 10, -69),
+    ["Atlantis Egg"] = Vector3.new(-79, 14, 25),
+    ["Mining Egg"] = Vector3.new(-122, 11, -69),
+    ["Neon Egg"] = Vector3.new(-82, 11, -61),
+    ["Cyber Egg"] = Vector3.new(-93, 11, -67),
+    ["Rainbow Egg"] = Vector3.new(9919, 20089, 219),
+    ["Nightmare Egg"] = Vector3.new(9910, 20087, 208),
+    ["Infinity Egg"] = Vector3.new(-106, 12, -28),
+    ["Crystal Ore Egg"] = Vector3.new(136, 11, 86),
     ["Secret Egg"] = Vector3.new(-19438, 8, 18839),
     ["Showman Egg"] = Vector3.new(-130, 10, -60),
 }
@@ -159,66 +174,26 @@ local function isDoodleRiftExists()
     return false
 end
 
--- AUTO-DETECT EGG POSITION
-local function getEggPosition(eggName)
-    -- Scan workspace
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj.Name == eggName and obj:IsA("Model") then
-            return obj:GetPivot().Position
-        end
-    end
-    -- Scan Worlds folder
-    local worlds = workspace:FindFirstChild("Worlds")
-    if worlds then
-        for _, world in ipairs(worlds:GetChildren()) do
-            for _, obj in ipairs(world:GetDescendants()) do
-                if obj.Name == eggName and obj:IsA("Model") then
-                    return obj:GetPivot().Position
-                end
-            end
-        end
-    end
-    -- Fallback
-    return EGG_FALLBACKS[eggName]
-end
-
--- AUTO-DETECT ALL EGG NAMES FOR DROPDOWN
+-- Hybrid egg name list (hardcoded + auto-detect new)
 local function getAllEggNames()
     local eggs = {}
     local seen = {}
+    
+    for name, _ in pairs(EGG_LOCATIONS) do
+        seen[name] = true
+        table.insert(eggs, name)
+    end
+    
     local function isRealEgg(name)
         return name:find(" Egg$") and not name:find("Spawn") and not name:find("Platform") and not name:find("Stairs") and not name:find("Text")
     end
-    -- Scan workspace
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and isRealEgg(obj.Name) then
-            if not seen[obj.Name] then
-                seen[obj.Name] = true
-                table.insert(eggs, obj.Name)
-            end
+        if obj:IsA("Model") and isRealEgg(obj.Name) and not seen[obj.Name] then
+            seen[obj.Name] = true
+            table.insert(eggs, obj.Name)
         end
     end
-    -- Scan Worlds folder
-    local worlds = workspace:FindFirstChild("Worlds")
-    if worlds then
-        for _, world in ipairs(worlds:GetChildren()) do
-            for _, obj in ipairs(world:GetDescendants()) do
-                if obj:IsA("Model") and isRealEgg(obj.Name) then
-                    if not seen[obj.Name] then
-                        seen[obj.Name] = true
-                        table.insert(eggs, obj.Name)
-                    end
-                end
-            end
-        end
-    end
-    -- Add fallbacks
-    for name, _ in pairs(EGG_FALLBACKS) do
-        if not seen[name] then
-            seen[name] = true
-            table.insert(eggs, name)
-        end
-    end
+    
     table.sort(eggs)
     return eggs
 end
@@ -234,7 +209,15 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    local pos = getEggPosition(eggName)
+    local pos = EGG_LOCATIONS[eggName]
+    if not pos then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj.Name == eggName and obj:IsA("Model") then
+                pos = obj:GetPivot().Position
+                break
+            end
+        end
+    end
     if pos then
         local dist = getDistance(pos)
         if dist > 10 then
