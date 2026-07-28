@@ -8,6 +8,8 @@ local OtherTab = Window:CreateTab("Other", nil)
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- ======================================
 -- STATS TRACKER
@@ -187,6 +189,91 @@ local function RunFPSBoost()
     end
 end
 
+-- FPS Improve #2 - Disables pet models and ReplicatedStorage assets
+local fps2Enabled = false
+local fps2Disabled = {}
+local fps2Thread = nil
+
+local function disableInContainer(container)
+    local count = 0
+    for _, v in ipairs(container:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") then
+            if v.Enabled then
+                v.Enabled = false
+                table.insert(fps2Disabled, v)
+                count = count + 1
+            end
+        end
+        -- Hide pet models
+        if v:IsA("Model") and v.Parent and v.Parent.Name == "Pets" then
+            for _, part in ipairs(v:GetDescendants()) do
+                if part:IsA("BasePart") and part.Transparency < 1 then
+                    table.insert(fps2Disabled, {object = part, oldTrans = part.Transparency})
+                    part.Transparency = 1
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+local function applyFPS2()
+    fps2Disabled = {}
+    local count = 0
+    
+    -- Workspace
+    count = count + disableInContainer(workspace)
+    
+    -- ReplicatedStorage Assets
+    local assets = ReplicatedStorage:FindFirstChild("Assets")
+    if assets then
+        count = count + disableInContainer(assets)
+    end
+    
+    print("[FPS #2] Disabled " .. count .. " effects")
+end
+
+local function removeFPS2()
+    local count = 0
+    for _, item in ipairs(fps2Disabled) do
+        if type(item) == "table" and item.object then
+            pcall(function() item.object.Transparency = item.oldTrans end)
+        else
+            pcall(function() item.Enabled = true end)
+        end
+        count = count + 1
+    end
+    fps2Disabled = {}
+    print("[FPS #2] Restored " .. count .. " effects")
+end
+
+local function watchForNewPets()
+    while fps2Enabled do
+        local rendered = workspace:FindFirstChild("Rendered")
+        if rendered then
+            local pets = rendered:FindFirstChild("Pets")
+            if pets then
+                for _, pet in ipairs(pets:GetChildren()) do
+                    if pet:IsA("Model") then
+                        for _, v in ipairs(pet:GetDescendants()) do
+                            if v:IsA("ParticleEmitter") and v.Enabled then
+                                v.Enabled = false
+                                table.insert(fps2Disabled, v)
+                            end
+                            if v:IsA("BasePart") and v.Transparency < 1 then
+                                table.insert(fps2Disabled, {object = v, oldTrans = v.Transparency})
+                                v.Transparency = 1
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(3)
+    end
+end
+
 local function RunFullBright()
     local Lighting = game:GetService("Lighting")
     safeSet(Lighting, "Brightness", 5)
@@ -221,6 +308,21 @@ OtherTab:CreateButton({
     Name = "Click to Improve FPS",
     Callback = function()
         RunFPSBoost()
+    end
+})
+
+OtherTab:CreateToggle({
+    Name = "FPS Improve #2",
+    CurrentValue = false,
+    Callback = function(v)
+        fps2Enabled = v
+        if v then
+            applyFPS2()
+            fps2Thread = task.spawn(watchForNewPets)
+        else
+            if fps2Thread then task.cancel(fps2Thread) end
+            removeFPS2()
+        end
     end
 })
 
