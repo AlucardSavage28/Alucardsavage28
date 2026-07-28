@@ -169,113 +169,89 @@ local function safeSet(obj, prop, value)
     pcall(function() obj[prop] = value end)
 end
 
-local function RunFPSBoost()
+-- FPS Button 1: Disable Particles & Materials
+local function fps1_DisableParticles()
+    local count = 0
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("BasePart") then
             safeSet(v, "Material", Enum.Material.SmoothPlastic)
+            count = count + 1
         end
         if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
             safeSet(v, "Enabled", false)
+            count = count + 1
         end
         if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
             safeSet(v, "Enabled", false)
+            count = count + 1
         end
         if v:IsA("Decal") or v:IsA("Texture") then
             safeSet(v, "Transparency", 1)
+            count = count + 1
         end
         if v:IsA("Sky") then
             safeSet(v, "Parent", nil)
+            count = count + 1
         end
+        if count % 500 == 0 then task.wait(0.01) end
     end
+    print("[FPS] Disabled " .. count .. " effects")
 end
 
--- FPS Improve #2 - Disables pet models and ReplicatedStorage assets
-local fps2Enabled = false
-local fps2Disabled = {}
-local fps2Thread = nil
-
-local function disableInContainer(container)
+-- FPS Button 2: Hide Pets & Effects
+local function fps2_HidePets()
     local count = 0
-    for _, v in ipairs(container:GetDescendants()) do
+    for _, v in pairs(game:GetDescendants()) do
         if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") then
             if v.Enabled then
                 v.Enabled = false
-                table.insert(fps2Disabled, v)
                 count = count + 1
             end
         end
-        -- Hide pet models
         if v:IsA("Model") and v.Parent and v.Parent.Name == "Pets" then
             for _, part in ipairs(v:GetDescendants()) do
                 if part:IsA("BasePart") and part.Transparency < 1 then
-                    table.insert(fps2Disabled, {object = part, oldTrans = part.Transparency})
                     part.Transparency = 1
                     count = count + 1
                 end
             end
         end
+        if count % 500 == 0 then task.wait(0.01) end
     end
-    return count
+    print("[FPS] Disabled " .. count .. " pet effects")
 end
 
-local function applyFPS2()
-    fps2Disabled = {}
+-- FPS Button 3: Remove Shadows & Textures
+local function fps3_RemoveTextures()
     local count = 0
-    
-    -- Workspace
-    count = count + disableInContainer(workspace)
-    
-    -- ReplicatedStorage Assets
-    local assets = ReplicatedStorage:FindFirstChild("Assets")
-    if assets then
-        count = count + disableInContainer(assets)
-    end
-    
-    print("[FPS #2] Disabled " .. count .. " effects")
-end
-
-local function removeFPS2()
-    local count = 0
-    for _, item in ipairs(fps2Disabled) do
-        if type(item) == "table" and item.object then
-            pcall(function() item.object.Transparency = item.oldTrans end)
-        else
-            pcall(function() item.Enabled = true end)
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("Decal") or v:IsA("Texture") then
+            v.Texture = ""
+            count = count + 1
         end
-        count = count + 1
-    end
-    fps2Disabled = {}
-    print("[FPS #2] Restored " .. count .. " effects")
-end
-
-local function watchForNewPets()
-    while fps2Enabled do
-        local rendered = workspace:FindFirstChild("Rendered")
-        if rendered then
-            local pets = rendered:FindFirstChild("Pets")
-            if pets then
-                for _, pet in ipairs(pets:GetChildren()) do
-                    if pet:IsA("Model") then
-                        for _, v in ipairs(pet:GetDescendants()) do
-                            if v:IsA("ParticleEmitter") and v.Enabled then
-                                v.Enabled = false
-                                table.insert(fps2Disabled, v)
-                            end
-                            if v:IsA("BasePart") and v.Transparency < 1 then
-                                table.insert(fps2Disabled, {object = v, oldTrans = v.Transparency})
-                                v.Transparency = 1
-                            end
-                        end
-                    end
-                end
+        if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") or v:IsA("Sparkles") then
+            if v.Enabled then
+                v.Enabled = false
+                count = count + 1
             end
         end
-        task.wait(3)
+        if v:IsA("BasePart") and v.Material ~= Enum.Material.SmoothPlastic then
+            v.Material = Enum.Material.SmoothPlastic
+            count = count + 1
+        end
+        if v:IsA("BasePart") and v.CastShadow then
+            v.CastShadow = false
+            count = count + 1
+        end
+        if count % 1000 == 0 then task.wait(0.01) end
     end
+    Lighting.GlobalShadows = false
+    Lighting.Outlines = false
+    print("[FPS] Disabled " .. count .. " effects")
 end
 
-local function RunFullBright()
-    local Lighting = game:GetService("Lighting")
+-- Full Bright
+local function fullBright()
     safeSet(Lighting, "Brightness", 5)
     safeSet(Lighting, "Ambient", Color3.fromRGB(255, 255, 255))
     safeSet(Lighting, "OutdoorAmbient", Color3.fromRGB(255, 255, 255))
@@ -305,31 +281,30 @@ OtherTab:CreateToggle({
 OtherTab:CreateSection("Effects")
 
 OtherTab:CreateButton({
-    Name = "Click to Improve FPS",
+    Name = "Disable Particles & Materials",
     Callback = function()
-        RunFPSBoost()
+        fps1_DisableParticles()
     end
 })
 
-OtherTab:CreateToggle({
-    Name = "FPS Improve #2",
-    CurrentValue = false,
-    Callback = function(v)
-        fps2Enabled = v
-        if v then
-            applyFPS2()
-            fps2Thread = task.spawn(watchForNewPets)
-        else
-            if fps2Thread then task.cancel(fps2Thread) end
-            removeFPS2()
-        end
+OtherTab:CreateButton({
+    Name = "Hide Pets & Effects",
+    Callback = function()
+        fps2_HidePets()
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Remove Shadows & Textures",
+    Callback = function()
+        fps3_RemoveTextures()
     end
 })
 
 OtherTab:CreateButton({
     Name = "Click for Brightness",
     Callback = function()
-        RunFullBright()
+        fullBright()
     end
 })
 
