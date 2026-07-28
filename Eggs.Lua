@@ -319,16 +319,18 @@ EggsTab:CreateToggle({
                             end
                         end
                         
-                        while doodleEnabled and isDoodleRiftExists() do
+                        local riftExists = true
+                        while doodleEnabled and riftExists do
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
+                            riftExists = isDoodleRiftExists()
                         end
                         
                         getgenv().questActive = false
                         getgenv().questEgg = nil
                     end
                     
-                    task.wait(5)
+                    task.wait(1)
                 end
             end)
         else
