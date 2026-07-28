@@ -172,6 +172,24 @@ local function completeQuest(quest)
                 if not stillActive then break end
             end
             restorePosition(prevPos)
+        elseif quest.rarity then
+            -- Hatch Nightmare Egg for rarity quests
+            getgenv().questEgg = "Nightmare Egg"
+            local prevPos = savePosition()
+            local pos = EGG_LOCATIONS["Nightmare Egg"]
+            if pos then teleportTo(pos) end
+            task.wait(0.5)
+            while true do
+                pcall(function() Remote:InvokeServer("HatchEgg", "Nightmare Egg", HATCH_AMOUNT) end)
+                task.wait(1)
+                local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+                local stillActive = false
+                for _, q in ipairs(newQuests) do
+                    if q.id == quest.id then stillActive = true; break end
+                end
+                if not stillActive then break end
+            end
+            restorePosition(prevPos)
         else
             getgenv().questActive = false
             getgenv().questEgg = nil
