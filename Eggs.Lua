@@ -55,6 +55,9 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
 }
 
+-- Cache for auto-detected eggs (saves position after first discovery)
+local discoveredEggs = {}
+
 -- ======================================
 -- INVENTORY EGGS LIST
 -- ======================================
@@ -173,7 +176,7 @@ local function isDoodleRiftExists()
     return false
 end
 
--- Hybrid egg name list (hardcoded + auto-detect new)
+-- Hybrid egg name list (hardcoded + cached + auto-detect new)
 local function getAllEggNames()
     local eggs = {}
     local seen = {}
@@ -183,13 +186,23 @@ local function getAllEggNames()
         table.insert(eggs, name)
     end
     
+    for name, _ in pairs(discoveredEggs) do
+        if not seen[name] then
+            seen[name] = true
+            table.insert(eggs, name)
+        end
+    end
+    
     local function isRealEgg(name)
         return name:find(" Egg$") and not name:find("Spawn") and not name:find("Platform") and not name:find("Stairs") and not name:find("Text")
     end
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and isRealEgg(obj.Name) and not seen[obj.Name] then
-            seen[obj.Name] = true
-            table.insert(eggs, obj.Name)
+        if obj:IsA("Model") and isRealEgg(obj.Name) then
+            discoveredEggs[obj.Name] = obj:GetPivot().Position
+            if not seen[obj.Name] then
+                seen[obj.Name] = true
+                table.insert(eggs, obj.Name)
+            end
         end
     end
     
@@ -208,11 +221,12 @@ local function teleportToEgg(eggName)
         return true
     end
     
-    local pos = EGG_LOCATIONS[eggName]
+    local pos = EGG_LOCATIONS[eggName] or discoveredEggs[eggName]
     if not pos then
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj.Name == eggName and obj:IsA("Model") then
                 pos = obj:GetPivot().Position
+                discoveredEggs[eggName] = pos
                 break
             end
         end
