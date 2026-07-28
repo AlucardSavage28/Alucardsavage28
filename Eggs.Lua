@@ -22,24 +22,23 @@ local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteF
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 -- ======================================
--- EGG LOCATIONS (HARDCODED - RELIABLE)
+-- EGG LOCATIONS (ONLY UNREACHABLE/FALLBACKS)
 -- ======================================
 local EGG_LOCATIONS = {
-    ["Common Egg"] = Vector3.new(-69, 14, -74),
-    ["Classic Egg"] = Vector3.new(-90, 14, 30),
-    ["Vine Egg"] = Vector3.new(-61, 14, 11),
+    ["Common Egg"] = Vector3.new(-80, 7, 5),
+    ["Classic Egg"] = Vector3.new(-90, 13, 30),
+    ["Vine Egg"] = Vector3.new(-61, 13, 11),
     ["Lava Egg"] = Vector3.new(-69, 14, 19),
     ["Icy Egg"] = Vector3.new(-55, 14, 0),
-    ["Iceshard Egg"] = Vector3.new(-11, 10, -58),
+    ["Iceshard Egg"] = Vector3.new(-119, 11, 13),
     ["Spotted Egg"] = Vector3.new(-11, 10, -69),
     ["Atlantis Egg"] = Vector3.new(-79, 14, 25),
     ["Mining Egg"] = Vector3.new(-122, 11, -69),
-    ["Neon Egg"] = Vector3.new(-82, 11, -61),
-    ["Cyber Egg"] = Vector3.new(-93, 11, -67),
-    ["Rainbow Egg"] = Vector3.new(9919, 20089, 219),
-    ["Nightmare Egg"] = Vector3.new(9910, 20087, 208),
+    ["Neon Egg"] = Vector3.new(-81, 10, -61),
+    ["Cyber Egg"] = Vector3.new(-92, 10, -67),
+    ["Rainbow Egg"] = Vector3.new(-140, 10, -57),
+    ["Nightmare Egg"] = Vector3.new(-146, 10, -47),
     ["Infinity Egg"] = Vector3.new(-106, 12, -28),
-    ["Crystal Ore Egg"] = Vector3.new(136, 11, 86),
     ["Secret Egg"] = Vector3.new(-19438, 8, 18839),
     ["Showman Egg"] = Vector3.new(-130, 10, -60),
 }
@@ -53,7 +52,7 @@ local EGG_WORLDS = {
     ["Neon Egg"] = "Minigame Paradise", ["Cyber Egg"] = "Minigame Paradise",
     ["Rainbow Egg"] = "The Overworld", ["Nightmare Egg"] = "The Overworld",
     ["Infinity Egg"] = "The Overworld", ["Secret Egg"] = "The Overworld",
-    ["Showman Egg"] = "The Overworld", ["Crystal Ore Egg"] = "The Overworld",
+    ["Showman Egg"] = "The Overworld",
 }
 
 -- ======================================
