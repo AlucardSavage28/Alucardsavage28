@@ -1,67 +1,66 @@
 -- ================================================
--- AUTO TAB (PRESENT RAIN + BUBBLE + SELL + ORB + PICKUP + BOX)
+-- QUEST TAB (SEASON + GLOBAL + CLAIM)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 
-local AutoTab = Window:CreateTab("Auto", nil)
+local QuestTab = Window:CreateTab("Quest", nil)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local constants = require(ReplicatedStorage.Shared.Constants)
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
+local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
+local constants = require(ReplicatedStorage.Shared.Constants)
 
-local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
+-- ======================================
+-- TELEPORT LOCATIONS
+-- ======================================
+local COIN_AREA = Vector3.new(36, 15971, 41)
+local GEM_AREA = Vector3.new(2286, 3158, 842)
+local TICKET_AREA = Vector3.new(9888, 20089, 242)
 
-local function fire(action, ...)
-    if RE then RE:FireServer(action, ...) end
-end
+local EGG_LOCATIONS = {
+    ["Common Egg"] = Vector3.new(-80, 7, 5),
+    ["Classic Egg"] = Vector3.new(-90, 13, 30),
+    ["Vine Egg"] = Vector3.new(-61, 13, 11),
+    ["Lava Egg"] = Vector3.new(-69, 14, 19),
+    ["Icy Egg"] = Vector3.new(-55, 14, 0),
+    ["Iceshard Egg"] = Vector3.new(-119, 11, 13),
+    ["Spotted Egg"] = Vector3.new(-11, 10, -69),
+    ["Atlantis Egg"] = Vector3.new(-79, 14, 25),
+    ["Mining Egg"] = Vector3.new(-122, 11, -69),
+    ["Neon Egg"] = Vector3.new(-81, 10, -61),
+    ["Cyber Egg"] = Vector3.new(-92, 10, -67),
+    ["Rainbow Egg"] = Vector3.new(-140, 10, -57),
+    ["Nightmare Egg"] = Vector3.new(-146, 10, -47),
+    ["Infinity Egg"] = Vector3.new(-106, 12, -28),
+    ["Spikey Egg"] = Vector3.new(-128, 10, 9),
+    ["Magma Egg"] = Vector3.new(-137, 11, 3),
+    ["Crystal Egg"] = Vector3.new(-144, 10, -5),
+    ["Lunar Egg"] = Vector3.new(-148, 11, -15),
+    ["Void Egg"] = Vector3.new(-150, 11, -26),
+    ["Hell Egg"] = Vector3.new(-149, 11, -37),
+    ["Secret Egg"] = Vector3.new(-19438, 8, 18839),
+    ["Showman Egg"] = Vector3.new(-130, 10, -60),
+    ["Popcorn Egg"] = Vector3.new(-3601, 162, 882),
+    ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
+    ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
+}
+
+local originalRadius = constants.DefaultPickupRadius
 
 -- ======================================
 -- SETTINGS
 -- ======================================
-local presentEnabled = false
-local bubbleEnabled = false
-local sellEnabled = false
-local powerOrbEnabled = false
-local orbEnabled = false
-local pickupEnabled = false
-local boxEnabled = false
-local presentThread = nil
-local bubbleThread = nil
-local sellThread = nil
-local powerOrbThread = nil
-local orbThread = nil
-local boxThread = nil
-
-local originalRadius = constants.DefaultPickupRadius
-local BUBBLE_CAP = 650000000
-local SELL_POS = Vector3.new(77, 6, -113)
-
--- ======================================
--- GET BOXES FROM INVENTORY
--- ======================================
-local function getBoxes()
-    local boxes = {}
-    local data = LocalData:Get()
-    if data and data.Powerups then
-        for name, amount in pairs(data.Powerups) do
-            if (name:find("Box") or name:find("Crate") or name:find("Giftbox") or name:find("Present")) and amount > 0 then
-                table.insert(boxes, name)
-            end
-        end
-    end
-    if #boxes == 0 then
-        boxes = {"Mystery Box", "Golden Crate", "Wooden Crate"}
-    end
-    table.sort(boxes)
-    return boxes
-end
-
-local boxList = getBoxes()
-local selectedBox = boxList[1] or "Mystery Box"
+local seasonRunning = false
+local seasonThread = nil
+local globalRunning = false
+local globalThread = nil
+local claimRunning = false
+local claimThread = nil
+local HATCH_AMOUNT = 12
+local COIN_CAP = 5000000000000
 
 -- ======================================
 -- FUNCTIONS
@@ -71,264 +70,303 @@ local function getRoot()
     if char then return char:FindFirstChild("HumanoidRootPart") end
 end
 
-local function getBubbles()
-    local leaderstats = player:FindFirstChild("leaderstats")
-    if leaderstats then
-        for _, stat in ipairs(leaderstats:GetChildren()) do
-            if stat.Name:find("Bubble") then
-                return tonumber(stat.Value) or 0
+local function teleportTo(pos)
+    local root = getRoot()
+    if root then
+        root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+    end
+end
+
+local function savePosition()
+    local root = getRoot()
+    return root and root.Position or nil
+end
+
+local function restorePosition(pos)
+    if pos then
+        local root = getRoot()
+        if root then
+            root.CFrame = CFrame.new(pos)
+        end
+    end
+end
+
+local function getSellPosition()
+    local overworld = workspace.Worlds["The Overworld"]
+    if overworld then
+        local sell = overworld:FindFirstChild("Sell")
+        if sell then
+            local ring = sell:FindFirstChild("Ring")
+            if ring then
+                return ring.Position
             end
         end
     end
-    return 0
+    return Vector3.new(77, 6, -113)
 end
 
-local function collectAllPresents()
-    local rendered = workspace:FindFirstChild("Rendered")
-    if not rendered then return 0 end
-    
-    local presentRain = rendered:FindFirstChild("PresentRain")
-    if not presentRain then return 0 end
-    
-    local root = getRoot()
-    local previousPos = root and root.Position or nil
-    
-    local collected = 0
-    for _, model in ipairs(presentRain:GetChildren()) do
-        if model:IsA("Model") then
-            for _, part in ipairs(model:GetChildren()) do
-                if part:IsA("BasePart") then
-                    local root = getRoot()
-                    if root then
-                        root.CFrame = CFrame.new(part.Position + Vector3.new(0, 2, 0))
-                        collected = collected + 1
-                        task.wait(0.02)
+local function getActiveQuests(filter)
+    local data = LocalData:Get()
+    local quests = {}
+    if data and data.Quests then
+        for _, quest in pairs(data.Quests) do
+            if not quest.Claimed then
+                local name = quest.Id or ""
+                if name:find(filter) and not name:find("bubble") then
+                    local task = quest.Tasks and quest.Tasks[1]
+                    if task then
+                        table.insert(quests, {
+                            id = quest.Id,
+                            type = task.Type,
+                            amount = task.Amount or 0,
+                            rarity = task.Rarity,
+                            egg = task.Egg,
+                            currency = task.Currency or (task.Item and task.Item.Currency),
+                        })
                     end
+                end
+            end
+        end
+    end
+    return quests
+end
+
+local function completeQuest(quest)
+    getgenv().questActive = true
+    
+    if quest.type == "Bubbles" then
+        getgenv().questEgg = nil
+        local prevPos = savePosition()
+        local sellPos = getSellPosition()
+        local root = getRoot()
+        if root then root.CFrame = CFrame.new(sellPos) end
+        task.wait(0.5)
+        while true do
+            pcall(function() Remote:FireServer("BlowBubble") end)
+            task.wait(0.01)
+            local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+            local stillActive = false
+            for _, q in ipairs(newQuests) do
+                if q.id == quest.id then stillActive = true; break end
+            end
+            if not stillActive then break end
+        end
+        restorePosition(prevPos)
+        
+    elseif quest.type == "Hatch" then
+        if quest.egg then
+            local eggName = quest.egg
+            getgenv().questEgg = eggName
+            local prevPos = savePosition()
+            local pos = EGG_LOCATIONS[eggName] or EGG_LOCATIONS["Magma Egg"]
+            if pos then teleportTo(pos) end
+            task.wait(0.5)
+            while true do
+                pcall(function() Remote:InvokeServer("HatchEgg", eggName, HATCH_AMOUNT) end)
+                task.wait(1)
+                local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+                local stillActive = false
+                for _, q in ipairs(newQuests) do
+                    if q.id == quest.id then stillActive = true; break end
+                end
+                if not stillActive then break end
+            end
+            restorePosition(prevPos)
+        else
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+            task.wait(5)
+        end
+        
+    elseif quest.type == "Collect" then
+        local curr = quest.currency or ""
+        if curr:lower():find("pearl") then
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+            task.wait(1)
+            return
+        end
+        
+        getgenv().questEgg = nil
+        local prevPos = savePosition()
+        local isCoinQuest = not curr:lower():find("gem") and not curr:lower():find("ticket")
+        
+        -- Enable auto collect pickup
+        constants.DefaultPickupRadius = math.huge
+        
+        -- Start golden orb
+        local orbThread = task.spawn(function()
+            while getgenv().questActive do
+                pcall(function() Remote:FireServer("UseGoldenOrb") end)
+                task.wait(1)
+            end
+        end)
+        
+        if curr:lower():find("gem") then teleportTo(GEM_AREA)
+        elseif curr:lower():find("ticket") then teleportTo(TICKET_AREA)
+        else teleportTo(COIN_AREA) end
+        
+        while true do
+            if isCoinQuest then
+                local data = LocalData:Get()
+                local coins = data and data.Coins or 0
+                if coins >= COIN_CAP then
+                    local rainbowPos = EGG_LOCATIONS["Rainbow Egg"]
+                    if rainbowPos then teleportTo(rainbowPos) end
+                    task.wait(0.5)
+                    for i = 1, 3 do
+                        pcall(function() Remote:FireServer("HatchEgg", "Rainbow Egg", 12) end)
+                        task.wait(1)
+                    end
+                    teleportTo(COIN_AREA)
+                    task.wait(0.5)
+                end
+            end
+            task.wait(3)
+            local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+            local stillActive = false
+            for _, q in ipairs(newQuests) do
+                if q.id == quest.id then stillActive = true; break end
+            end
+            if not stillActive then break end
+        end
+        
+        -- Stop golden orb and disable auto collect
+        task.cancel(orbThread)
+        constants.DefaultPickupRadius = originalRadius
+        restorePosition(prevPos)
+    end
+    
+    getgenv().questActive = false
+    getgenv().questEgg = nil
+end
+
+local function questLoop(filter)
+    return function()
+        while true do
+            local quests = getActiveQuests(filter)
+            if #quests == 0 then
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+                task.wait(10)
+                continue
+            end
+            
+            local questToDo = nil
+            for _, q in ipairs(quests) do
+                local curr = q.currency or ""
+                if q.type == "Hatch" and not q.egg and not q.rarity then
+                elseif q.type == "Collect" and curr:lower():find("pearl") then
+                else
+                    questToDo = q
                     break
                 end
             end
+            
+            if questToDo then
+                completeQuest(questToDo)
+            else
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+                task.wait(30)
+            end
         end
     end
-    
-    if previousPos then
-        local root = getRoot()
-        if root then
-            root.CFrame = CFrame.new(previousPos)
-        end
-    end
-    
-    return collected
 end
 
 -- ======================================
--- UI - PRESENT RAIN
+-- UI
 -- ======================================
-AutoTab:CreateSection("Present Rain")
+QuestTab:CreateSection("Season Pass")
 
-AutoTab:CreateToggle({
-    Name = "Auto Collect Presents",
-    CurrentValue = false,
+QuestTab:CreateInput({
+    Name = "Hatch Amount",
+    CurrentValue = tostring(HATCH_AMOUNT),
+    PlaceholderText = "12",
+    RemoveTextAfterFocusLost = false,
     Callback = function(v)
-        presentEnabled = v
-        if v then
-            presentThread = task.spawn(function()
-                while presentEnabled do
-                    local count = collectAllPresents()
-                    if count > 0 then
-                        print("[Auto] Collected " .. count .. " presents!")
-                    end
-                    task.wait(0.5)
-                end
-            end)
-        else
-            if presentThread then task.cancel(presentThread) end
-        end
+        local n = tonumber(v)
+        if n then HATCH_AMOUNT = n end
     end
 })
 
--- ======================================
--- UI - AUTO
--- ======================================
-AutoTab:CreateSection("Auto")
-
-AutoTab:CreateToggle({
-    Name = "Auto Blow Bubble",
+QuestTab:CreateToggle({
+    Name = "Auto Season Quests",
     CurrentValue = false,
     Callback = function(v)
-        bubbleEnabled = v
+        seasonRunning = v
         if v then
-            bubbleThread = task.spawn(function()
-                while bubbleEnabled do
-                    pcall(function() fire("BlowBubble") end)
-                    task.wait(0.01)
-                end
-            end)
+            seasonThread = task.spawn(questLoop("challenge"))
         else
-            if bubbleThread then task.cancel(bubbleThread) end
-        end
-    end
-})
-
-AutoTab:CreateToggle({
-    Name = "Auto Sell Bubble",
-    CurrentValue = false,
-    Callback = function(v)
-        sellEnabled = v
-        if v then
-            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            local returnCFrame = root and root.CFrame or nil
-            
-            sellThread = task.spawn(function()
-                local needsSell = false
-                
-                while sellEnabled do
-                    local bubbles = getBubbles()
-                    
-                    if bubbles >= BUBBLE_CAP then
-                        needsSell = true
-                    elseif bubbles < 100000000 then
-                        needsSell = false
-                    end
-                    
-                    if needsSell and bubbles >= BUBBLE_CAP then
-                        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                        
-                        if root then root.CFrame = CFrame.new(SELL_POS) end
-                        task.wait(0.2)
-                        
-                        for i = 1, 3 do
-                            local before = getBubbles()
-                            pcall(function() fire("SellBubble") end)
-                            task.wait(0.3)
-                            local after = getBubbles()
-                            if after < before then break end
-                        end
-                        
-                        if returnCFrame and root then
-                            root.CFrame = returnCFrame
-                            root.Velocity = Vector3.zero
-                            root.RotVelocity = Vector3.zero
-                        end
-                        task.wait(3)
-                    end
-                    task.wait(1)
-                end
-            end)
-        else
-            if sellThread then task.cancel(sellThread) end
-        end
-    end
-})
-
-AutoTab:CreateToggle({
-    Name = "Auto Use Power Orb",
-    CurrentValue = false,
-    Callback = function(v)
-        powerOrbEnabled = v
-        if v then
-            powerOrbThread = task.spawn(function()
-                local petIDs = {
-                    "a0a3c245-ff67-4723-b85c-5d141d0a9649",
-                    "2ac153c7-11b7-49c1-85e3-354f80941818",
-                    "bd2d105a-1fcb-4e81-a420-80224d8830ad",
-                    "10ee81b6-f9c3-4ec3-a829-9b2f868b6400",
-                    "8a69932e-e1bf-4f0f-b23d-16d2c0449eb",
-                    "d89b08da-0523-4598-9640-eae1cd880e70",
-                    "a67d8c44-1c52-4787-8f55-81bb9bdafa",
-                    "16a93d1f-a19a-4057-860b-bcf0c227d2kd",
-                    "ac52d576-fcbe-4502-9753-57e271a16e00",
-                    "742c65af-b0e9-43e5-b107-0e3a3fd6e57",
-                    "d4142051-aecc-4c3f-8339-149f4cbb95a7",
-                    "4a9c203f-8d7e-49ae-abe1-e07bb7559980",
-                    "1b809029-dee6-4eb4-8414-7139037kb19",
-                }
-                for i = 1, #petIDs do
-                    if not powerOrbEnabled then break end
-                    pcall(function() fire("UsePowerOrb", petIDs[i]) end)
-                    task.wait(0.5)
-                end
-                powerOrbEnabled = false
-            end)
-        else
-            if powerOrbThread then task.cancel(powerOrbThread) end
-        end
-    end
-})
-
-AutoTab:CreateToggle({
-    Name = "Auto Use Golden Orb",
-    CurrentValue = false,
-    Callback = function(v)
-        orbEnabled = v
-        if v then
-            orbThread = task.spawn(function()
-                while orbEnabled do
-                    pcall(function() fire("UseGoldenOrb") end)
-                    task.wait(1)
-                end
-            end)
-        else
-            if orbThread then task.cancel(orbThread) end
-        end
-    end
-})
-
-AutoTab:CreateToggle({
-    Name = "Auto Collect Pickup (Re equip a pet)",
-    CurrentValue = false,
-    Callback = function(v)
-        pickupEnabled = v
-        if v then
-            constants.DefaultPickupRadius = math.huge
-        else
+            if seasonThread then task.cancel(seasonThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
             constants.DefaultPickupRadius = originalRadius
         end
     end
 })
 
--- ======================================
--- AUTO OPEN BOX
--- ======================================
-AutoTab:CreateSection("Auto Open Box")
-
-AutoTab:CreateDropdown({
-    Name = "Select Box",
-    CurrentOption = {selectedBox},
-    Options = boxList,
-    Callback = function(v)
-        selectedBox = v[1] or v
-    end
-})
-
-AutoTab:CreateToggle({
-    Name = "Auto Open Box (don't use near egg)",
+QuestTab:CreateToggle({
+    Name = "Auto Claim Season Pass",
     CurrentValue = false,
     Callback = function(v)
-        boxEnabled = v
+        claimRunning = v
         if v then
-            boxThread = task.spawn(function()
-                local VIM = game:GetService("VirtualInputManager")
-                while boxEnabled do
-                    local data = LocalData:Get()
-                    local amount = data and data.Powerups and data.Powerups[selectedBox] or 0
-                    if amount > 0 then
-                        local openAmount = math.min(amount, 25)
-                        pcall(function() fire("UseGift", selectedBox, openAmount) end)
-                        for i = 1, openAmount do
-                            if not boxEnabled then break end
-                            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                        end
-                        task.wait(0.1)
-                    else
-                        task.wait(5)
-                    end
+            claimThread = task.spawn(function()
+                while claimRunning do
+                    pcall(function() Remote:FireServer("ClaimSeason") end)
+                    task.wait(5)
                 end
             end)
         else
-            if boxThread then task.cancel(boxThread) end
+            if claimThread then task.cancel(claimThread) end
         end
     end
 })
 
-print("[Auto] Loaded!")
+QuestTab:CreateSection("Global Incentive")
+
+QuestTab:CreateToggle({
+    Name = "Auto Global Incentive",
+    CurrentValue = false,
+    Callback = function(v)
+        globalRunning = v
+        if v then
+            globalThread = task.spawn(function()
+                while globalRunning do
+                    local quests = getActiveQuests("global")
+                    if #quests == 0 then
+                        pcall(function() Remote:FireServer("ClaimGlobalIncentiveQuest") end)
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
+                        task.wait(60)
+                    else
+                        local questToDo = nil
+                        for _, q in ipairs(quests) do
+                            local curr = q.currency or ""
+                            if q.type == "Collect" and curr:lower():find("pearl") then
+                            else
+                                questToDo = q
+                                break
+                            end
+                        end
+                        if questToDo then
+                            completeQuest(questToDo)
+                        else
+                            getgenv().questActive = false
+                            getgenv().questEgg = nil
+                            task.wait(30)
+                        end
+                    end
+                end
+            end)
+        else
+            if globalThread then task.cancel(globalThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+            constants.DefaultPickupRadius = originalRadius
+        end
+    end
+})
+
+print("[Quest] Loaded!")
