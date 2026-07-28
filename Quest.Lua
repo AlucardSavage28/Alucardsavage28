@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
+local constants = require(ReplicatedStorage.Shared.Constants)
 
 -- ======================================
 -- TELEPORT LOCATIONS
@@ -46,6 +47,8 @@ local EGG_LOCATIONS = {
     ["Sweet Egg"] = Vector3.new(-3586, 162, 883),
     ["Exotic Egg"] = Vector3.new(-3576, 162, 882),
 }
+
+local originalRadius = constants.DefaultPickupRadius
 
 -- ======================================
 -- SETTINGS
@@ -188,6 +191,17 @@ local function completeQuest(quest)
         local prevPos = savePosition()
         local isCoinQuest = not curr:lower():find("gem") and not curr:lower():find("ticket")
         
+        -- Enable auto collect pickup
+        constants.DefaultPickupRadius = math.huge
+        
+        -- Start golden orb
+        local orbThread = task.spawn(function()
+            while getgenv().questActive do
+                pcall(function() Remote:FireServer("UseGoldenOrb") end)
+                task.wait(1)
+            end
+        end)
+        
         if curr:lower():find("gem") then teleportTo(GEM_AREA)
         elseif curr:lower():find("ticket") then teleportTo(TICKET_AREA)
         else teleportTo(COIN_AREA) end
@@ -216,6 +230,10 @@ local function completeQuest(quest)
             end
             if not stillActive then break end
         end
+        
+        -- Stop golden orb and disable auto collect
+        task.cancel(orbThread)
+        constants.DefaultPickupRadius = originalRadius
         restorePosition(prevPos)
     end
     
@@ -283,6 +301,7 @@ QuestTab:CreateToggle({
             if seasonThread then task.cancel(seasonThread) end
             getgenv().questActive = false
             getgenv().questEgg = nil
+            constants.DefaultPickupRadius = originalRadius
         end
     end
 })
@@ -345,6 +364,7 @@ QuestTab:CreateToggle({
             if globalThread then task.cancel(globalThread) end
             getgenv().questActive = false
             getgenv().questEgg = nil
+            constants.DefaultPickupRadius = originalRadius
         end
     end
 })
