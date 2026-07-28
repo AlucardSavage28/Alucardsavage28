@@ -22,6 +22,11 @@ local loopThread = nil
 local targetPetNamesString = ""
 local selectedVariant = "Normal"
 
+local fuseAllActive = false
+local fuseAllThread = nil
+local lastUsedPets = {}
+local usedPetIds = {}
+
 -- ======================================
 -- FUNCTIONS
 -- ======================================
@@ -92,6 +97,60 @@ local function fusionLoop()
     end
 end
 
+local function fuseAllLoop()
+    while fuseAllActive do
+        task.wait(5) -- Wait 5 seconds so new hatched pets aren't immediately consumed
+        
+        local data = LocalData:Get()
+        if not data or not data.Pets then continue end
+        
+        -- Clear tracking for new cycle
+        lastUsedPets = {}
+        usedPetIds = {}
+        
+        -- Group unlocked pets by variant (only use pets older than this scan)
+        local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
+        local currentPetIds = {}
+        for _, pet in pairs(data.Pets) do
+            if not pet.Locked then
+                currentPetIds[pet.Id] = true
+                if pet.Shiny and pet.Mythic then
+                    table.insert(groups.ShinyMythic, pet)
+                elseif pet.Shiny then
+                    table.insert(groups.Shiny, pet)
+                elseif pet.Mythic then
+                    table.insert(groups.Mythic, pet)
+                else
+                    table.insert(groups.Normal, pet)
+                end
+            end
+        end
+        
+        -- Try each group in order: Normal first
+        local selectedGroup = nil
+        local variantName = ""
+        if #groups.Normal >= 5 then selectedGroup = groups.Normal; variantName = "Normal"
+        elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny; variantName = "Shiny"
+        elseif #groups.Mythic >= 5 then selectedGroup = groups.Mythic; variantName = "Mythic"
+        elseif #groups.ShinyMythic >= 5 then selectedGroup = groups.ShinyMythic; variantName = "ShinyMythic"
+        end
+        
+        if selectedGroup then
+            local payload = {}
+            for i = 1, 5 do
+                table.insert(payload, tostring(selectedGroup[i].Id))
+                table.insert(lastUsedPets, variantName .. " " .. selectedGroup[i].Name)
+                usedPetIds[selectedGroup[i].Id] = true
+            end
+            
+            pcall(function()
+                NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+            end)
+            task.wait(1.5)
+        end
+    end
+end
+
 -- ======================================
 -- UI
 -- ======================================
@@ -127,6 +186,42 @@ PetTab:CreateToggle({
             if loopThread then
                 task.cancel(loopThread)
                 loopThread = nil
+            end
+        end
+    end,
+})
+
+PetTab:CreateSection("Rebirth Machine (All Unlocked)")
+
+PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
+
+-- Tracker label
+local trackerLabel = PetTab:CreateLabel("Last Used: None")
+
+-- Update tracker every 2 seconds
+task.spawn(function()
+    while true do
+        task.wait(2)
+        if #lastUsedPets > 0 then
+            local text = "Last Used: " .. table.concat(lastUsedPets, ", ")
+            pcall(function() trackerLabel:SetText(text) end)
+        end
+    end
+end)
+
+PetTab:CreateToggle({
+    Name = "Auto Rebirth Machine (All Unlocked Pets)",
+    CurrentValue = false,
+    Callback = function(V)
+        fuseAllActive = V
+        if V then
+            lastUsedPets = {}
+            fuseAllThread = task.spawn(fuseAllLoop)
+        else
+            fuseAllActive = false
+            if fuseAllThread then
+                task.cancel(fuseAllThread)
+                fuseAllThread = nil
             end
         end
     end,
