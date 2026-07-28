@@ -55,7 +55,7 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
 }
 
--- Cache for auto-detected eggs (saves position after first discovery)
+-- Cache for auto-detected eggs
 local discoveredEggs = {}
 
 -- ======================================
@@ -176,7 +176,7 @@ local function isDoodleRiftExists()
     return false
 end
 
--- Hybrid egg name list (hardcoded + cached + auto-detect new)
+-- Hybrid egg name list
 local function getAllEggNames()
     local eggs = {}
     local seen = {}
@@ -295,13 +295,13 @@ EggsTab:CreateToggle({
         if v then
             doodleThread = task.spawn(function()
                 while doodleEnabled do
-                    if isDoodleRiftExists() then
+                    local riftExists = isDoodleRiftExists()
+                    
+                    if riftExists then
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
                         
-                        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
-                        task.wait(0.5)
-                        
+                        -- CFrame teleport directly
                         local riftFolder = workspace:FindFirstChild("Rendered")
                         if riftFolder then
                             local rifts = riftFolder:FindFirstChild("Rifts")
@@ -319,11 +319,13 @@ EggsTab:CreateToggle({
                             end
                         end
                         
-                        local riftExists = true
-                        while doodleEnabled and riftExists do
+                        task.wait(0.3)
+                        
+                        -- Keep hatching while rift exists
+                        while doodleEnabled do
+                            if not isDoodleRiftExists() then break end
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
-                            riftExists = isDoodleRiftExists()
                         end
                         
                         getgenv().questActive = false
