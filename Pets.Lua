@@ -97,23 +97,19 @@ local function fusionLoop()
     end
 end
 
-local function fuseAllLoop()
+local function fuseAllLoop(trackerLabel)
     while fuseAllActive do
-        task.wait(5) -- Wait 5 seconds so new hatched pets aren't immediately consumed
+        task.wait(5)
         
         local data = LocalData:Get()
         if not data or not data.Pets then continue end
         
-        -- Clear tracking for new cycle
         lastUsedPets = {}
         usedPetIds = {}
         
-        -- Group unlocked pets by variant (only use pets older than this scan)
         local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
-        local currentPetIds = {}
         for _, pet in pairs(data.Pets) do
             if not pet.Locked then
-                currentPetIds[pet.Id] = true
                 if pet.Shiny and pet.Mythic then
                     table.insert(groups.ShinyMythic, pet)
                 elseif pet.Shiny then
@@ -126,7 +122,6 @@ local function fuseAllLoop()
             end
         end
         
-        -- Try each group in order: Normal first
         local selectedGroup = nil
         local variantName = ""
         if #groups.Normal >= 5 then selectedGroup = groups.Normal; variantName = "Normal"
@@ -137,15 +132,22 @@ local function fuseAllLoop()
         
         if selectedGroup then
             local payload = {}
+            local names = {}
             for i = 1, 5 do
                 table.insert(payload, tostring(selectedGroup[i].Id))
-                table.insert(lastUsedPets, variantName .. " " .. selectedGroup[i].Name)
+                local petName = variantName .. " " .. selectedGroup[i].Name
+                table.insert(lastUsedPets, petName)
+                table.insert(names, petName)
                 usedPetIds[selectedGroup[i].Id] = true
             end
             
             pcall(function()
                 NetworkRemote:InvokeServer("UseRebirthMachine", payload)
             end)
+            
+            local text = "Last Used: " .. table.concat(names, ", ")
+            pcall(function() trackerLabel:SetText(text) end)
+            
             task.wait(1.5)
         end
     end
@@ -195,19 +197,7 @@ PetTab:CreateSection("Rebirth Machine (All Unlocked)")
 
 PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
 
--- Tracker label
 local trackerLabel = PetTab:CreateLabel("Last Used: None")
-
--- Update tracker every 2 seconds
-task.spawn(function()
-    while true do
-        task.wait(2)
-        if #lastUsedPets > 0 then
-            local text = "Last Used: " .. table.concat(lastUsedPets, ", ")
-            pcall(function() trackerLabel:SetText(text) end)
-        end
-    end
-end)
 
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
@@ -216,7 +206,8 @@ PetTab:CreateToggle({
         fuseAllActive = V
         if V then
             lastUsedPets = {}
-            fuseAllThread = task.spawn(fuseAllLoop)
+            pcall(function() trackerLabel:SetText("Last Used: None") end)
+            fuseAllThread = task.spawn(function() fuseAllLoop(trackerLabel) end)
         else
             fuseAllActive = false
             if fuseAllThread then
