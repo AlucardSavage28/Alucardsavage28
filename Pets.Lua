@@ -24,8 +24,6 @@ local selectedVariant = "Normal"
 
 local fuseAllActive = false
 local fuseAllThread = nil
-local lastUsedPets = {}
-local usedPetIds = {}
 
 -- ======================================
 -- FUNCTIONS
@@ -97,15 +95,12 @@ local function fusionLoop()
     end
 end
 
-local function fuseAllLoop(trackerLabel)
+local function fuseAllLoop()
     while fuseAllActive do
         task.wait(5)
         
         local data = LocalData:Get()
         if not data or not data.Pets then continue end
-        
-        lastUsedPets = {}
-        usedPetIds = {}
         
         local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
         for _, pet in pairs(data.Pets) do
@@ -123,30 +118,32 @@ local function fuseAllLoop(trackerLabel)
         end
         
         local selectedGroup = nil
-        local variantName = ""
-        if #groups.Normal >= 5 then selectedGroup = groups.Normal; variantName = "Normal"
-        elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny; variantName = "Shiny"
-        elseif #groups.Mythic >= 5 then selectedGroup = groups.Mythic; variantName = "Mythic"
-        elseif #groups.ShinyMythic >= 5 then selectedGroup = groups.ShinyMythic; variantName = "ShinyMythic"
+        if #groups.Normal >= 5 then selectedGroup = groups.Normal
+        elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny
+        elseif #groups.Mythic >= 5 then selectedGroup = groups.Mythic
+        elseif #groups.ShinyMythic >= 5 then selectedGroup = groups.ShinyMythic
         end
         
         if selectedGroup then
             local payload = {}
-            local names = {}
+            local usedWithVariant = {}
             for i = 1, 5 do
-                table.insert(payload, tostring(selectedGroup[i].Id))
-                local petName = variantName .. " " .. selectedGroup[i].Name
-                table.insert(lastUsedPets, petName)
-                table.insert(names, petName)
-                usedPetIds[selectedGroup[i].Id] = true
+                local pet = selectedGroup[i]
+                table.insert(payload, tostring(pet.Id))
+                local variant = "Normal"
+                if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                elseif pet.Shiny then variant = "Shiny"
+                elseif pet.Mythic then variant = "Mythic" end
+                table.insert(usedWithVariant, variant .. " " .. pet.Name)
             end
             
             pcall(function()
                 NetworkRemote:InvokeServer("UseRebirthMachine", payload)
             end)
             
-            local text = "Last Used: " .. table.concat(names, ", ")
-            pcall(function() trackerLabel:SetText(text) end)
+            local text = table.concat(usedWithVariant, "\n")
+            getgenv().lastRebirthPets = text
+            print("[Rebirth] Used:\n" .. text)
             
             task.wait(1.5)
         end
@@ -197,7 +194,17 @@ PetTab:CreateSection("Rebirth Machine (All Unlocked)")
 
 PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
 
-local trackerLabel = PetTab:CreateLabel("Last Used: None")
+local trackerLabel = PetTab:CreateLabel("Last Used:\nNone")
+
+task.spawn(function()
+    while true do
+        task.wait(2)
+        local text = getgenv().lastRebirthPets
+        if text then
+            pcall(function() trackerLabel:SetText("Last Used:\n" .. text) end)
+        end
+    end
+end)
 
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
@@ -205,9 +212,9 @@ PetTab:CreateToggle({
     Callback = function(V)
         fuseAllActive = V
         if V then
-            lastUsedPets = {}
-            pcall(function() trackerLabel:SetText("Last Used: None") end)
-            fuseAllThread = task.spawn(function() fuseAllLoop(trackerLabel) end)
+            getgenv().lastRebirthPets = nil
+            pcall(function() trackerLabel:SetText("Last Used:\nNone") end)
+            fuseAllThread = task.spawn(fuseAllLoop)
         else
             fuseAllActive = false
             if fuseAllThread then
