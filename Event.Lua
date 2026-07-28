@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (CARNIVAL CHEST + REBIRTH + SHRINE + SHOP + UPGRADE)
+-- EVENT TAB (CRYSTAL SHOP)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -7,217 +7,57 @@ local Window = getgenv().Window
 local EventTab = Window:CreateTab("Event", nil)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
-local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
-
-local function fire(action, ...)
-    if RE then RE:FireServer(action, ...) end
-end
 
 -- ======================================
 -- SETTINGS
 -- ======================================
-local carnivalRunning = false
-local carnivalThread = nil
-local rebirthRunning = false
-local rebirthThread = nil
-local shrineRunning = false
-local shrineThread = nil
-local shopRunning = false
-local shopThread = nil
-local koiXLRunning = false
-local koiXLThread = nil
-local purpleFragRunning = false
-local purpleFragThread = nil
-local rainbowFragRunning = false
-local rainbowFragThread = nil
-local upgradeRunning = false
-local upgradeThread = nil
+local fragRunning = false
+local fragThread = nil
+local runeRunning = false
+local runeThread = nil
 
 -- ======================================
--- FUNCTIONS
+-- UI - CRYSTAL SHOP
 -- ======================================
-local function carnivalShrine()
-    pcall(function()
-        Remote:InvokeServer("DonateToCarnivalShrine", "Mythic", 6, 400)
-        task.wait(1)
-        RE:FireServer("ClaimCarnivalShrineBuff", "PlushieEgg")
-    end)
-end
-
--- ======================================
--- UI - CARNIVAL CHEST
--- ======================================
-EventTab:CreateSection("Carnival Chest")
+EventTab:CreateSection("Crystal Shop")
 
 EventTab:CreateToggle({
-    Name = "Auto Claim Carnival Chest",
+    Name = "Auto Buy All Fragment",
     CurrentValue = false,
     Callback = function(v)
-        carnivalRunning = v
+        fragRunning = v
         if v then
-            carnivalThread = task.spawn(function()
-                while carnivalRunning do
-                    pcall(function() RE:FireServer("ClaimChest", "Carnival Chest") end)
-                    task.wait(0.1)
-                end
-            end)
-        else
-            if carnivalThread then task.cancel(carnivalThread) end
-        end
-    end
-})
-
--- ======================================
--- UI - CARNIVAL REBIRTH
--- ======================================
-EventTab:CreateSection("Carnival Rebirth")
-
-EventTab:CreateToggle({
-    Name = "Auto Carnival Rebirth",
-    CurrentValue = false,
-    Callback = function(v)
-        rebirthRunning = v
-        if v then
-            rebirthThread = task.spawn(function()
-                while rebirthRunning do
-                    pcall(function() RE:FireServer("CarnivalRebirth") end)
-                    task.wait(0.1)
-                end
-            end)
-        else
-            if rebirthThread then task.cancel(rebirthThread) end
-        end
-    end
-})
-
--- ======================================
--- UI - CARNIVAL SHRINE
--- ======================================
-EventTab:CreateSection("Carnival Shrine")
-
-EventTab:CreateToggle({
-    Name = "Auto Carnival Shrine",
-    CurrentValue = false,
-    Callback = function(v)
-        shrineRunning = v
-        if v then
-            carnivalShrine()
-            shrineThread = task.spawn(function()
-                while shrineRunning do
-                    task.wait(43200)
-                    carnivalShrine()
-                end
-            end)
-        else
-            if shrineThread then task.cancel(shrineThread) end
-        end
-    end
-})
-
--- ======================================
--- UI - CARNIVAL SHOP
--- ======================================
-EventTab:CreateSection("Carnival Shop")
-
-EventTab:CreateToggle({
-    Name = "Buy Shadow Crystal with Carnival Coin",
-    CurrentValue = false,
-    Callback = function(v)
-        shopRunning = v
-        if v then
-            shopThread = task.spawn(function()
-                while shopRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "carnival-shop", 2, true) end)
+            fragThread = task.spawn(function()
+                while fragRunning do
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 7, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 8, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 9, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 10, false) end)
                     task.wait(1)
                 end
             end)
         else
-            if shopThread then task.cancel(shopThread) end
+            if fragThread then task.cancel(fragThread) end
         end
     end
 })
 
 EventTab:CreateToggle({
-    Name = "Auto Buy Unicorn Plushie and XL",
+    Name = "Auto Buy Hatching Rune",
     CurrentValue = false,
     Callback = function(v)
-        koiXLRunning = v
+        runeRunning = v
         if v then
-            koiXLThread = task.spawn(function()
-                while koiXLRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 9, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 10, false) end)
+            runeThread = task.spawn(function()
+                while runeRunning do
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 4, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 5, false) end)
                     task.wait(1)
                 end
             end)
         else
-            if koiXLThread then task.cancel(koiXLThread) end
-        end
-    end
-})
-
-EventTab:CreateToggle({
-    Name = "Auto Buy Purple Fragment",
-    CurrentValue = false,
-    Callback = function(v)
-        purpleFragRunning = v
-        if v then
-            purpleFragThread = task.spawn(function()
-                while purpleFragRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 7, false) end)
-                    task.wait(10)
-                end
-            end)
-        else
-            if purpleFragThread then task.cancel(purpleFragThread) end
-        end
-    end
-})
-
-EventTab:CreateToggle({
-    Name = "Auto Buy Rainbow Fragment",
-    CurrentValue = false,
-    Callback = function(v)
-        rainbowFragRunning = v
-        if v then
-            rainbowFragThread = task.spawn(function()
-                while rainbowFragRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", 8, false) end)
-                    task.wait(10)
-                end
-            end)
-        else
-            if rainbowFragThread then task.cancel(rainbowFragThread) end
-        end
-    end
-})
-
--- ======================================
--- UI - CARNIVAL UPGRADE
--- ======================================
-EventTab:CreateSection("Carnival Upgrade")
-
-EventTab:CreateToggle({
-    Name = "Auto Carnival Rebirth Upgrade",
-    CurrentValue = false,
-    Callback = function(v)
-        upgradeRunning = v
-        if v then
-            upgradeThread = task.spawn(function()
-                while upgradeRunning do
-                    pcall(function() RE:FireServer("BuyCarnivalUpgrade", "Currency") end)
-                    pcall(function() RE:FireServer("BuyCarnivalUpgrade", "Luck") end)
-                    pcall(function() RE:FireServer("BuyCarnivalUpgrade", "SecretLuck") end)
-                    pcall(function() RE:FireServer("BuyCarnivalUpgrade", "InfinityLuck") end)
-                    task.wait(0.1)
-                end
-            end)
-        else
-            if upgradeThread then task.cancel(upgradeThread) end
+            if runeThread then task.cancel(runeThread) end
         end
     end
 })
