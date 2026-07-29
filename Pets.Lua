@@ -141,59 +141,15 @@ PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute 
 
 local trackerLabel = PetTab:CreateLabel("Last Used: None")
 
--- Separate tracker - watches inventory independently
-task.spawn(function()
-    local lastKnownPets = {}
-    
-    -- Initialize
-    local data = LocalData:Get()
-    if data and data.Pets then
-        for id, pet in pairs(data.Pets) do
-            lastKnownPets[id] = pet
-        end
-    end
-    
-    while true do
-        task.wait(3)
-        
-        local data = LocalData:Get()
-        if data and data.Pets then
-            -- Find missing pets by comparing with last known
-            local missing = {}
-            for id, pet in pairs(lastKnownPets) do
-                if not data.Pets[id] then
-                    -- Pet disappeared - it was used for rebirth
-                    local variant = "Normal"
-                    if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
-                    elseif pet.Shiny then variant = "Shiny"
-                    elseif pet.Mythic then variant = "Mythic" end
-                    table.insert(missing, variant .. " " .. pet.Name)
-                end
-            end
-            
-            if #missing > 0 then
-                local text = "Last Used: " .. table.concat(missing, ", ")
-                print("[Tracker] " .. text)
-                pcall(function() trackerLabel.Text = text end)
-            end
-            
-            -- Update known pets
-            lastKnownPets = {}
-            for id, pet in pairs(data.Pets) do
-                lastKnownPets[id] = pet
-            end
-        end
-    end
-end)
-
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
     CurrentValue = false,
     Callback = function(V)
         fuseAllActive = V
         if V then
-            pcall(function() trackerLabel.Text = "Last Used: None" end)
+            pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
+                local lastPrint = ""
                 while fuseAllActive do
                     task.wait(5)
                     
@@ -224,15 +180,28 @@ PetTab:CreateToggle({
                     
                     if selectedGroup then
                         local payload = {}
+                        local usedWithVariant = {}
                         for i = 1, 5 do
-                            table.insert(payload, tostring(selectedGroup[i].Id))
+                            local pet = selectedGroup[i]
+                            table.insert(payload, tostring(pet.Id))
+                            local variant = "Normal"
+                            if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                            elseif pet.Shiny then variant = "Shiny"
+                            elseif pet.Mythic then variant = "Mythic" end
+                            table.insert(usedWithVariant, variant .. " " .. pet.Name)
                         end
                         
                         pcall(function()
                             NetworkRemote:InvokeServer("UseRebirthMachine", payload)
                         end)
                         
-                        print("[Rebirth] Fused 5 pets")
+                        local text = table.concat(usedWithVariant, ", ")
+                        pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
+                        
+                        if text ~= lastPrint then
+                            print("[Rebirth] " .. text)
+                            lastPrint = text
+                        end
                         
                         task.wait(1.5)
                     end
