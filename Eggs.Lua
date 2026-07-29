@@ -55,7 +55,6 @@ local EGG_WORLDS = {
     ["Showman Egg"] = "The Overworld",
 }
 
--- Cache for auto-detected eggs
 local discoveredEggs = {}
 
 -- ======================================
@@ -176,7 +175,6 @@ local function isDoodleRiftExists()
     return false
 end
 
--- Hybrid egg name list
 local function getAllEggNames()
     local eggs = {}
     local seen = {}
@@ -301,7 +299,6 @@ EggsTab:CreateToggle({
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
                         
-                        -- CFrame teleport directly
                         local riftFolder = workspace:FindFirstChild("Rendered")
                         if riftFolder then
                             local rifts = riftFolder:FindFirstChild("Rifts")
@@ -321,7 +318,6 @@ EggsTab:CreateToggle({
                         
                         task.wait(0.3)
                         
-                        -- Keep hatching while rift exists
                         while doodleEnabled do
                             if not isDoodleRiftExists() then break end
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
@@ -418,6 +414,21 @@ EggsTab:CreateDropdown({
         selectedEgg = v[1] or v
     end
 })
+
+EggsTab:CreateButton({
+    Name = "Re Scan The Egg Dropdown",
+    Callback = function()
+        local newEggs = getAllEggNames()
+        local text = "Found " .. #newEggs .. " eggs"
+        pcall(function() eggListLabel:SetText(text) end)
+        print("[Eggs] Rescan: " .. text)
+        for _, name in ipairs(newEggs) do
+            print("  - " .. name)
+        end
+    end
+})
+
+local eggListLabel = EggsTab:CreateLabel("Eggs loaded. Click Rescan to refresh")
 
 EggsTab:CreateInput({
     Name = "Hatch Amount",
