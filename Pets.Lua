@@ -147,7 +147,7 @@ PetTab:CreateToggle({
     Callback = function(V)
         fuseAllActive = V
         if V then
-            pcall(function() trackerLabel:SetText("Last Used: None") end)
+            pcall(function() trackerLabel.Text = "Last Used: None" end)
             fuseAllThread = task.spawn(function()
                 while fuseAllActive do
                     task.wait(5)
@@ -194,9 +194,9 @@ PetTab:CreateToggle({
                             NetworkRemote:InvokeServer("UseRebirthMachine", payload)
                         end)
                         
-                        local text = table.concat(usedWithVariant, ", ")
-                        pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
+                        local text = "Last Used: " .. table.concat(usedWithVariant, ", ")
                         print("[Rebirth] " .. text)
+                        pcall(function() trackerLabel.Text = text end)
                         
                         task.wait(1.5)
                     end
