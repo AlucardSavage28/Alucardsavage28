@@ -507,6 +507,22 @@ EggsTab:CreateDropdown({
     end
 })
 
+EggsTab:CreateButton({
+    Name = "Re Scan Inventory Eggs",
+    Callback = function()
+        inventoryEggList = getInventoryEggs()
+        selectedInventoryEgg = inventoryEggList[1]
+        local text = "Found " .. #inventoryEggList .. " inventory eggs"
+        pcall(function() invListLabel:SetText(text) end)
+        print("[Eggs] Inventory Rescan: " .. text)
+        for _, name in ipairs(inventoryEggList) do
+            print("  - " .. name)
+        end
+    end
+})
+
+local invListLabel = EggsTab:CreateLabel("Inventory eggs loaded. Click Rescan to refresh")
+
 EggsTab:CreateToggle({
     Name = "Auto Open Inventory Egg",
     CurrentValue = false,
