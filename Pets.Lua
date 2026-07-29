@@ -95,61 +95,6 @@ local function fusionLoop()
     end
 end
 
-local function fuseAllLoop()
-    while fuseAllActive do
-        task.wait(5)
-        
-        local data = LocalData:Get()
-        if not data or not data.Pets then continue end
-        
-        local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
-        for _, pet in pairs(data.Pets) do
-            if not pet.Locked then
-                if pet.Shiny and pet.Mythic then
-                    table.insert(groups.ShinyMythic, pet)
-                elseif pet.Shiny then
-                    table.insert(groups.Shiny, pet)
-                elseif pet.Mythic then
-                    table.insert(groups.Mythic, pet)
-                else
-                    table.insert(groups.Normal, pet)
-                end
-            end
-        end
-        
-        local selectedGroup = nil
-        if #groups.Normal >= 5 then selectedGroup = groups.Normal
-        elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny
-        elseif #groups.Mythic >= 5 then selectedGroup = groups.Mythic
-        elseif #groups.ShinyMythic >= 5 then selectedGroup = groups.ShinyMythic
-        end
-        
-        if selectedGroup then
-            local payload = {}
-            local usedWithVariant = {}
-            for i = 1, 5 do
-                local pet = selectedGroup[i]
-                table.insert(payload, tostring(pet.Id))
-                local variant = "Normal"
-                if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
-                elseif pet.Shiny then variant = "Shiny"
-                elseif pet.Mythic then variant = "Mythic" end
-                table.insert(usedWithVariant, variant .. " " .. pet.Name)
-            end
-            
-            pcall(function()
-                NetworkRemote:InvokeServer("UseRebirthMachine", payload)
-            end)
-            
-            local text = table.concat(usedWithVariant, "\n")
-            getgenv().lastRebirthPets = text
-            print("[Rebirth] Used:\n" .. text)
-            
-            task.wait(1.5)
-        end
-    end
-end
-
 -- ======================================
 -- UI
 -- ======================================
@@ -194,17 +139,7 @@ PetTab:CreateSection("Rebirth Machine (All Unlocked)")
 
 PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
 
-local trackerLabel = PetTab:CreateLabel("Last Used:\nNone")
-
-task.spawn(function()
-    while true do
-        task.wait(2)
-        local text = getgenv().lastRebirthPets
-        if text then
-            pcall(function() trackerLabel:SetText("Last Used:\n" .. text) end)
-        end
-    end
-end)
+local trackerLabel = PetTab:CreateLabel("Last Used: None")
 
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
@@ -212,9 +147,61 @@ PetTab:CreateToggle({
     Callback = function(V)
         fuseAllActive = V
         if V then
-            getgenv().lastRebirthPets = nil
-            pcall(function() trackerLabel:SetText("Last Used:\nNone") end)
-            fuseAllThread = task.spawn(fuseAllLoop)
+            pcall(function() trackerLabel:SetText("Last Used: None") end)
+            fuseAllThread = task.spawn(function()
+                while fuseAllActive do
+                    task.wait(5)
+                    
+                    local data = LocalData:Get()
+                    if not data or not data.Pets then continue end
+                    
+                    local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
+                    for _, pet in pairs(data.Pets) do
+                        if not pet.Locked then
+                            if pet.Shiny and pet.Mythic then
+                                table.insert(groups.ShinyMythic, pet)
+                            elseif pet.Shiny then
+                                table.insert(groups.Shiny, pet)
+                            elseif pet.Mythic then
+                                table.insert(groups.Mythic, pet)
+                            else
+                                table.insert(groups.Normal, pet)
+                            end
+                        end
+                    end
+                    
+                    local selectedGroup = nil
+                    if #groups.Normal >= 5 then selectedGroup = groups.Normal
+                    elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny
+                    elseif #groups.Mythic >= 5 then selectedGroup = groups.Mythic
+                    elseif #groups.ShinyMythic >= 5 then selectedGroup = groups.ShinyMythic
+                    end
+                    
+                    if selectedGroup then
+                        local payload = {}
+                        local usedWithVariant = {}
+                        for i = 1, 5 do
+                            local pet = selectedGroup[i]
+                            table.insert(payload, tostring(pet.Id))
+                            local variant = "Normal"
+                            if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                            elseif pet.Shiny then variant = "Shiny"
+                            elseif pet.Mythic then variant = "Mythic" end
+                            table.insert(usedWithVariant, variant .. " " .. pet.Name)
+                        end
+                        
+                        pcall(function()
+                            NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+                        end)
+                        
+                        local text = table.concat(usedWithVariant, ", ")
+                        pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
+                        print("[Rebirth] " .. text)
+                        
+                        task.wait(1.5)
+                    end
+                end
+            end)
         else
             fuseAllActive = false
             if fuseAllThread then
