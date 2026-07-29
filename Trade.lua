@@ -52,7 +52,7 @@ TradeTab:CreateToggle({
                 while sendRunning do
                     if targetPlayer ~= "" then
                         pcall(function()
-                            Remote:FireServer("TradeAcceptRequest", targetPlayer)
+                            Remote:FireServer("TradeRequest", targetPlayer)
                         end)
                     end
                     task.wait(3)
@@ -72,18 +72,12 @@ TradeTab:CreateToggle({
         if v then
             acceptThread = task.spawn(function()
                 while acceptRunning do
-                    -- Wait if auto move pet is running
-                    while movePetRunning do
-                        task.wait(0.5)
+                    if targetPlayer ~= "" then
+                        pcall(function()
+                            Remote:FireServer("TradeAcceptRequest", targetPlayer)
+                        end)
                     end
-                    pcall(function()
-                        Remote:FireServer("TradeAccept")
-                    end)
-                    task.wait(0.3)
-                    pcall(function()
-                        Remote:FireServer("TradeConfirm")
-                    end)
-                    task.wait(0.3)
+                    task.wait(1)
                 end
             end)
         else
@@ -100,10 +94,15 @@ TradeTab:CreateToggle({
         if v then
             confirmThread = task.spawn(function()
                 while confirmRunning do
-                    -- Wait if auto move pet is running
                     while movePetRunning do
                         task.wait(0.5)
                     end
+                    if targetPlayer ~= "" then
+                        pcall(function()
+                            Remote:FireServer("TradeAcceptRequest", targetPlayer)
+                        end)
+                    end
+                    task.wait(0.3)
                     pcall(function()
                         Remote:FireServer("TradeAccept")
                     end)
@@ -132,13 +131,13 @@ TradeTab:CreateToggle({
         if v then
             movePetThread = task.spawn(function()
                 while movePetRunning do
-                    -- Accept trade first
+                    -- Step 1: Accept trade
                     pcall(function()
                         Remote:FireServer("TradeAccept")
                     end)
-                    task.wait(0.5)
+                    task.wait(1)
                     
-                    -- Add pets fast (12 slots)
+                    -- Step 2: Add pets one by one with delay
                     local data = LocalData:Get()
                     local added = 0
                     if data and data.Pets then
@@ -148,21 +147,20 @@ TradeTab:CreateToggle({
                                     Remote:FireServer("TradeAddPet", pet.Id .. ":0")
                                 end)
                                 added = added + 1
-                                task.wait(0.05)
+                                task.wait(0.15)
                             end
                             if added >= 12 then break end
                         end
                     end
                     
-                    task.wait(0.3)
-                    
-                    -- Confirm trade
+                    -- Step 3: Wait for pets to register then confirm
+                    task.wait(0.5)
                     pcall(function()
                         Remote:FireServer("TradeConfirm")
                     end)
                     
-                    -- Wait before next trade cycle
-                    task.wait(2)
+                    -- Step 4: Wait before next trade cycle
+                    task.wait(3)
                 end
             end)
         else
