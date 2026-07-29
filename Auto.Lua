@@ -1,5 +1,5 @@
 -- ================================================
--- AUTO TAB (PRESENT RAIN + BUBBLE + SELL + ORB + PICKUP + BOX + FISHING)
+-- AUTO TAB (PRESENT RAIN + BUBBLE + SELL + ORB + PICKUP + BOX + RUNE/FRAGMENT + FISHING)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -39,6 +39,37 @@ local boxThread = nil
 local originalRadius = constants.DefaultPickupRadius
 local BUBBLE_CAP = 650000000
 local SELL_POS = Vector3.new(77, 6, -113)
+
+-- Rune settings
+local rune1Type = "Luck"
+local rune1Tier = "1"
+local rune1Amount = 200
+local rune1Running = false
+local rune1Thread = nil
+
+local rune2Type = "Secret"
+local rune2Tier = "1"
+local rune2Amount = 200
+local rune2Running = false
+local rune2Thread = nil
+
+local rune3Type = "Bubble"
+local rune3Tier = "1"
+local rune3Amount = 200
+local rune3Running = false
+local rune3Thread = nil
+
+-- Fragment settings
+local fragRunning = false
+local fragThread = nil
+
+-- Playtime
+local playtimeRunning = false
+local playtimeThread = nil
+
+-- Daily login
+local dailyRunning = false
+local dailyThread = nil
 
 -- ======================================
 -- GET BOXES FROM INVENTORY
@@ -147,6 +178,150 @@ AutoTab:CreateToggle({
 })
 
 -- ======================================
+-- UI - AUTO RUNE/FRAGMENT
+-- ======================================
+AutoTab:CreateSection("Auto Rune/Fragment")
+
+-- Rune #1 (Luck)
+AutoTab:CreateDropdown({
+    Name = "Luck Rune Tier",
+    Options = {"Luck Tier 1", "Luck Tier 2", "Luck Tier 3"},
+    CurrentOption = {"Luck Tier 1"},
+    Callback = function(v)
+        local split = string.split(v[1], " ")
+        rune1Type = split[1]
+        rune1Tier = split[3]
+    end
+})
+
+AutoTab:CreateInput({
+    Name = "Input the amount u want to use",
+    CurrentValue = "200",
+    PlaceholderText = "200",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        local n = tonumber(v)
+        if n then rune1Amount = n end
+    end
+})
+
+AutoTab:CreateToggle({
+    Name = "Auto Use Luck Rune",
+    CurrentValue = false,
+    Callback = function(v)
+        rune1Running = v
+        if v then
+            rune1Thread = task.spawn(function()
+                pcall(function() RE:FireServer("UseRune", rune1Type, tonumber(rune1Tier), rune1Amount) end)
+                rune1Running = false
+            end)
+        else
+            if rune1Thread then task.cancel(rune1Thread) end
+        end
+    end
+})
+
+-- Rune #2 (Secret)
+AutoTab:CreateDropdown({
+    Name = "Secret Rune Tier",
+    Options = {"Secret Tier 1", "Secret Tier 2", "Secret Tier 3"},
+    CurrentOption = {"Secret Tier 1"},
+    Callback = function(v)
+        local split = string.split(v[1], " ")
+        rune2Type = split[1]
+        rune2Tier = split[3]
+    end
+})
+
+AutoTab:CreateInput({
+    Name = "Input the amount u want to use",
+    CurrentValue = "200",
+    PlaceholderText = "200",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        local n = tonumber(v)
+        if n then rune2Amount = n end
+    end
+})
+
+AutoTab:CreateToggle({
+    Name = "Auto Use Secret Rune",
+    CurrentValue = false,
+    Callback = function(v)
+        rune2Running = v
+        if v then
+            rune2Thread = task.spawn(function()
+                pcall(function() RE:FireServer("UseRune", rune2Type, tonumber(rune2Tier), rune2Amount) end)
+                rune2Running = false
+            end)
+        else
+            if rune2Thread then task.cancel(rune2Thread) end
+        end
+    end
+})
+
+-- Rune #3 (Bubble)
+AutoTab:CreateDropdown({
+    Name = "Bubble Rune Tier",
+    Options = {"Bubble Tier 1", "Bubble Tier 2", "Bubble Tier 3"},
+    CurrentOption = {"Bubble Tier 1"},
+    Callback = function(v)
+        local split = string.split(v[1], " ")
+        rune3Type = split[1]
+        rune3Tier = split[3]
+    end
+})
+
+AutoTab:CreateInput({
+    Name = "Input the amount u want to use",
+    CurrentValue = "200",
+    PlaceholderText = "200",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        local n = tonumber(v)
+        if n then rune3Amount = n end
+    end
+})
+
+AutoTab:CreateToggle({
+    Name = "Auto Use Bubble Rune",
+    CurrentValue = false,
+    Callback = function(v)
+        rune3Running = v
+        if v then
+            rune3Thread = task.spawn(function()
+                pcall(function() RE:FireServer("UseRune", rune3Type, tonumber(rune3Tier), rune3Amount) end)
+                rune3Running = false
+            end)
+        else
+            if rune3Thread then task.cancel(rune3Thread) end
+        end
+    end
+})
+
+-- Fragment
+AutoTab:CreateToggle({
+    Name = "Auto Use All Fragment",
+    CurrentValue = false,
+    Callback = function(v)
+        fragRunning = v
+        if v then
+            fragThread = task.spawn(function()
+                while fragRunning do
+                    pcall(function() RE:FireServer("UseFragment", "Green", 1) end)
+                    pcall(function() RE:FireServer("UseFragment", "Blue", 1) end)
+                    pcall(function() RE:FireServer("UseFragment", "Purple", 1) end)
+                    pcall(function() RE:FireServer("UseFragment", "Rainbow", 1) end)
+                    task.wait(2)
+                end
+            end)
+        else
+            if fragThread then task.cancel(fragThread) end
+        end
+    end
+})
+
+-- ======================================
 -- UI - AUTO
 -- ======================================
 AutoTab:CreateSection("Auto")
@@ -221,6 +396,24 @@ AutoTab:CreateToggle({
 })
 
 AutoTab:CreateToggle({
+    Name = "Daily Login Streak",
+    CurrentValue = false,
+    Callback = function(v)
+        dailyRunning = v
+        if v then
+            dailyThread = task.spawn(function()
+                pcall(function() RE:FireServer("DailyRewardsForfeitStreak") end)
+                task.wait(0.5)
+                pcall(function() RE:FireServer("DailyRewardClaimStars") end)
+                dailyRunning = false
+            end)
+        else
+            if dailyThread then task.cancel(dailyThread) end
+        end
+    end
+})
+
+AutoTab:CreateToggle({
     Name = "Auto Use Power Orb",
     CurrentValue = false,
     Callback = function(v)
@@ -282,6 +475,24 @@ AutoTab:CreateToggle({
             constants.DefaultPickupRadius = math.huge
         else
             constants.DefaultPickupRadius = originalRadius
+        end
+    end
+})
+
+AutoTab:CreateToggle({
+    Name = "Auto Playtime",
+    CurrentValue = false,
+    Callback = function(v)
+        playtimeRunning = v
+        if v then
+            playtimeThread = task.spawn(function()
+                while playtimeRunning do
+                    pcall(function() RE:FireServer("ClaimAllPlaytime") end)
+                    task.wait(60)
+                end
+            end)
+        else
+            if playtimeThread then task.cancel(playtimeThread) end
         end
     end
 })
