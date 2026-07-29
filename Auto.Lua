@@ -511,6 +511,22 @@ AutoTab:CreateDropdown({
     end
 })
 
+AutoTab:CreateButton({
+    Name = "Re Scan Boxes",
+    Callback = function()
+        boxList = getBoxes()
+        selectedBox = boxList[1] or "Mystery Box"
+        local text = "Found " .. #boxList .. " boxes"
+        pcall(function() boxListLabel:SetText(text) end)
+        print("[Auto] Box Rescan: " .. text)
+        for _, name in ipairs(boxList) do
+            print("  - " .. name)
+        end
+    end
+})
+
+local boxListLabel = AutoTab:CreateLabel("Boxes loaded. Click Rescan to refresh")
+
 AutoTab:CreateToggle({
     Name = "Auto Open Box (don't use near egg)",
     CurrentValue = false,
