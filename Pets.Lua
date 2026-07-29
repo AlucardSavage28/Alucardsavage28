@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
+local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 
 local NetworkRemote = ReplicatedStorage:WaitForChild("Shared")
     :WaitForChild("Framework")
@@ -159,14 +160,17 @@ PetTab:CreateToggle({
                     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
                     for _, pet in pairs(data.Pets) do
                         if not pet.Locked then
-                            if pet.Shiny and pet.Mythic then
-                                table.insert(groups.ShinyMythic, pet)
-                            elseif pet.Shiny then
-                                table.insert(groups.Shiny, pet)
-                            elseif pet.Mythic then
-                                table.insert(groups.Mythic, pet)
-                            else
-                                table.insert(groups.Normal, pet)
+                            local info = Pets[pet.Name]
+                            if info and info.Rarity and info.Rarity:find("Secret") then
+                                if pet.Shiny and pet.Mythic then
+                                    table.insert(groups.ShinyMythic, pet)
+                                elseif pet.Shiny then
+                                    table.insert(groups.Shiny, pet)
+                                elseif pet.Mythic then
+                                    table.insert(groups.Mythic, pet)
+                                else
+                                    table.insert(groups.Normal, pet)
+                                end
                             end
                         end
                     end
@@ -191,11 +195,17 @@ PetTab:CreateToggle({
                             table.insert(usedWithVariant, variant .. " " .. pet.Name)
                         end
                         
+                        local text = table.concat(usedWithVariant, ", ")
+                        
+                        -- Update label BEFORE rebirth
+                        pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
+                        
+                        -- Do rebirth
                         pcall(function()
                             NetworkRemote:InvokeServer("UseRebirthMachine", payload)
                         end)
                         
-                        local text = table.concat(usedWithVariant, ", ")
+                        -- Update label AFTER rebirth
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                         
                         if text ~= lastPrint then
