@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + XL + ALERTS)
+-- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + XL + ALERTS + STATS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -180,6 +180,36 @@ local function getImage(petName, ex)
 end
 
 -- ======================================
+-- DEBUG STATS EXTRACTION
+-- ======================================
+local function getDebugStats()
+    local stats = {
+        TotalLuck = "N/A",
+        InfinityLuck = "N/A",
+        SecretLuck = "N/A",
+        HatchSpeed = "N/A",
+    }
+    
+    Remote:FireServer("SetSetting", "Debug", true)
+    task.wait(0.5)
+    
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        for _, obj in ipairs(playerGui:GetDescendants()) do
+            if obj:IsA("TextLabel") then
+                local text = obj.Text
+                if stats.TotalLuck == "N/A" and text:find("🍀 Lucky +") then stats.TotalLuck = text end
+                if stats.InfinityLuck == "N/A" and text:find("♾️ Ultra Infinity Luck") then stats.InfinityLuck = text end
+                if stats.SecretLuck == "N/A" and text:find("❓ Secret/Infinity Luck") then stats.SecretLuck = text end
+                if stats.HatchSpeed == "N/A" and text:find("⚡ Hatch Speed") then stats.HatchSpeed = text end
+            end
+        end
+    end
+    
+    return stats
+end
+
+-- ======================================
 -- WEBHOOK SYSTEM
 -- ======================================
 local hatchQueue={}
@@ -273,6 +303,9 @@ task.spawn(function()
         local perHour = perMin * 60
         lastHatches = currentHatches
         lastPingTime = os.time()
+        
+        -- Get debug stats
+        local debugStats = getDebugStats()
 
         table.insert(onlineQueue, {
             embeds = {{
@@ -281,7 +314,8 @@ task.spawn(function()
                     "**" .. player.Name .. "** is still online!\n\n" ..
                     "Online: " .. hours .. "h " .. minutes .. "m\n" ..
                     "Coins: " .. coins .. "\nGems: " .. gems .. "\nBubbles: " .. bubbles .. "\n\n" ..
-                    "**Hatch Rate**\nPer Minute: " .. perMin .. "\nPer Hour: " .. perHour,
+                    "**Hatch Rate**\nPer Minute: " .. perMin .. "\nPer Hour: " .. perHour .. "\n\n" ..
+                    "**Stats**\n" .. debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed,
                 color = 3447003,
                 footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
             }}
@@ -325,7 +359,6 @@ task.spawn(function()
                     local info = Pets[pet.Name]
                     local isXL = pet.XL
                     
-                    -- If Super but info not found, try stripping variant prefixes
                     if isSuper and not info then
                         local baseName = pet.Name:gsub("^Shiny ", ""):gsub("^Mythic ", ""):gsub("^Shiny Mythic ", ""):gsub("^XL ", "")
                         info = Pets[baseName]
@@ -348,6 +381,10 @@ task.spawn(function()
                         if isSuper then rarity = "Super Legendary" end
                         
                         knownPets[pet.Id] = true
+                        
+                        -- Get debug stats for hatch embeds
+                        local debugStats = getDebugStats()
+                        local statsStr = debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed
                         
                         if isSuper then
                             local enchantNames = {}
@@ -374,7 +411,8 @@ task.spawn(function()
                                 color = 0x1E90FF,
                                 fields = {
                                     {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems, inline = false},
-                                    {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
+                                    {name = "Ultra Legendary Enchant", value = displayStr, inline = false},
+                                    {name = "Stats", value = statsStr, inline = false}
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
@@ -391,7 +429,8 @@ task.spawn(function()
                                 color = 0x1E90FF,
                                 fields = {
                                     {name = "* User Info", value = "Name : Hidden", inline = false},
-                                    {name = "Ultra Legendary Enchant", value = displayStr, inline = false}
+                                    {name = "Ultra Legendary Enchant", value = displayStr, inline = false},
+                                    {name = "Stats", value = statsStr, inline = false}
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
@@ -422,7 +461,8 @@ task.spawn(function()
                                 color = color,
                                 fields = {
                                     {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
-                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
+                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false},
+                                    {name = "Stats", value = statsStr, inline = false}
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
@@ -439,7 +479,8 @@ task.spawn(function()
                                 color = color,
                                 fields = {
                                     {name = "* User Info", value = "Name : Hidden", inline = false},
-                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false}
+                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false},
+                                    {name = "Stats", value = statsStr, inline = false}
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
@@ -465,7 +506,6 @@ task.spawn(function()
         task.wait(10)
         if not rareEggNotify then continue end
         
-        -- Check 4x Plushie in Rendered first (more reliable)
         local fourXFound = false
         local rendered = workspace:FindFirstChild("Rendered")
         if rendered then
@@ -476,7 +516,6 @@ task.spawn(function()
                 end
             end
         end
-        -- Fallback to workspace
         if not fourXFound then
             for _, obj in ipairs(workspace:GetDescendants()) do
                 if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
@@ -486,7 +525,6 @@ task.spawn(function()
             end
         end
         
-        -- Check Doodle Rift
         local riftFolder = workspace:FindFirstChild("Rendered")
         local doodleRiftFound = false
         if riftFolder then
@@ -496,7 +534,6 @@ task.spawn(function()
             end
         end
         
-        -- Only alert on change from false to true
         if fourXFound and not was4xPlushieActive then
             was4xPlushieActive = true
             local payload = {
@@ -586,6 +623,7 @@ WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Plushie Egg + Doodle Rift")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
+WebhookTab:CreateLabel("Stats added to all embeds")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
 print("Webhook Is Online, Good Luck Hatching Guys! Me (Renoa The Finest) Wishing for our luck")
