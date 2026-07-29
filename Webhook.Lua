@@ -198,7 +198,9 @@ local function getDebugStats()
         for _, obj in ipairs(playerGui:GetDescendants()) do
             if obj:IsA("TextLabel") then
                 local text = obj.Text
-                if stats.TotalLuck == "N/A" and text:find("🍀 Lucky +") then stats.TotalLuck = text end
+                text = text:gsub("<[^>]+>", "")
+                
+                if stats.TotalLuck == "N/A" and text:find("🍀 Lucky") then stats.TotalLuck = text end
                 if stats.InfinityLuck == "N/A" and text:find("♾️ Ultra Infinity Luck") then stats.InfinityLuck = text end
                 if stats.SecretLuck == "N/A" and text:find("❓ Secret/Infinity Luck") then stats.SecretLuck = text end
                 if stats.HatchSpeed == "N/A" and text:find("⚡ Hatch Speed") then stats.HatchSpeed = text end
@@ -304,7 +306,6 @@ task.spawn(function()
         lastHatches = currentHatches
         lastPingTime = os.time()
         
-        -- Get debug stats
         local debugStats = getDebugStats()
 
         table.insert(onlineQueue, {
@@ -382,7 +383,6 @@ task.spawn(function()
                         
                         knownPets[pet.Id] = true
                         
-                        -- Get debug stats for hatch embeds
                         local debugStats = getDebugStats()
                         local statsStr = debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed
                         
