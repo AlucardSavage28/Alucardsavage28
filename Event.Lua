@@ -30,10 +30,8 @@ EventTab:CreateToggle({
         if v then
             fragThread = task.spawn(function()
                 while fragRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 7, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 8, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 9, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 10, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 11, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 12, false) end)
                     task.wait(1)
                 end
             end)
@@ -51,8 +49,8 @@ EventTab:CreateToggle({
         if v then
             runeThread = task.spawn(function()
                 while runeRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 4, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 5, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 6, false) end)
+                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 7, false) end)
                     task.wait(1)
                 end
             end)
