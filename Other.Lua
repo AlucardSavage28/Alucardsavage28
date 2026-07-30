@@ -12,6 +12,8 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
+local Pets = require(ReplicatedStorage.Shared.Data.Pets)
+local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 -- ======================================
 -- STATS TRACKER
@@ -22,10 +24,19 @@ local frame = nil
 local hatchedLabel = nil
 local rateLabel = nil
 local timeLabel = nil
+local bestHatchLabel = nil
 
 local startTime = 0
 local startHatches = 0
 local currentHatches = 0
+
+-- Best hatch tracking
+local TRACKED_RARITIES = {"Secret", "Celestial", "Infinity", "Void"}
+local knownPetIds = {}
+local bestHatchName = "None"
+local bestHatchChance = "N/A"
+local bestHatchVariant = "Normal"
+local bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
 
 local function getHatches()
     local leaderstats = player:FindFirstChild("leaderstats")
@@ -37,6 +48,62 @@ local function getHatches()
         end
     end
     return 0
+end
+
+local function getChanceDisplay(chance)
+    if chance >= 1 then return chance .. "%"
+    elseif chance > 0 then
+        local oneIn = 100 / chance
+        if oneIn >= 1e9 then return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
+        elseif oneIn >= 1e6 then return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
+        elseif oneIn >= 1e3 then return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
+        else return "1/" .. string.format("%.0f", oneIn) end
+    end
+    return "Unknown"
+end
+
+local function checkForBestHatch()
+    local data = LocalData:Get()
+    if not data or not data.Pets then return end
+    
+    for _, pet in pairs(data.Pets) do
+        if not knownPetIds[pet.Id] then
+            knownPetIds[pet.Id] = true
+            
+            local info = Pets[pet.Name]
+            if info and info.Rarity then
+                local rarity = info.Rarity
+                local isTracked = false
+                for _, r in ipairs(TRACKED_RARITIES) do
+                    if rarity:find(r) then
+                        isTracked = true
+                        rarity = r
+                        break
+                    end
+                end
+                
+                if isTracked and info.Chance then
+                    local chance = tonumber(info.Chance) or 0
+                    if bestHatchChance == "N/A" or chance < tonumber(bestHatchChance) then
+                        bestHatchName = pet.Name
+                        bestHatchChance = tostring(chance)
+                        
+                        if pet.Shiny and pet.Mythic then bestHatchVariant = "Shiny Mythic"
+                        elseif pet.Shiny then bestHatchVariant = "Shiny"
+                        elseif pet.Mythic then bestHatchVariant = "Mythic"
+                        else bestHatchVariant = "Normal" end
+                        
+                        local odds = getChanceDisplay(chance)
+                        bestHatchDisplay = "Best Hatch: " .. bestHatchVariant .. " " .. bestHatchName .. "\nOdds: " .. odds
+                        
+                        if bestHatchLabel then
+                            pcall(function() bestHatchLabel.Text = bestHatchDisplay end)
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 local function updateStats()
@@ -56,10 +123,21 @@ local function updateStats()
     if hatchedLabel then hatchedLabel.Text = "Hatched: " .. hatchedSinceStart end
     if rateLabel then rateLabel.Text = "Rate: " .. perMin .. "/min | " .. perHour .. "/hr" end
     if timeLabel then timeLabel.Text = "Time: " .. timeStr end
+    
+    -- Check for new best hatch
+    checkForBestHatch()
 end
 
 local function createStatsUI()
     if screenGui then return end
+    
+    -- Save current pet IDs so we only track new ones
+    local data = LocalData:Get()
+    if data and data.Pets then
+        for petId, _ in pairs(data.Pets) do
+            knownPetIds[petId] = true
+        end
+    end
     
     screenGui = Instance.new("ScreenGui")
     screenGui.Name = "StatsTracker"
@@ -67,7 +145,7 @@ local function createStatsUI()
     screenGui.Parent = player:WaitForChild("PlayerGui")
     
     frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 90)
+    frame.Size = UDim2.new(0, 200, 0, 135)
     frame.Position = UDim2.new(1, -210, 0, 10)
     frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     frame.BackgroundTransparency = 0.2
@@ -122,6 +200,19 @@ local function createStatsUI()
     timeLabel.TextXAlignment = Enum.TextXAlignment.Left
     timeLabel.Parent = frame
     
+    -- Best Hatch label
+    bestHatchLabel = Instance.new("TextLabel")
+    bestHatchLabel.Size = UDim2.new(1, -10, 0, 36)
+    bestHatchLabel.Position = UDim2.new(0, 5, 0, 88)
+    bestHatchLabel.BackgroundTransparency = 1
+    bestHatchLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    bestHatchLabel.Text = "Best Hatch: None\nOdds: N/A"
+    bestHatchLabel.Font = Enum.Font.Gotham
+    bestHatchLabel.TextSize = 11
+    bestHatchLabel.TextXAlignment = Enum.TextXAlignment.Left
+    bestHatchLabel.RichText = true
+    bestHatchLabel.Parent = frame
+    
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -161,6 +252,7 @@ local function destroyStatsUI()
         hatchedLabel = nil
         rateLabel = nil
         timeLabel = nil
+        bestHatchLabel = nil
     end
 end
 
@@ -294,6 +386,11 @@ OtherTab:CreateToggle({
         if v then
             startTime = os.clock()
             startHatches = getHatches()
+            bestHatchName = "None"
+            bestHatchChance = "N/A"
+            bestHatchVariant = "Normal"
+            bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
+            knownPetIds = {}
             createStatsUI()
         else
             destroyStatsUI()
@@ -388,4 +485,4 @@ OtherTab:CreateButton({
     end
 })
 
-print("[Other] Loaded!")
+print("[Misc] Loaded!")
