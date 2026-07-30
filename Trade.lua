@@ -51,9 +51,12 @@ TradeTab:CreateToggle({
             sendThread = task.spawn(function()
                 while sendRunning do
                     if targetPlayer ~= "" then
-                        pcall(function()
-                            Remote:InvokeServer("TradeRequest", targetPlayer)
-                        end)
+                        local target = Players:FindFirstChild(targetPlayer)
+                        if target then
+                            pcall(function()
+                                Remote:FireServer("TradeRequest", target)
+                            end)
+                        end
                     end
                     task.wait(3)
                 end
@@ -73,9 +76,12 @@ TradeTab:CreateToggle({
             acceptThread = task.spawn(function()
                 while acceptRunning do
                     if targetPlayer ~= "" then
-                        pcall(function()
-                            Remote:InvokeServer("TradeAcceptRequest", targetPlayer)
-                        end)
+                        local target = Players:FindFirstChild(targetPlayer)
+                        if target then
+                            pcall(function()
+                                Remote:FireServer("TradeAcceptRequest", target)
+                            end)
+                        end
                     end
                     task.wait(1)
                 end
@@ -97,12 +103,6 @@ TradeTab:CreateToggle({
                     while movePetRunning do
                         task.wait(0.5)
                     end
-                    if targetPlayer ~= "" then
-                        pcall(function()
-                            Remote:InvokeServer("TradeAcceptRequest", targetPlayer)
-                        end)
-                    end
-                    task.wait(0.3)
                     pcall(function()
                         Remote:FireServer("TradeAccept")
                     end)
