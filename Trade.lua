@@ -58,7 +58,7 @@ TradeTab:CreateToggle({
                             end)
                         end
                     end
-                    task.wait(3)
+                    task.wait(0.5)
                 end
             end)
         else
