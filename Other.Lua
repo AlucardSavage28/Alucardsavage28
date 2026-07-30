@@ -4,7 +4,7 @@
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 
-local OtherTab = Window:CreateTab("Other", nil)
+local OtherTab = Window:CreateTab("Misc", nil)
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
