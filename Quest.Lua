@@ -12,6 +12,7 @@ local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 local constants = require(ReplicatedStorage.Shared.Constants)
+local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
 -- ======================================
 -- TELEPORT LOCATIONS
@@ -173,7 +174,6 @@ local function completeQuest(quest)
             end
             restorePosition(prevPos)
         elseif quest.rarity then
-            -- Hatch Nightmare Egg for rarity quests
             getgenv().questEgg = "Nightmare Egg"
             local prevPos = savePosition()
             local pos = EGG_LOCATIONS["Nightmare Egg"]
@@ -208,6 +208,7 @@ local function completeQuest(quest)
         getgenv().questEgg = nil
         local prevPos = savePosition()
         local isCoinQuest = not curr:lower():find("gem") and not curr:lower():find("ticket")
+        local isGemQuest = curr:lower():find("gem")
         
         -- Enable auto collect pickup
         constants.DefaultPickupRadius = math.huge
@@ -220,7 +221,23 @@ local function completeQuest(quest)
             end
         end)
         
-        if curr:lower():find("gem") then teleportTo(GEM_AREA)
+        -- For gem quests, buy from shops to stay under cap
+        local shopThread = nil
+        if isGemQuest then
+            shopThread = task.spawn(function()
+                while getgenv().questActive do
+                    local shops = {"shadow-shop", "alien-shop", "shard-shop", "dice-shop"}
+                    for _, shop in ipairs(shops) do
+                        for item = 1, 3 do
+                            pcall(function() RE:FireServer("BuyShopItem", shop, item, true) end)
+                        end
+                    end
+                    task.wait(0.8)
+                end
+            end)
+        end
+        
+        if isGemQuest then teleportTo(GEM_AREA)
         elseif curr:lower():find("ticket") then teleportTo(TICKET_AREA)
         else teleportTo(COIN_AREA) end
         
@@ -249,8 +266,9 @@ local function completeQuest(quest)
             if not stillActive then break end
         end
         
-        -- Stop golden orb and disable auto collect
+        -- Stop threads
         task.cancel(orbThread)
+        if shopThread then task.cancel(shopThread) end
         constants.DefaultPickupRadius = originalRadius
         restorePosition(prevPos)
     end
