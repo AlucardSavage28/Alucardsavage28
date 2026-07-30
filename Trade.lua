@@ -52,7 +52,7 @@ TradeTab:CreateToggle({
                 while sendRunning do
                     if targetPlayer ~= "" then
                         pcall(function()
-                            Remote:FireServer("TradeRequest", targetPlayer)
+                            Remote:InvokeServer("TradeRequest", targetPlayer)
                         end)
                     end
                     task.wait(3)
@@ -74,7 +74,7 @@ TradeTab:CreateToggle({
                 while acceptRunning do
                     if targetPlayer ~= "" then
                         pcall(function()
-                            Remote:FireServer("TradeAcceptRequest", targetPlayer)
+                            Remote:InvokeServer("TradeAcceptRequest", targetPlayer)
                         end)
                     end
                     task.wait(1)
@@ -99,7 +99,7 @@ TradeTab:CreateToggle({
                     end
                     if targetPlayer ~= "" then
                         pcall(function()
-                            Remote:FireServer("TradeAcceptRequest", targetPlayer)
+                            Remote:InvokeServer("TradeAcceptRequest", targetPlayer)
                         end)
                     end
                     task.wait(0.3)
@@ -131,13 +131,11 @@ TradeTab:CreateToggle({
         if v then
             movePetThread = task.spawn(function()
                 while movePetRunning do
-                    -- Step 1: Accept trade
                     pcall(function()
                         Remote:FireServer("TradeAccept")
                     end)
                     task.wait(1)
                     
-                    -- Step 2: Add pets one by one with delay
                     local data = LocalData:Get()
                     local added = 0
                     if data and data.Pets then
@@ -153,13 +151,11 @@ TradeTab:CreateToggle({
                         end
                     end
                     
-                    -- Step 3: Wait for pets to register then confirm
                     task.wait(0.5)
                     pcall(function()
                         Remote:FireServer("TradeConfirm")
                     end)
                     
-                    -- Step 4: Wait before next trade cycle
                     task.wait(3)
                 end
             end)
