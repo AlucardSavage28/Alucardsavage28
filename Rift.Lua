@@ -1,5 +1,5 @@
 -- ================================================
--- RIFT TAB (EGG RIFT + CHEST RIFT)
+-- RIFT TAB (EGG RIFT + CHEST RIFT + WORLD CHEST)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -35,6 +35,18 @@ local superRunning = false
 local superThread = nil
 local diceRunning = false
 local diceThread = nil
+
+-- World chest settings
+local seasonRunning = false
+local seasonThread = nil
+local giantRunning = false
+local giantThread = nil
+local voidRunning = false
+local voidThread = nil
+local ticketRunning = false
+local ticketThread = nil
+local claimAllRunning = false
+local claimAllThread = nil
 
 -- ======================================
 -- FUNCTIONS
@@ -120,6 +132,104 @@ RiftTab:CreateToggle({
         else
             eggLoop = false
             if eggThread then task.cancel(eggThread) end
+        end
+    end
+})
+
+-- =========================
+-- AUTO WORLD CHEST
+-- =========================
+RiftTab:CreateSection("Auto World Chest")
+
+RiftTab:CreateToggle({
+    Name = "Auto Season Chest",
+    CurrentValue = false,
+    Callback = function(v)
+        seasonRunning = v
+        if v then
+            seasonThread = task.spawn(function()
+                while seasonRunning do
+                    pcall(function() Remote:FireServer("UnlockEventChest", "Season Chest", false) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if seasonThread then task.cancel(seasonThread) end
+        end
+    end
+})
+
+RiftTab:CreateToggle({
+    Name = "Auto Giant Chest",
+    CurrentValue = false,
+    Callback = function(v)
+        giantRunning = v
+        if v then
+            giantThread = task.spawn(function()
+                while giantRunning do
+                    pcall(function() Remote:FireServer("ClaimChest", "Giant Chest") end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if giantThread then task.cancel(giantThread) end
+        end
+    end
+})
+
+RiftTab:CreateToggle({
+    Name = "Auto Void Chest",
+    CurrentValue = false,
+    Callback = function(v)
+        voidRunning = v
+        if v then
+            voidThread = task.spawn(function()
+                while voidRunning do
+                    pcall(function() Remote:FireServer("ClaimChest", "Void Chest") end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if voidThread then task.cancel(voidThread) end
+        end
+    end
+})
+
+RiftTab:CreateToggle({
+    Name = "Auto Ticket Chest",
+    CurrentValue = false,
+    Callback = function(v)
+        ticketRunning = v
+        if v then
+            ticketThread = task.spawn(function()
+                while ticketRunning do
+                    pcall(function() Remote:FireServer("ClaimChest", "Ticket Chest") end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if ticketThread then task.cancel(ticketThread) end
+        end
+    end
+})
+
+RiftTab:CreateToggle({
+    Name = "Auto Claim All",
+    CurrentValue = false,
+    Callback = function(v)
+        claimAllRunning = v
+        if v then
+            claimAllThread = task.spawn(function()
+                while claimAllRunning do
+                    pcall(function() Remote:FireServer("UnlockEventChest", "Season Chest", false) end)
+                    pcall(function() Remote:FireServer("ClaimChest", "Giant Chest") end)
+                    pcall(function() Remote:FireServer("ClaimChest", "Void Chest") end)
+                    pcall(function() Remote:FireServer("ClaimChest", "Ticket Chest") end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if claimAllThread then task.cancel(claimAllThread) end
         end
     end
 })
