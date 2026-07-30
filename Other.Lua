@@ -1,5 +1,5 @@
 -- ================================================
--- OTHER TAB (STATS TRACKER + EFFECTS)
+-- OTHER TAB (STATS TRACKER + AUTO BUY SHOP + EFFECTS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -10,6 +10,8 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
 -- ======================================
 -- STATS TRACKER
@@ -163,13 +165,37 @@ local function destroyStatsUI()
 end
 
 -- ======================================
+-- AUTO BUY SHOP
+-- ======================================
+local SHOP_ITEMS = {
+    ["shadow-shop"] = {1, 2, 3},
+    ["alien-shop"] = {1, 2, 3},
+    ["shard-shop"] = {1, 2, 3},
+    ["dice-shop"] = {1, 2, 3},
+}
+
+local selectedShop = "shadow-shop"
+local shopRunning = false
+local shopThread = nil
+local buyAllRunning = false
+local buyAllThread = nil
+
+local function buyShop(shopName)
+    local items = SHOP_ITEMS[shopName]
+    if items then
+        for _, itemNum in ipairs(items) do
+            pcall(function() RE:FireServer("BuyShopItem", shopName, itemNum, true) end)
+        end
+    end
+end
+
+-- ======================================
 -- EFFECTS
 -- ======================================
 local function safeSet(obj, prop, value)
     pcall(function() obj[prop] = value end)
 end
 
--- FPS Button 1: Disable Particles & Materials
 local function fps1_DisableParticles()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
@@ -198,7 +224,6 @@ local function fps1_DisableParticles()
     print("[FPS] Disabled " .. count .. " effects")
 end
 
--- FPS Button 2: Hide Pets & Effects
 local function fps2_HidePets()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
@@ -221,7 +246,6 @@ local function fps2_HidePets()
     print("[FPS] Disabled " .. count .. " pet effects")
 end
 
--- FPS Button 3: Remove Shadows & Textures
 local function fps3_RemoveTextures()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
@@ -250,7 +274,6 @@ local function fps3_RemoveTextures()
     print("[FPS] Disabled " .. count .. " effects")
 end
 
--- Full Bright
 local function fullBright()
     safeSet(Lighting, "Brightness", 5)
     safeSet(Lighting, "Ambient", Color3.fromRGB(255, 255, 255))
@@ -275,6 +298,63 @@ OtherTab:CreateToggle({
         else
             destroyStatsUI()
         end
+    end
+})
+
+OtherTab:CreateSection("Auto Buy Shop")
+
+OtherTab:CreateDropdown({
+    Name = "Select Shop",
+    Options = {"shadow-shop", "alien-shop", "shard-shop", "dice-shop"},
+    CurrentOption = {selectedShop},
+    Callback = function(v)
+        selectedShop = v[1]
+    end
+})
+
+OtherTab:CreateToggle({
+    Name = "Auto Buy Selected Shop",
+    CurrentValue = false,
+    Callback = function(v)
+        shopRunning = v
+        if v then
+            shopThread = task.spawn(function()
+                while shopRunning do
+                    buyShop(selectedShop)
+                    task.wait(1)
+                end
+            end)
+        else
+            if shopThread then task.cancel(shopThread) end
+        end
+    end
+})
+
+OtherTab:CreateToggle({
+    Name = "Auto Buy All Shop",
+    CurrentValue = false,
+    Callback = function(v)
+        buyAllRunning = v
+        if v then
+            buyAllThread = task.spawn(function()
+                while buyAllRunning do
+                    for shopName, _ in pairs(SHOP_ITEMS) do
+                        buyShop(shopName)
+                    end
+                    task.wait(1)
+                end
+            end)
+        else
+            if buyAllThread then task.cancel(buyAllThread) end
+        end
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Reroll Shadow Shop Stock",
+    Callback = function()
+        pcall(function() RE:FireServer("ShopFreeReroll", "shadow-shop") end)
+        print("[Shop] Shadow Shop rerolled!")
     end
 })
 
