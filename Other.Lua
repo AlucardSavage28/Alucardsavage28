@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 local Pets = require(ReplicatedStorage.Shared.Data.Pets)
@@ -30,11 +31,11 @@ local startTime = 0
 local startHatches = 0
 local currentHatches = 0
 
--- Best hatch tracking
 local TRACKED_RARITIES = {"Secret", "Celestial", "Infinity", "Void"}
-local knownPetIds = {}
+local seenPetIds = {}
+local bestHatchReady = false
 local bestHatchName = "None"
-local bestHatchChance = "N/A"
+local bestHatchChance = math.huge
 local bestHatchVariant = "Normal"
 local bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
 
@@ -63,42 +64,33 @@ local function getChanceDisplay(chance)
 end
 
 local function checkForBestHatch()
+    if not bestHatchReady then return end
     local data = LocalData:Get()
     if not data or not data.Pets then return end
-    
     for _, pet in pairs(data.Pets) do
-        if not knownPetIds[pet.Id] then
-            knownPetIds[pet.Id] = true
-            
+        if not seenPetIds[pet.Id] then
+            seenPetIds[pet.Id] = true
             local info = Pets[pet.Name]
-            if info and info.Rarity then
+            if info and info.Rarity and info.Chance then
                 local rarity = info.Rarity
                 local isTracked = false
                 for _, r in ipairs(TRACKED_RARITIES) do
                     if rarity:find(r) then
-                        isTracked = true
-                        rarity = r
-                        break
+                        isTracked = true; rarity = r; break
                     end
                 end
-                
-                if isTracked and info.Chance then
+                if isTracked then
                     local chance = tonumber(info.Chance) or 0
-                    if bestHatchChance == "N/A" or chance < tonumber(bestHatchChance) then
+                    if chance > 0 and chance < bestHatchChance then
+                        bestHatchChance = chance
                         bestHatchName = pet.Name
-                        bestHatchChance = tostring(chance)
-                        
                         if pet.Shiny and pet.Mythic then bestHatchVariant = "Shiny Mythic"
                         elseif pet.Shiny then bestHatchVariant = "Shiny"
                         elseif pet.Mythic then bestHatchVariant = "Mythic"
                         else bestHatchVariant = "Normal" end
-                        
                         local odds = getChanceDisplay(chance)
                         bestHatchDisplay = "Best Hatch: " .. bestHatchVariant .. " " .. bestHatchName .. "\nOdds: " .. odds
-                        
-                        if bestHatchLabel then
-                            pcall(function() bestHatchLabel.Text = bestHatchDisplay end)
-                        end
+                        if bestHatchLabel then pcall(function() bestHatchLabel.Text = bestHatchDisplay end) end
                     end
                 end
             end
@@ -114,30 +106,26 @@ local function updateStats()
     local hatchedSinceStart = currentHatches - startHatches
     local perMin = minutes > 0 and math.floor(hatchedSinceStart / minutes) or 0
     local perHour = hours > 0 and math.floor(hatchedSinceStart / hours) or 0
-    
     local h = math.floor(elapsed / 3600)
     local m = math.floor((elapsed % 3600) / 60)
     local s = math.floor(elapsed % 60)
     local timeStr = string.format("%02d:%02d:%02d", h, m, s)
-    
     if hatchedLabel then hatchedLabel.Text = "Hatched: " .. hatchedSinceStart end
     if rateLabel then rateLabel.Text = "Rate: " .. perMin .. "/min | " .. perHour .. "/hr" end
     if timeLabel then timeLabel.Text = "Time: " .. timeStr end
-    
-    -- Check for new best hatch
     checkForBestHatch()
 end
 
 local function createStatsUI()
     if screenGui then return end
-    
-    -- Save current pet IDs so we only track new ones
+    seenPetIds = {}
     local data = LocalData:Get()
     if data and data.Pets then
         for petId, _ in pairs(data.Pets) do
-            knownPetIds[petId] = true
+            seenPetIds[petId] = true
         end
     end
+    bestHatchReady = true
     
     screenGui = Instance.new("ScreenGui")
     screenGui.Name = "StatsTracker"
@@ -200,7 +188,6 @@ local function createStatsUI()
     timeLabel.TextXAlignment = Enum.TextXAlignment.Left
     timeLabel.Parent = frame
     
-    -- Best Hatch label
     bestHatchLabel = Instance.new("TextLabel")
     bestHatchLabel.Size = UDim2.new(1, -10, 0, 36)
     bestHatchLabel.Position = UDim2.new(0, 5, 0, 88)
@@ -248,11 +235,6 @@ local function destroyStatsUI()
     if screenGui then
         screenGui:Destroy()
         screenGui = nil
-        frame = nil
-        hatchedLabel = nil
-        rateLabel = nil
-        timeLabel = nil
-        bestHatchLabel = nil
     end
 end
 
@@ -288,6 +270,46 @@ local function safeSet(obj, prop, value)
     pcall(function() obj[prop] = value end)
 end
 
+local function fpsJMX()
+    -- Graphics
+    setfpscap(120)
+    Lighting.GlobalShadows = false
+    Lighting.ShadowSoftness = 0
+    Lighting.FogEnd = 9e9
+    sethiddenproperty(Lighting, "Technology", "Compatibility")
+    settings().Rendering.QualityLevel = 1
+    
+    -- Camera
+    if workspace.CurrentCamera then
+        workspace.CurrentCamera:ClearAllChildren()
+    end
+    
+    -- Workspace
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and not v:IsA("MeshPart") then
+            v.Material = Enum.Material.Plastic
+            v.Reflectance = 0
+            v.CastShadow = false
+        end
+        if v:IsA("MeshPart") then
+            v.MeshId = ""
+            v.TextureID = ""
+        end
+        if v:IsA("SpecialMesh") then
+            v.MeshId = ""
+            v.TextureId = ""
+        end
+        if v:IsA("ParticleEmitter") or v:IsA("Explosion") then
+            v.Enabled = false
+        end
+        if v:IsA("Decal") then
+            v.Texture = ""
+        end
+    end
+    
+    print("[FPS] JMX FPS Boost applied!")
+end
+
 local function fps1_DisableParticles()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
@@ -320,16 +342,12 @@ local function fps2_HidePets()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") then
-            if v.Enabled then
-                v.Enabled = false
-                count = count + 1
-            end
+            if v.Enabled then v.Enabled = false; count = count + 1 end
         end
         if v:IsA("Model") and v.Parent and v.Parent.Name == "Pets" then
             for _, part in ipairs(v:GetDescendants()) do
                 if part:IsA("BasePart") and part.Transparency < 1 then
-                    part.Transparency = 1
-                    count = count + 1
+                    part.Transparency = 1; count = count + 1
                 end
             end
         end
@@ -342,22 +360,16 @@ local function fps3_RemoveTextures()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("Decal") or v:IsA("Texture") then
-            v.Texture = ""
-            count = count + 1
+            v.Texture = ""; count = count + 1
         end
         if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") or v:IsA("Sparkles") then
-            if v.Enabled then
-                v.Enabled = false
-                count = count + 1
-            end
+            if v.Enabled then v.Enabled = false; count = count + 1 end
         end
         if v:IsA("BasePart") and v.Material ~= Enum.Material.SmoothPlastic then
-            v.Material = Enum.Material.SmoothPlastic
-            count = count + 1
+            v.Material = Enum.Material.SmoothPlastic; count = count + 1
         end
         if v:IsA("BasePart") and v.CastShadow then
-            v.CastShadow = false
-            count = count + 1
+            v.CastShadow = false; count = count + 1
         end
         if count % 1000 == 0 then task.wait(0.01) end
     end
@@ -387,10 +399,11 @@ OtherTab:CreateToggle({
             startTime = os.clock()
             startHatches = getHatches()
             bestHatchName = "None"
-            bestHatchChance = "N/A"
+            bestHatchChance = math.huge
             bestHatchVariant = "Normal"
             bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
-            knownPetIds = {}
+            seenPetIds = {}
+            bestHatchReady = false
             createStatsUI()
         else
             destroyStatsUI()
@@ -456,6 +469,13 @@ OtherTab:CreateButton({
 })
 
 OtherTab:CreateSection("Effects")
+
+OtherTab:CreateButton({
+    Name = "JMX FPS Boost (Aggressive)",
+    Callback = function()
+        fpsJMX()
+    end
+})
 
 OtherTab:CreateButton({
     Name = "Disable Particles & Materials",
