@@ -4,6 +4,8 @@ local Window = getgenv().Window
 local ShrineTab = Window:CreateTab("Shrine", nil)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 
 local Remote
 local RemoteEvent
@@ -45,7 +47,41 @@ local PERM_AMOUNT = 400
 local INTERVAL = 43200
 
 -- ======================================
--- FUNCTIONS
+-- TIMER CHECK FUNCTIONS
+-- ======================================
+local function getBuffTime(buffName)
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local screenGui = playerGui:FindFirstChild("ScreenGui")
+        if screenGui then
+            local buffs = screenGui:FindFirstChild("Buffs")
+            if buffs then
+                local buff = buffs:FindFirstChild(buffName)
+                if buff then
+                    local button = buff:FindFirstChild("Button")
+                    if button then
+                        local label = button:FindFirstChild("Label")
+                        if label and label.Text ~= "" then
+                            return label.Text
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function isBuffExpired(buffName)
+    local time = getBuffTime(buffName)
+    if not time then return true end -- No timer = expired
+    if time == "0:00:00" then return true end
+    if time == "0s" then return true end
+    return false
+end
+
+-- ======================================
+-- SHRINE FUNCTIONS
 -- ======================================
 local function bubble()
     pcall(function()
@@ -90,9 +126,7 @@ ShrineTab:CreateInput({
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then
-            BUBBLE.Amount = n
-        end
+        if n then BUBBLE.Amount = n end
     end
 })
 
@@ -101,20 +135,19 @@ ShrineTab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         bubbleEnabled = v
-
         if v then
             bubble()
             bubbleThread = task.spawn(function()
                 while bubbleEnabled do
-                    task.wait(INTERVAL)
-                    bubble()
+                    task.wait(60) -- Check every minute
+                    if isBuffExpired("ShrineBlessing") then
+                        print("[Shrine] Bubble buff expired, refreshing...")
+                        bubble()
+                    end
                 end
             end)
         else
-            if bubbleThread then
-                task.cancel(bubbleThread)
-                bubbleThread = nil
-            end
+            if bubbleThread then task.cancel(bubbleThread); bubbleThread = nil end
         end
     end
 })
@@ -131,9 +164,7 @@ ShrineTab:CreateInput({
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then
-            DREAMER_AMOUNT = n
-        end
+        if n then DREAMER_AMOUNT = n end
     end
 })
 
@@ -142,20 +173,19 @@ ShrineTab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         dreamerEnabled = v
-
         if v then
             dreamer()
             dreamerThread = task.spawn(function()
                 while dreamerEnabled do
-                    task.wait(INTERVAL)
-                    dreamer()
+                    task.wait(60)
+                    if isBuffExpired("DreamerBlessing") then
+                        print("[Shrine] Dreamer buff expired, refreshing...")
+                        dreamer()
+                    end
                 end
             end)
         else
-            if dreamerThread then
-                task.cancel(dreamerThread)
-                dreamerThread = nil
-            end
+            if dreamerThread then task.cancel(dreamerThread); dreamerThread = nil end
         end
     end
 })
@@ -169,16 +199,8 @@ ShrineTab:CreateDropdown({
     Name = "Egg",
     CurrentOption = "Common Egg",
     Options = {
-        "Common Egg",
-        "Nightmare Egg",
-        "Rainbow Egg",
-        "Mining Egg",
-        "Cyber Egg",
-        "Neon Egg",
-        "Vine Egg",
-        "Lava Egg",
-        "Atlantis Egg",
-        "Classic Egg"
+        "Common Egg", "Nightmare Egg", "Rainbow Egg", "Mining Egg",
+        "Cyber Egg", "Neon Egg", "Vine Egg", "Lava Egg", "Atlantis Egg", "Classic Egg"
     },
     Callback = function(v)
         PERM_EGG = v
@@ -192,9 +214,7 @@ ShrineTab:CreateInput({
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then
-            PERM_AMOUNT = n
-        end
+        if n then PERM_AMOUNT = n end
     end
 })
 
@@ -203,7 +223,6 @@ ShrineTab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         permEnabled = v
-
         if v then
             permShrine()
             permThread = task.spawn(function()
@@ -213,10 +232,7 @@ ShrineTab:CreateToggle({
                 end
             end)
         else
-            if permThread then
-                task.cancel(permThread)
-                permThread = nil
-            end
+            if permThread then task.cancel(permThread); permThread = nil end
         end
     end
 })
