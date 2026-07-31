@@ -71,6 +71,9 @@ local playtimeThread = nil
 local dailyRunning = false
 local dailyThread = nil
 
+-- Fishing
+local fishRunning = false
+
 -- ======================================
 -- GET BOXES FROM INVENTORY
 -- ======================================
@@ -569,12 +572,40 @@ AutoTab:CreateToggle({
     Name = "Auto Fishing Quest",
     CurrentValue = false,
     Callback = function(v)
+        fishRunning = v
         if v then
+            -- Start fish script
             getgenv().RdotAfishingConfig = {
                 Mode = "Quest",
                 Zone = "Fisher's Island",
             }
             loadstring(game:HttpGet("https://raw.githubusercontent.com/IRdotAI/Rcash-Hub/main/random-shit/autofish.lua"))()
+            
+            -- Wait 1 second then look left
+            task.wait(1)
+            local camera = workspace.CurrentCamera
+            if camera then
+                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    camera.CameraType = Enum.CameraType.Scriptable
+                    local forward = root.CFrame.LookVector
+                    local right = root.CFrame.RightVector
+                    local leftPos = root.Position + (-right * 10) + (forward * 5)
+                    camera.CFrame = CFrame.new(root.Position + Vector3.new(0, 2, 0), leftPos)
+                    task.wait(0.3)
+                    camera.CameraType = Enum.CameraType.LockFirstPerson
+                end
+            end
+        else
+            -- Stop fish script
+            getgenv().RdotAfishingConfig = {
+                Mode = "Off",
+                Zone = "Fisher's Island",
+            }
+            -- Reload character to reset any hooks
+            if player.Character then
+                player.Character:BreakJoints()
+            end
         end
     end
 })
