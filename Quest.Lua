@@ -15,11 +15,19 @@ local constants = require(ReplicatedStorage.Shared.Constants)
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
 -- ======================================
+-- NOTES
+-- ======================================
+QuestTab:CreateSection("Notes")
+QuestTab:CreateLabel("Note #1: Please make sure you have 1 Pearl and 1 Ticket currency pet in your hatching team to make it easier")
+QuestTab:CreateLabel("Note #2: Make sure you have Wooden Crate, Steel Crate, Golden Crate, Classic Crate, or Galaxy Crate. BUT if you dont have any of these it's okay it will just skip the pearl collect quest and continue to next quest")
+
+-- ======================================
 -- TELEPORT LOCATIONS
 -- ======================================
 local COIN_AREA = Vector3.new(36, 15971, 41)
 local GEM_AREA = Vector3.new(2286, 3158, 842)
 local TICKET_AREA = Vector3.new(9888, 20089, 242)
+local SEVENSEAS_SPAWN = Vector3.new(-23663, 7, -80)
 
 local EGG_LOCATIONS = {
     ["Common Egg"] = Vector3.new(-80, 7, 5),
@@ -50,6 +58,9 @@ local EGG_LOCATIONS = {
 }
 
 local originalRadius = constants.DefaultPickupRadius
+
+-- Pearl crate priority (lowest to highest)
+local PEARL_CRATES = {"Wooden Crate", "Steel Crate", "Golden Crate", "Classic Crate", "Galaxy Crate"}
 
 -- ======================================
 -- SETTINGS
@@ -132,6 +143,19 @@ local function getActiveQuests(filter)
     return quests
 end
 
+local function getAvailableCrate()
+    local data = LocalData:Get()
+    if data and data.Powerups then
+        for _, crateName in ipairs(PEARL_CRATES) do
+            local amount = data.Powerups[crateName] or 0
+            if amount > 0 then
+                return crateName, amount
+            end
+        end
+    end
+    return nil, 0
+end
+
 local function completeQuest(quest)
     getgenv().questActive = true
     
@@ -198,33 +222,71 @@ local function completeQuest(quest)
         
     elseif quest.type == "Collect" then
         local curr = quest.currency or ""
+        
+        -- Pearl Quest
         if curr:lower():find("pearl") then
-            getgenv().questActive = false
-            getgenv().questEgg = nil
-            task.wait(1)
-            return
-        end
-        
-        getgenv().questEgg = nil
-        local prevPos = savePosition()
-        local isCoinQuest = not curr:lower():find("gem") and not curr:lower():find("ticket")
-        local isGemQuest = curr:lower():find("gem")
-        
-        -- Enable auto collect pickup
-        constants.DefaultPickupRadius = math.huge
-        
-        -- Start golden orb
-        local orbThread = task.spawn(function()
-            while getgenv().questActive do
-                pcall(function() Remote:FireServer("UseGoldenOrb") end)
+            local crateName, crateAmount = getAvailableCrate()
+            
+            if crateName and crateAmount > 0 then
+                getgenv().questEgg = nil
+                local prevPos = savePosition()
+                teleportTo(SEVENSEAS_SPAWN)
+                task.wait(0.5)
+                
+                local VIM = game:GetService("VirtualInputManager")
+                local checkedCrates = {}
+                
+                while true do
+                    -- Re-check available crate (might have switched to next tier)
+                    crateName, crateAmount = getAvailableCrate()
+                    if not crateName then break end
+                    
+                    local openAmount = math.min(crateAmount, 10)
+                    pcall(function() RE:FireServer("UseGift", crateName, openAmount) end)
+                    
+                    -- Spam clicks to skip animation
+                    for i = 1, openAmount do
+                        VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                        VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                        task.wait(0.02)
+                    end
+                    
+                    task.wait(0.5)
+                    
+                    -- Check if quest is done
+                    local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+                    local stillActive = false
+                    for _, q in ipairs(newQuests) do
+                        if q.id == quest.id then stillActive = true; break end
+                    end
+                    if not stillActive then break end
+                end
+                
+                restorePosition(prevPos)
+            else
+                -- No crates, skip
+                print("[Quest] No crates available, skipping pearl quest")
+                getgenv().questActive = false
+                getgenv().questEgg = nil
                 task.wait(1)
+                return
             end
-        end)
-        
-        -- For gem quests, buy from shops to stay under cap
-        local shopThread = nil
-        if isGemQuest then
-            shopThread = task.spawn(function()
+            
+        -- Gem Quest
+        elseif curr:lower():find("gem") then
+            getgenv().questEgg = nil
+            local prevPos = savePosition()
+            
+            constants.DefaultPickupRadius = math.huge
+            
+            local orbThread = task.spawn(function()
+                while getgenv().questActive do
+                    pcall(function() Remote:FireServer("UseGoldenOrb") end)
+                    task.wait(1)
+                end
+            end)
+            
+            local shopThread = task.spawn(function()
                 while getgenv().questActive do
                     local shops = {"shadow-shop", "alien-shop", "shard-shop", "dice-shop"}
                     for _, shop in ipairs(shops) do
@@ -235,14 +297,70 @@ local function completeQuest(quest)
                     task.wait(0.8)
                 end
             end)
-        end
-        
-        if isGemQuest then teleportTo(GEM_AREA)
-        elseif curr:lower():find("ticket") then teleportTo(TICKET_AREA)
-        else teleportTo(COIN_AREA) end
-        
-        while true do
-            if isCoinQuest then
+            
+            teleportTo(GEM_AREA)
+            
+            while true do
+                task.wait(3)
+                local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+                local stillActive = false
+                for _, q in ipairs(newQuests) do
+                    if q.id == quest.id then stillActive = true; break end
+                end
+                if not stillActive then break end
+            end
+            
+            task.cancel(orbThread)
+            task.cancel(shopThread)
+            constants.DefaultPickupRadius = originalRadius
+            restorePosition(prevPos)
+            
+        -- Ticket Quest
+        elseif curr:lower():find("ticket") then
+            getgenv().questEgg = nil
+            local prevPos = savePosition()
+            constants.DefaultPickupRadius = math.huge
+            
+            local orbThread = task.spawn(function()
+                while getgenv().questActive do
+                    pcall(function() Remote:FireServer("UseGoldenOrb") end)
+                    task.wait(1)
+                end
+            end)
+            
+            teleportTo(TICKET_AREA)
+            
+            while true do
+                task.wait(3)
+                local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+                local stillActive = false
+                for _, q in ipairs(newQuests) do
+                    if q.id == quest.id then stillActive = true; break end
+                end
+                if not stillActive then break end
+            end
+            
+            task.cancel(orbThread)
+            constants.DefaultPickupRadius = originalRadius
+            restorePosition(prevPos)
+            
+        -- Coin Quest
+        else
+            getgenv().questEgg = nil
+            local prevPos = savePosition()
+            
+            constants.DefaultPickupRadius = math.huge
+            
+            local orbThread = task.spawn(function()
+                while getgenv().questActive do
+                    pcall(function() Remote:FireServer("UseGoldenOrb") end)
+                    task.wait(1)
+                end
+            end)
+            
+            teleportTo(COIN_AREA)
+            
+            while true do
                 local data = LocalData:Get()
                 local coins = data and data.Coins or 0
                 if coins >= COIN_CAP then
@@ -256,21 +374,19 @@ local function completeQuest(quest)
                     teleportTo(COIN_AREA)
                     task.wait(0.5)
                 end
+                task.wait(3)
+                local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
+                local stillActive = false
+                for _, q in ipairs(newQuests) do
+                    if q.id == quest.id then stillActive = true; break end
+                end
+                if not stillActive then break end
             end
-            task.wait(3)
-            local newQuests = getActiveQuests(quest.id:match("^(.-)%d+$") or "")
-            local stillActive = false
-            for _, q in ipairs(newQuests) do
-                if q.id == quest.id then stillActive = true; break end
-            end
-            if not stillActive then break end
+            
+            task.cancel(orbThread)
+            constants.DefaultPickupRadius = originalRadius
+            restorePosition(prevPos)
         end
-        
-        -- Stop threads
-        task.cancel(orbThread)
-        if shopThread then task.cancel(shopThread) end
-        constants.DefaultPickupRadius = originalRadius
-        restorePosition(prevPos)
     end
     
     getgenv().questActive = false
@@ -293,6 +409,8 @@ local function questLoop(filter)
                 local curr = q.currency or ""
                 if q.type == "Hatch" and not q.egg and not q.rarity then
                 elseif q.type == "Collect" and curr:lower():find("pearl") then
+                    questToDo = q
+                    break
                 else
                     questToDo = q
                     break
@@ -381,6 +499,10 @@ QuestTab:CreateToggle({
                         for _, q in ipairs(quests) do
                             local curr = q.currency or ""
                             if q.type == "Collect" and curr:lower():find("pearl") then
+                                questToDo = q
+                                break
+                            elseif q.type == "Hatch" and not q.egg and not q.rarity then
+                            elseif q.type == "Collect" and curr:lower():find("pearl") then
                             else
                                 questToDo = q
                                 break
