@@ -566,7 +566,7 @@ AutoTab:CreateToggle({
 -- ======================================
 AutoTab:CreateSection("Fishing")
 
-AutoTab:CreateLabel("After you turn it on make sure to go first person POV and then look to your left side and then you can leave it")
+AutoTab:CreateLabel("Make Sure You DONT HIDE Quest in your setting,and if you wanna turn it off you can't just go and Leave/Rejoin")
 
 AutoTab:CreateToggle({
     Name = "Auto Fishing Quest",
