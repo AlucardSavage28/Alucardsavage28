@@ -13,12 +13,6 @@ local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
--- Load heavy module in background
-local Potions = nil
-task.spawn(function()
-    Potions = require(ReplicatedStorage.Shared.Data.Potions)
-end)
-
 -- ======================================
 -- NORMAL POTION SETTINGS
 -- ======================================
@@ -58,18 +52,13 @@ local eventThread = nil
 
 local function getEventPotions()
     local events = {}
+    local normalSpecial = {Lucky=true, Speed=true, Mythic=true, Coins=true, Tickets=true, ["Infinity Elixir"]=true, ["Ultra Infinity Elixir"]=true, ["Egg Elixir"]=true, ["Star Elixir"]=true, ["Secret Elixir"]=true}
     local data = LocalData:Get()
-    if data and data.Powerups then
-        for name, amount in pairs(data.Powerups) do
-            if name:lower():find("elixir") or name:lower():find("potion") then
-                local isNormalOrSpecial = false
-                for _, n in ipairs(NORMAL_POTIONS) do
-                    if name == n then isNormalOrSpecial = true; break end
-                end
-                for _, s in ipairs(SPECIAL_POTIONS) do
-                    if name == s then isNormalOrSpecial = true; break end
-                end
-                if not isNormalOrSpecial and name ~= "Lucky" and name ~= "Speed" and name ~= "Mythic" and name ~= "Coins" and name ~= "Tickets" then
+    if data and data.Potions then
+        for _, potion in pairs(data.Potions) do
+            local name = potion.Name
+            if not normalSpecial[name] and potion.Amount > 0 then
+                if not table.find(events, name) then
                     table.insert(events, name)
                 end
             end
@@ -127,10 +116,14 @@ PotionTab:CreateToggle({
                     
                     local data = LocalData:Get()
                     local actualAmount = normalAmount
-                    if data and data.Powerups then
-                        local owned = data.Powerups[potionName] or 0
-                        if owned < normalAmount then
-                            actualAmount = owned
+                    if data and data.Potions then
+                        for _, potion in pairs(data.Potions) do
+                            if potion.Name == potionName and potion.Level == level then
+                                if potion.Amount < normalAmount then
+                                    actualAmount = potion.Amount
+                                end
+                                break
+                            end
                         end
                     end
                     
@@ -181,10 +174,14 @@ PotionTab:CreateToggle({
                 while specialRunning do
                     local data = LocalData:Get()
                     local actualAmount = specialAmount
-                    if data and data.Powerups then
-                        local owned = data.Powerups[selectedSpecial] or 0
-                        if owned < specialAmount then
-                            actualAmount = owned
+                    if data and data.Potions then
+                        for _, potion in pairs(data.Potions) do
+                            if potion.Name == selectedSpecial then
+                                if potion.Amount < specialAmount then
+                                    actualAmount = potion.Amount
+                                end
+                                break
+                            end
                         end
                     end
                     
@@ -226,6 +223,18 @@ if #eventPotions > 0 then
         end
     })
 
+    PotionTab:CreateButton({
+        Name = "Re Scan Event Potions",
+        Callback = function()
+            eventPotions = getEventPotions()
+            selectedEvent = eventPotions[1] or ""
+            print("[Potions] Found " .. #eventPotions .. " event potions")
+            for _, name in ipairs(eventPotions) do
+                print("  - " .. name)
+            end
+        end
+    })
+
     PotionTab:CreateToggle({
         Name = "Auto Use Event Potion",
         CurrentValue = false,
@@ -236,23 +245,21 @@ if #eventPotions > 0 then
                     while eventRunning do
                         local data = LocalData:Get()
                         local actualAmount = eventAmount
-                        if data and data.Powerups then
-                            local owned = data.Powerups[selectedEvent] or 0
-                            if owned < eventAmount then
-                                actualAmount = owned
-                            end
-                        end
-                        
-                        local level = 1
-                        if Potions then
-                            local potionData = Potions[selectedEvent]
-                            if potionData and potionData.Levels then
-                                level = #potionData.Levels
+                        local potionLevel = 1
+                        if data and data.Potions then
+                            for _, potion in pairs(data.Potions) do
+                                if potion.Name == selectedEvent then
+                                    potionLevel = potion.Level
+                                    if potion.Amount < eventAmount then
+                                        actualAmount = potion.Amount
+                                    end
+                                    break
+                                end
                             end
                         end
                         
                         if actualAmount > 0 then
-                            pcall(function() RE:FireServer("UsePotion", selectedEvent, level, actualAmount) end)
+                            pcall(function() RE:FireServer("UsePotion", selectedEvent, potionLevel, actualAmount) end)
                         end
                         task.wait(0.5)
                     end
@@ -263,7 +270,15 @@ if #eventPotions > 0 then
         end
     })
 else
-    PotionTab:CreateLabel("No event potions detected in inventory")
+    PotionTab:CreateLabel("No event potions detected")
+    PotionTab:CreateButton({
+        Name = "Re Scan Event Potions",
+        Callback = function()
+            eventPotions = getEventPotions()
+            selectedEvent = eventPotions[1] or ""
+            print("[Potions] Found " .. #eventPotions .. " event potions")
+        end
+    })
 end
 
 print("[Potions] Loaded!")
