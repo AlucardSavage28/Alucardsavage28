@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (HATCH + 4X + DOODLE + INVENTORY + BOUNTY + RIFT)
+-- EGGS TAB (HATCH + 4X + DOODLE + INVENTORY + BOUNTY + XL BOUNTY + RIFT)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -16,6 +16,7 @@ local player = Players.LocalPlayer
 -- DATA MODULES
 -- ======================================
 local SecretBountyUtil = require(ReplicatedStorage.Shared.Utils.Stats.SecretBountyUtil)
+local XLEggUtil = require(ReplicatedStorage.Shared.Utils.XLEggUtil)
 local Rifts = require(ReplicatedStorage.Shared.Data.Rifts)
 local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteFunction
@@ -94,6 +95,7 @@ local hideAnimEnabled = false
 local inventoryEnabled = false
 local bountyEnabled = false
 local riftEnabled = false
+local xlBountyRunning = false
 
 local fourXThread = nil
 local doodleThread = nil
@@ -102,9 +104,32 @@ local spamEThread = nil
 local inventoryThread = nil
 local bountyThread = nil
 local riftThread = nil
+local xlBountyThread = nil
 
 local inventoryEggList = getInventoryEggs()
 local selectedInventoryEgg = inventoryEggList[1]
+
+-- XL Bounty
+local selectedXLEgg = ""
+
+local function getXLEggs()
+    local eggs = {}
+    pcall(function()
+        local xlEggs = XLEggUtil:GetEggs()
+        if xlEggs then
+            for _, egg in ipairs(xlEggs) do
+                table.insert(eggs, egg)
+            end
+        end
+    end)
+    if #eggs == 0 then
+        eggs = {"Rainbow Egg", "Crystal Ore Egg"}
+    end
+    return eggs
+end
+
+local xlEggList = getXLEggs()
+selectedXLEgg = xlEggList[1]
 
 -- ======================================
 -- FUNCTIONS
@@ -620,6 +645,55 @@ EggsTab:CreateToggle({
             end)
         else
             if riftThread then task.cancel(riftThread) end
+        end
+    end
+})
+
+-- ======================================
+-- UI - XL EGG BOUNTY
+-- ======================================
+EggsTab:CreateSection("------- XL Egg Bounty -------")
+
+EggsTab:CreateDropdown({
+    Name = "Select XL Egg",
+    Options = xlEggList,
+    CurrentOption = {selectedXLEgg},
+    Callback = function(v)
+        selectedXLEgg = v[1] or v
+    end
+})
+
+EggsTab:CreateButton({
+    Name = "Re Scan XL Eggs",
+    Callback = function()
+        xlEggList = getXLEggs()
+        selectedXLEgg = xlEggList[1]
+        print("[XL Bounty] Found " .. #xlEggList .. " XL eggs:")
+        for _, name in ipairs(xlEggList) do
+            print("  - " .. name)
+        end
+    end
+})
+
+EggsTab:CreateToggle({
+    Name = "Auto XL Bounty (Teleport + Hatch)",
+    CurrentValue = false,
+    Callback = function(v)
+        xlBountyRunning = v
+        if v then
+            xlBountyThread = task.spawn(function()
+                while xlBountyRunning do
+                    while getgenv().questActive and xlBountyRunning do
+                        task.wait(0.5)
+                    end
+                    
+                    teleportToEgg(selectedXLEgg)
+                    pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                end
+            end)
+        else
+            if xlBountyThread then task.cancel(xlBountyThread) end
         end
     end
 })
