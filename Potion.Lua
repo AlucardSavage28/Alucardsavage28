@@ -10,9 +10,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
-local Potions = require(ReplicatedStorage.Shared.Data.Potions)
 
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
+
+-- Load heavy module in background
+local Potions = nil
+task.spawn(function()
+    Potions = require(ReplicatedStorage.Shared.Data.Potions)
+end)
 
 -- ======================================
 -- NORMAL POTION SETTINGS
@@ -51,14 +56,12 @@ local eventAmount = 250
 local eventRunning = false
 local eventThread = nil
 
--- Scan for event potions
 local function getEventPotions()
     local events = {}
     local data = LocalData:Get()
     if data and data.Powerups then
         for name, amount in pairs(data.Powerups) do
             if name:lower():find("elixir") or name:lower():find("potion") then
-                -- Skip normal and special potions
                 local isNormalOrSpecial = false
                 for _, n in ipairs(NORMAL_POTIONS) do
                     if name == n then isNormalOrSpecial = true; break end
@@ -122,7 +125,6 @@ PotionTab:CreateToggle({
                     local potionName = table.concat(parts, " ", 1, #parts - 1)
                     local level = tonumber(parts[#parts]) or 1
                     
-                    -- Check actual inventory amount
                     local data = LocalData:Get()
                     local actualAmount = normalAmount
                     if data and data.Powerups then
@@ -241,11 +243,12 @@ if #eventPotions > 0 then
                             end
                         end
                         
-                        -- Find the level from the Potions module
-                        local potionData = Potions[selectedEvent]
                         local level = 1
-                        if potionData and potionData.Levels then
-                            level = #potionData.Levels -- Use highest level
+                        if Potions then
+                            local potionData = Potions[selectedEvent]
+                            if potionData and potionData.Levels then
+                                level = #potionData.Levels
+                            end
                         end
                         
                         if actualAmount > 0 then
