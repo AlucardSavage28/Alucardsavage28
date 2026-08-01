@@ -116,9 +116,12 @@ PotionTab:CreateInput({
 
 PotionTab:CreateToggle({
     Name = "Auto Use Normal Potion",
-    CurrentValue = false,
+    CurrentValue = potionSettings.normalRunning or false,
     Callback = function(v)
         normalRunning = v
+        potionSettings.normalRunning = v
+        getgenv().HubSettings.potions = potionSettings
+        saveHubSettings()
         if v then
             normalThread = task.spawn(function()
                 while normalRunning do
@@ -191,9 +194,12 @@ PotionTab:CreateInput({
 
 PotionTab:CreateToggle({
     Name = "Auto Use Special Potion",
-    CurrentValue = false,
+    CurrentValue = potionSettings.specialRunning or false,
     Callback = function(v)
         specialRunning = v
+        potionSettings.specialRunning = v
+        getgenv().HubSettings.potions = potionSettings
+        saveHubSettings()
         if v then
             specialThread = task.spawn(function()
                 while specialRunning do
@@ -269,9 +275,12 @@ if #eventPotions > 0 then
 
     PotionTab:CreateToggle({
         Name = "Auto Use Event Potion",
-        CurrentValue = false,
+        CurrentValue = potionSettings.eventRunning or false,
         Callback = function(v)
             eventRunning = v
+            potionSettings.eventRunning = v
+            getgenv().HubSettings.potions = potionSettings
+            saveHubSettings()
             if v then
                 eventThread = task.spawn(function()
                     while eventRunning do
@@ -313,6 +322,93 @@ else
             print("[Potions] Found " .. #eventPotions .. " event potions")
         end
     })
+end
+
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if potionSettings.normalRunning then
+    normalRunning = true
+    normalThread = task.spawn(function()
+        while normalRunning do
+            local parts = {}
+            for part in string.gmatch(selectedNormal, "%S+") do
+                table.insert(parts, part)
+            end
+            local potionName = table.concat(parts, " ", 1, #parts - 1)
+            local level = tonumber(parts[#parts]) or 1
+            
+            local data = LocalData:Get()
+            local actualAmount = normalAmount
+            if data and data.Potions then
+                for _, potion in pairs(data.Potions) do
+                    if potion.Name == potionName and potion.Level == level then
+                        if potion.Amount < normalAmount then actualAmount = potion.Amount end
+                        break
+                    end
+                end
+            end
+            
+            if actualAmount > 0 then
+                getgenv().ActivityStatus.current = "Using " .. selectedNormal .. " x" .. actualAmount
+                getgenv().ActivityStatus.trigger = true
+                pcall(function() RE:FireServer("UsePotion", potionName, level, actualAmount) end)
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+if potionSettings.specialRunning then
+    specialRunning = true
+    specialThread = task.spawn(function()
+        while specialRunning do
+            local data = LocalData:Get()
+            local actualAmount = specialAmount
+            if data and data.Potions then
+                for _, potion in pairs(data.Potions) do
+                    if potion.Name == selectedSpecial then
+                        if potion.Amount < specialAmount then actualAmount = potion.Amount end
+                        break
+                    end
+                end
+            end
+            
+            if actualAmount > 0 then
+                getgenv().ActivityStatus.current = "Using " .. selectedSpecial .. " x" .. actualAmount
+                getgenv().ActivityStatus.trigger = true
+                pcall(function() RE:FireServer("UsePotion", selectedSpecial, 1, actualAmount) end)
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+if potionSettings.eventRunning then
+    eventRunning = true
+    eventThread = task.spawn(function()
+        while eventRunning do
+            local data = LocalData:Get()
+            local actualAmount = eventAmount
+            local potionLevel = 1
+            if data and data.Potions then
+                for _, potion in pairs(data.Potions) do
+                    if potion.Name == selectedEvent then
+                        potionLevel = potion.Level
+                        if potion.Amount < eventAmount then actualAmount = potion.Amount end
+                        break
+                    end
+                end
+            end
+            
+            if actualAmount > 0 then
+                getgenv().ActivityStatus.current = "Using " .. selectedEvent .. " x" .. actualAmount
+                getgenv().ActivityStatus.trigger = true
+                pcall(function() RE:FireServer("UsePotion", selectedEvent, potionLevel, actualAmount) end)
+            end
+            task.wait(0.5)
+        end
+    end)
 end
 
 print("[Potions] Loaded!")
