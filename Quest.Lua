@@ -15,6 +15,13 @@ local constants = require(ReplicatedStorage.Shared.Constants)
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
 -- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.quest then settings.quest = {} end
+local questSettings = settings.quest
+
+-- ======================================
 -- NOTES
 -- ======================================
 QuestTab:CreateSection("Notes")
@@ -69,7 +76,7 @@ local globalRunning = false
 local globalThread = nil
 local claimRunning = false
 local claimThread = nil
-local HATCH_AMOUNT = 12
+local HATCH_AMOUNT = questSettings.hatchAmount or 12
 local COIN_CAP = 5000000000000
 
 -- ======================================
@@ -433,15 +440,23 @@ QuestTab:CreateInput({
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then HATCH_AMOUNT = n end
+        if n then
+            HATCH_AMOUNT = n
+            questSettings.hatchAmount = n
+            getgenv().HubSettings.quest = questSettings
+            saveHubSettings()
+        end
     end
 })
 
 QuestTab:CreateToggle({
     Name = "Auto Season Quests",
-    CurrentValue = false,
+    CurrentValue = questSettings.autoSeason or false,
     Callback = function(v)
         seasonRunning = v
+        questSettings.autoSeason = v
+        getgenv().HubSettings.quest = questSettings
+        saveHubSettings()
         if v then
             seasonThread = task.spawn(questLoop("challenge"))
         else
@@ -455,9 +470,12 @@ QuestTab:CreateToggle({
 
 QuestTab:CreateToggle({
     Name = "Auto Claim Season Pass",
-    CurrentValue = false,
+    CurrentValue = questSettings.autoClaimSeason or false,
     Callback = function(v)
         claimRunning = v
+        questSettings.autoClaimSeason = v
+        getgenv().HubSettings.quest = questSettings
+        saveHubSettings()
         if v then
             claimThread = task.spawn(function()
                 while claimRunning do
@@ -475,9 +493,12 @@ QuestTab:CreateSection("Global Incentive")
 
 QuestTab:CreateToggle({
     Name = "Auto Global Incentive",
-    CurrentValue = false,
+    CurrentValue = questSettings.autoGlobal or false,
     Callback = function(v)
         globalRunning = v
+        questSettings.autoGlobal = v
+        getgenv().HubSettings.quest = questSettings
+        saveHubSettings()
         if v then
             globalThread = task.spawn(function()
                 while globalRunning do
