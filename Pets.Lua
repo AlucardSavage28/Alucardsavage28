@@ -246,3 +246,5 @@ PetTab:CreateToggle({
         end
     end,
 })
+
+print("[Pets] Loaded!")
