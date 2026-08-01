@@ -23,6 +23,13 @@ local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteF
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 -- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.eggs then settings.eggs = {} end
+local eggSettings = settings.eggs
+
+-- ======================================
 -- EGG LOCATIONS (ONLY UNREACHABLE/FALLBACKS)
 -- ======================================
 local EGG_LOCATIONS = {
@@ -81,19 +88,19 @@ end
 -- ======================================
 -- VARIABLES
 -- ======================================
-local HATCH_AMOUNT = 12
-local selectedEgg = "Common Egg"
+local HATCH_AMOUNT = eggSettings.hatchAmount or 12
+local selectedEgg = eggSettings.selectedEgg or "Common Egg"
 local currentBountyPet = "Unknown"
 local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
 local fourXEnabled = false
 local doodleEnabled = false
-local autoHatchEnabled = false
+local autoHatchEnabled = eggSettings.autoHatch or false
 local spamEEnabled = false
-local hideAnimEnabled = false
+local hideAnimEnabled = eggSettings.hideAnim or false
 local inventoryEnabled = false
-local bountyEnabled = false
+local bountyEnabled = eggSettings.autoBounty or false
 local riftEnabled = false
 local xlBountyRunning = false
 
@@ -107,7 +114,7 @@ local riftThread = nil
 local xlBountyThread = nil
 
 local inventoryEggList = getInventoryEggs()
-local selectedInventoryEgg = inventoryEggList[1]
+local selectedInventoryEgg = eggSettings.inventoryEgg or inventoryEggList[1] or "Dominus Egg"
 
 -- XL Bounty
 local selectedXLEgg = ""
@@ -312,9 +319,12 @@ EggsTab:CreateSection("------- Special Eggs -------")
 -- DOODLE RIFT (Priority 1)
 EggsTab:CreateToggle({
     Name = "Auto Doodle Rift",
-    CurrentValue = false,
+    CurrentValue = eggSettings.autoDoodle or false,
     Callback = function(v)
         doodleEnabled = v
+        eggSettings.autoDoodle = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
         if v then
             doodleThread = task.spawn(function()
                 while doodleEnabled do
@@ -373,9 +383,12 @@ EggsTab:CreateToggle({
 -- 4X EGG (Priority 2 - Auto Detect)
 EggsTab:CreateToggle({
     Name = "Auto 4x Egg",
-    CurrentValue = false,
+    CurrentValue = eggSettings.auto4x or false,
     Callback = function(v)
         fourXEnabled = v
+        eggSettings.auto4x = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
         if v then
             fourXThread = task.spawn(function()
                 while fourXEnabled do
@@ -445,10 +458,13 @@ local allEggs = getAllEggNames()
 
 EggsTab:CreateDropdown({
     Name = "Select Egg",
-    CurrentOption = {"Common Egg"},
+    CurrentOption = {selectedEgg},
     Options = allEggs,
     Callback = function(v)
         selectedEgg = v[1] or v
+        eggSettings.selectedEgg = selectedEgg
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
     end
 })
 
@@ -471,15 +487,23 @@ EggsTab:CreateInput({
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then HATCH_AMOUNT = n end
+        if n then
+            HATCH_AMOUNT = n
+            eggSettings.hatchAmount = n
+            getgenv().HubSettings.eggs = eggSettings
+            saveHubSettings()
+        end
     end
 })
 
 EggsTab:CreateToggle({
     Name = "Auto Hatch (Teleport + Hatch)",
-    CurrentValue = false,
+    CurrentValue = autoHatchEnabled,
     Callback = function(v)
         autoHatchEnabled = v
+        eggSettings.autoHatch = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
         if v then
             autoHatchThread = task.spawn(function()
                 local wasActive = false
@@ -528,9 +552,12 @@ EggsTab:CreateToggle({
 
 EggsTab:CreateToggle({
     Name = "Hide Hatch Animation",
-    CurrentValue = false,
+    CurrentValue = hideAnimEnabled,
     Callback = function(v)
         hideAnimEnabled = v
+        eggSettings.hideAnim = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
         getgenv().animationHidden = v
     end
 })
@@ -546,6 +573,9 @@ EggsTab:CreateDropdown({
     Options = inventoryEggList,
     Callback = function(v)
         selectedInventoryEgg = v[1] or v
+        eggSettings.inventoryEgg = selectedInventoryEgg
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
     end
 })
 
@@ -602,9 +632,12 @@ end
 
 EggsTab:CreateToggle({
     Name = "Auto Bounty (Teleport + Hatch)",
-    CurrentValue = false,
+    CurrentValue = bountyEnabled,
     Callback = function(v)
         bountyEnabled = v
+        eggSettings.autoBounty = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
         if v then
             refreshBountyLabels()
             bountyThread = task.spawn(function()
