@@ -178,7 +178,7 @@ PetTab:CreateToggle({
                         end
                     end
                     
-                    print("[Rebirth Debug] Normal:" .. #groups.Normal .. " Shiny:" .. #groups.Shiny .. " Mythic:" .. #groups.Mythic .. " SM:" .. #groups.ShinyMythic)
+                    print("[Rebirth] Normal:" .. #groups.Normal .. " Shiny:" .. #groups.Shiny .. " Mythic:" .. #groups.Mythic .. " SM:" .. #groups.ShinyMythic)
                     
                     local selectedGroup = nil
                     if #groups.Normal >= 5 then selectedGroup = groups.Normal
@@ -188,7 +188,7 @@ PetTab:CreateToggle({
                     end
                     
                     if selectedGroup then
-                        print("[Rebirth Debug] Using group with " .. #selectedGroup .. " pets")
+                        print("[Rebirth] Using group with " .. #selectedGroup .. " pets")
                         local payload = {}
                         local usedWithVariant = {}
                         for i = 1, 5 do
@@ -199,27 +199,29 @@ PetTab:CreateToggle({
                             elseif pet.Shiny then variant = "Shiny"
                             elseif pet.Mythic then variant = "Mythic" end
                             table.insert(usedWithVariant, variant .. " " .. pet.Name)
+                            print("[Rebirth] Pet " .. i .. ": " .. variant .. " " .. pet.Name .. " (" .. pet.Id .. ")")
                         end
                         
                         local text = table.concat(usedWithVariant, ", ")
                         
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                         
-                        pcall(function()
+                        print("[Rebirth] Sending remote...")
+                        local ok, err = pcall(function()
                             NetworkRemote:InvokeServer("UseRebirthMachine", payload)
                         end)
+                        print("[Rebirth] Remote result: " .. tostring(ok) .. " | " .. tostring(err))
                         
                         getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
                         getgenv().ActivityStatus.trigger = true
                         
                         if text ~= lastPrint then
-                            print("[Rebirth] " .. text)
                             lastPrint = text
                         end
                         
                         task.wait(1.5)
                     else
-                        print("[Rebirth Debug] No group has 5+ pets!")
+                        print("[Rebirth] No group has 5+ pets!")
                     end
                 end
             end)
