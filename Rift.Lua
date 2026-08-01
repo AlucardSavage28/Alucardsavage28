@@ -374,4 +374,124 @@ RiftTab:CreateToggle({
     end
 })
 
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if riftSettings.autoEggRift then
+    eggLoop = true
+    eggThread = task.spawn(function()
+        while eggLoop do
+            pcall(function()
+                RemoteFunction:InvokeServer("SummonRift", {
+                    Type="Egg", Name=selectedEgg, Time=5, Luck=5, World=selectedEggWorld
+                })
+            end)
+            task.wait(1860)
+        end
+    end)
+end
+
+if riftSettings.autoSeasonChest then
+    seasonRunning = true
+    seasonThread = task.spawn(function()
+        while seasonRunning do
+            getgenv().ActivityStatus.current = "Opening Season Chest"
+            getgenv().ActivityStatus.trigger = true
+            pcall(function() Remote:FireServer("UnlockEventChest", "Season Chest", false) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if riftSettings.autoGiantChest then
+    giantRunning = true
+    giantThread = task.spawn(function()
+        while giantRunning do
+            getgenv().ActivityStatus.current = "Opening Giant Chest"
+            getgenv().ActivityStatus.trigger = true
+            pcall(function() Remote:FireServer("ClaimChest", "Giant Chest") end)
+            task.wait(1)
+        end
+    end)
+end
+
+if riftSettings.autoVoidChest then
+    voidRunning = true
+    voidThread = task.spawn(function()
+        while voidRunning do
+            getgenv().ActivityStatus.current = "Opening Void Chest"
+            getgenv().ActivityStatus.trigger = true
+            pcall(function() Remote:FireServer("ClaimChest", "Void Chest") end)
+            task.wait(1)
+        end
+    end)
+end
+
+if riftSettings.autoTicketChest then
+    ticketRunning = true
+    ticketThread = task.spawn(function()
+        while ticketRunning do
+            getgenv().ActivityStatus.current = "Opening Ticket Chest"
+            getgenv().ActivityStatus.trigger = true
+            pcall(function() Remote:FireServer("ClaimChest", "Ticket Chest") end)
+            task.wait(1)
+        end
+    end)
+end
+
+if riftSettings.autoClaimAllChest then
+    claimAllRunning = true
+    claimAllThread = task.spawn(function()
+        while claimAllRunning do
+            getgenv().ActivityStatus.current = "Opening all World Chests"
+            getgenv().ActivityStatus.trigger = true
+            pcall(function() Remote:FireServer("UnlockEventChest", "Season Chest", false) end)
+            pcall(function() Remote:FireServer("ClaimChest", "Giant Chest") end)
+            pcall(function() Remote:FireServer("ClaimChest", "Void Chest") end)
+            pcall(function() Remote:FireServer("ClaimChest", "Ticket Chest") end)
+            task.wait(1)
+        end
+    end)
+end
+
+if riftSettings.autoGoldenChest then
+    goldenRunning = true
+    goldenThread = task.spawn(function()
+        while goldenRunning do
+            summonAndOpen("golden-chest", "The Overworld", "Golden Chest")
+            task.wait(1860)
+        end
+    end)
+end
+
+if riftSettings.autoRoyalChest then
+    royalRunning = true
+    royalThread = task.spawn(function()
+        while royalRunning do
+            summonAndOpen("royal-chest", "The Overworld", "Royal Chest")
+            task.wait(1860)
+        end
+    end)
+end
+
+if riftSettings.autoSuperChest then
+    superRunning = true
+    superThread = task.spawn(function()
+        while superRunning do
+            summonAndOpen("super-chest", "The Overworld", "Super Chest")
+            task.wait(1860)
+        end
+    end)
+end
+
+if riftSettings.autoDiceChest then
+    diceRunning = true
+    diceThread = task.spawn(function()
+        while diceRunning do
+            summonAndOpen("dice-rift", "Minigame Paradise", "Dice Chest")
+            task.wait(1860)
+        end
+    end)
+end
+
 print("[Rift] Loaded!")
