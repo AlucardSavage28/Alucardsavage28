@@ -196,13 +196,15 @@ PetTab:CreateToggle({
                         end
                         
                         local text = table.concat(usedWithVariant, ", ")
+                        
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                         
                         pcall(function()
                             NetworkRemote:InvokeServer("UseRebirthMachine", payload)
                         end)
                         
-                        pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
+                        getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                        getgenv().ActivityStatus.trigger = true
                         
                         if text ~= lastPrint then
                             print("[Rebirth] " .. text)
