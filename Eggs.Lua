@@ -321,7 +321,7 @@ EggsTab:CreateToggle({
                     if isDoodleRiftExists() then
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
-                        task.wait(0.1)
+                        task.wait(0.3)
                         
                         getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
                         getgenv().ActivityStatus.trigger = true
@@ -482,14 +482,17 @@ EggsTab:CreateToggle({
         autoHatchEnabled = v
         if v then
             autoHatchThread = task.spawn(function()
+                local wasActive = false
                 while autoHatchEnabled do
                     while getgenv().questActive and autoHatchEnabled do
+                        wasActive = false
                         task.wait(0.5)
                     end
                     
-                    if not getgenv().questActive then
+                    if not wasActive and not getgenv().questActive then
                         getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
                         getgenv().ActivityStatus.trigger = true
+                        wasActive = true
                     end
                     
                     teleportToEgg(selectedEgg)
@@ -605,16 +608,19 @@ EggsTab:CreateToggle({
         if v then
             refreshBountyLabels()
             bountyThread = task.spawn(function()
+                local wasActive = false
                 while bountyEnabled do
                     while getgenv().questActive and bountyEnabled do
+                        wasActive = false
                         task.wait(0.5)
                     end
                     
                     refreshBountyLabels()
                     
-                    if not getgenv().questActive then
+                    if not wasActive and not getgenv().questActive then
                         getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
                         getgenv().ActivityStatus.trigger = true
+                        wasActive = true
                     end
                     
                     teleportToEgg(currentBountyEgg)
@@ -696,14 +702,17 @@ EggsTab:CreateToggle({
         xlBountyRunning = v
         if v then
             xlBountyThread = task.spawn(function()
+                local wasActive = false
                 while xlBountyRunning do
                     while getgenv().questActive and xlBountyRunning do
+                        wasActive = false
                         task.wait(0.5)
                     end
                     
-                    if not getgenv().questActive then
+                    if not wasActive and not getgenv().questActive then
                         getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg
                         getgenv().ActivityStatus.trigger = true
+                        wasActive = true
                     end
                     
                     teleportToEgg(selectedXLEgg)
