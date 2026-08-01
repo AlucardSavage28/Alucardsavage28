@@ -253,7 +253,6 @@ EggsTab:CreateToggle({
             doodleThread = task.spawn(function()
                 while doodleEnabled do
                     if isDoodleRiftExists() then
-                        getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
                         task.wait(0.1)
@@ -278,6 +277,7 @@ EggsTab:CreateToggle({
                         task.wait(0.3)
                         local riftExists = true
                         while doodleEnabled and riftExists do
+                            getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                             riftExists = isDoodleRiftExists()
@@ -292,8 +292,7 @@ EggsTab:CreateToggle({
             end)
         else
             if doodleThread then task.cancel(doodleThread) end
-            getgenv().questActive = false
-            getgenv().questEgg = nil
+            getgenv().questActive = false; getgenv().questEgg = nil
         end
     end
 })
@@ -316,7 +315,6 @@ EggsTab:CreateToggle({
                         end
                         
                         if eggFound and eggObj then
-                            getgenv().ActivityStatus.current = "Doing 4x Egg right now"
                             getgenv().questActive = true
                             getgenv().questEgg = eggName
                             local pos = eggObj:GetPivot().Position
@@ -325,6 +323,7 @@ EggsTab:CreateToggle({
                             
                             while fourXEnabled and eggFound do
                                 if isDoodleRiftExists() then break end
+                                getgenv().ActivityStatus.current = "Doing 4x Egg right now"
                                 pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
                                 task.wait(0.05)
                                 eggFound = false
@@ -365,7 +364,6 @@ EggsTab:CreateButton({
     Callback = function()
         local newEggs = getAllEggNames()
         print("[Eggs] Rescan: Found " .. #newEggs .. " eggs")
-        for _, name in ipairs(newEggs) do print("  - " .. name) end
     end
 })
 
@@ -380,17 +378,16 @@ EggsTab:CreateToggle({
     Callback = function(v)
         autoHatchEnabled = v
         if v then
-            if not getgenv().questActive then getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg end
             autoHatchThread = task.spawn(function()
                 while autoHatchEnabled do
                     while getgenv().questActive and autoHatchEnabled do task.wait(0.5) end
+                    getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
                     teleportToEgg(selectedEgg)
                     pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
             end)
         else
-            if not getgenv().questActive then getgenv().ActivityStatus.current = "Idle" end
             if autoHatchThread then task.cancel(autoHatchThread) end
         end
     end
@@ -433,18 +430,17 @@ EggsTab:CreateToggle({
         bountyEnabled = v
         if v then
             refreshBountyLabels()
-            if not getgenv().questActive then getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg end
             bountyThread = task.spawn(function()
                 while bountyEnabled do
                     while getgenv().questActive and bountyEnabled do task.wait(0.5) end
                     refreshBountyLabels()
+                    getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
                     teleportToEgg(currentBountyEgg)
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
             end)
         else
-            if not getgenv().questActive then getgenv().ActivityStatus.current = "Idle" end
             if bountyThread then task.cancel(bountyThread) end
         end
     end
@@ -476,17 +472,16 @@ EggsTab:CreateToggle({
     Callback = function(v)
         xlBountyRunning = v
         if v then
-            if not getgenv().questActive then getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg end
             xlBountyThread = task.spawn(function()
                 while xlBountyRunning do
                     while getgenv().questActive and xlBountyRunning do task.wait(0.5) end
+                    getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg
                     teleportToEgg(selectedXLEgg)
                     pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
             end)
         else
-            if not getgenv().questActive then getgenv().ActivityStatus.current = "Idle" end
             if xlBountyThread then task.cancel(xlBountyThread) end
         end
     end
