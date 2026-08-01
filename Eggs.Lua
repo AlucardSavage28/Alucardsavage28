@@ -323,6 +323,9 @@ EggsTab:CreateToggle({
                         getgenv().questEgg = "Doodle Egg"
                         task.wait(0.1)
                         
+                        getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
+                        getgenv().ActivityStatus.trigger = true
+                        
                         local riftFolder = workspace:FindFirstChild("Rendered")
                         if riftFolder then
                             local rifts = riftFolder:FindFirstChild("Rifts")
@@ -348,6 +351,9 @@ EggsTab:CreateToggle({
                             task.wait(0.05)
                             riftExists = isDoodleRiftExists()
                         end
+                        
+                        getgenv().ActivityStatus.current = "Finished Doodle Rift"
+                        getgenv().ActivityStatus.trigger = true
                         
                         getgenv().questActive = false
                         getgenv().questEgg = nil
@@ -391,6 +397,9 @@ EggsTab:CreateToggle({
                             getgenv().questActive = true
                             getgenv().questEgg = eggName
                             
+                            getgenv().ActivityStatus.current = "Doing 4x Egg right now"
+                            getgenv().ActivityStatus.trigger = true
+                            
                             local pos = eggObj:GetPivot().Position
                             local root = getRoot()
                             if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
@@ -407,6 +416,9 @@ EggsTab:CreateToggle({
                                     end
                                 end
                             end
+                            
+                            getgenv().ActivityStatus.current = "Finished 4x Egg"
+                            getgenv().ActivityStatus.trigger = true
                             
                             getgenv().questActive = false
                             getgenv().questEgg = nil
@@ -447,9 +459,6 @@ EggsTab:CreateButton({
         local text = "Found " .. #newEggs .. " eggs"
         pcall(function() eggListLabel:SetText(text) end)
         print("[Eggs] Rescan: " .. text)
-        for _, name in ipairs(newEggs) do
-            print("  - " .. name)
-        end
     end
 })
 
@@ -476,6 +485,11 @@ EggsTab:CreateToggle({
                 while autoHatchEnabled do
                     while getgenv().questActive and autoHatchEnabled do
                         task.wait(0.5)
+                    end
+                    
+                    if not getgenv().questActive then
+                        getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
+                        getgenv().ActivityStatus.trigger = true
                     end
                     
                     teleportToEgg(selectedEgg)
@@ -540,9 +554,6 @@ EggsTab:CreateButton({
         local text = "Found " .. #inventoryEggList .. " inventory eggs"
         pcall(function() invListLabel:SetText(text) end)
         print("[Eggs] Inventory Rescan: " .. text)
-        for _, name in ipairs(inventoryEggList) do
-            print("  - " .. name)
-        end
     end
 })
 
@@ -600,6 +611,12 @@ EggsTab:CreateToggle({
                     end
                     
                     refreshBountyLabels()
+                    
+                    if not getgenv().questActive then
+                        getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
+                        getgenv().ActivityStatus.trigger = true
+                    end
+                    
                     teleportToEgg(currentBountyEgg)
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
@@ -668,10 +685,7 @@ EggsTab:CreateButton({
     Callback = function()
         xlEggList = getXLEggs()
         selectedXLEgg = xlEggList[1]
-        print("[XL Bounty] Found " .. #xlEggList .. " XL eggs:")
-        for _, name in ipairs(xlEggList) do
-            print("  - " .. name)
-        end
+        print("[XL Bounty] Found " .. #xlEggList .. " XL eggs")
     end
 })
 
@@ -685,6 +699,11 @@ EggsTab:CreateToggle({
                 while xlBountyRunning do
                     while getgenv().questActive and xlBountyRunning do
                         task.wait(0.5)
+                    end
+                    
+                    if not getgenv().questActive then
+                        getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg
+                        getgenv().ActivityStatus.trigger = true
                     end
                     
                     teleportToEgg(selectedXLEgg)
