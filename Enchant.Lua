@@ -19,7 +19,10 @@ local RemoteEvent = RemoteContainer.RemoteEvent
 -- ======================================
 -- SETTINGS
 -- ======================================
-local TARGET_ENCHANTS = {{Id = "ultra-roller"}, {Id = "high-roller"}}
+local TARGET_ENCHANTS = {
+    { Id = "ultra-roller" },
+    { Id = "high-roller" }
+}
 local COOLDOWN = 0.5
 local enchantRunning = false
 local enchantThread = nil
@@ -42,7 +45,9 @@ table.sort(ALL_ENCHANTS)
 local function findPetById(petId)
     local data = LocalData:Get()
     if not (data and data.Pets) then return nil end
-    for _, pet in pairs(data.Pets) do if pet and pet.Id == petId then return pet end end
+    for _, pet in pairs(data.Pets) do
+        if pet and pet.Id == petId then return pet end
+    end
     return nil
 end
 
@@ -52,7 +57,9 @@ local function isPetEnchantable(pet)
     local info = Pets[pet.Name]
     if info and info.Rarity then
         local rarity = info.Rarity
-        if rarity:find("Secret") or rarity:find("Celestial") or rarity:find("Infinity") or rarity:find("Void") or rarity:find("Legendary") then return true end
+        if rarity:find("Secret") or rarity:find("Celestial") or rarity:find("Infinity") or rarity:find("Void") or rarity:find("Legendary") then
+            return true
+        end
     end
     return false
 end
@@ -80,14 +87,22 @@ end
 
 local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
     local targetIsSecret = isSecretOnly(targetEnchantId)
+    
     while enchantRunning do
         local pet = findPetById(petId)
         if not pet then return false end
+        
         local currentEnchant = (pet.Enchants or {})[targetSlot]
-        if currentEnchant and currentEnchant.Id == targetEnchantId then return true end
+        if currentEnchant and currentEnchant.Id == targetEnchantId then
+            return true
+        end
+        
         local otherSlot = (targetSlot == 1) and 2 or 1
         local otherEnchant = (pet.Enchants or {})[otherSlot]
-        if otherEnchant and otherEnchant.Id == targetEnchantId then return false end
+        if otherEnchant and otherEnchant.Id == targetEnchantId then
+            return false
+        end
+        
         if targetIsSecret then
             local lockSlot = (targetSlot == 1) and 2 or 1
             RemoteEvent:FireServer("UseShadowCrystal", petId, lockSlot)
@@ -103,11 +118,23 @@ end
 -- UI
 -- ======================================
 EnchantTab:CreateSection("Manual Enchant")
-EnchantTab:CreateLabel("Smart currency: Auto-detects Shadow Crystal or Gems")
-EnchantTab:CreateLabel("NOTE: Make sure to check your Pets Enchant. If target is on wrong slot, it will skip that pet!")
 
-EnchantTab:CreateDropdown({Name = "Slot 1 Enchant", Options = ALL_ENCHANTS, CurrentOption = {"ultra-roller"}, Callback = function(v) TARGET_ENCHANTS[1].Id = v[1] end})
-EnchantTab:CreateDropdown({Name = "Slot 2 Enchant", Options = ALL_ENCHANTS, CurrentOption = {"high-roller"}, Callback = function(v) TARGET_ENCHANTS[2].Id = v[1] end})
+EnchantTab:CreateLabel("Smart currency: Auto-detects Shadow Crystal or Gems")
+EnchantTab:CreateLabel("NOTE: Make sure to check your Pets Enchant. If Secret Hunter is in Slot 1 but some pets already have it on Slot 2, it will roll endlessly!")
+
+EnchantTab:CreateDropdown({
+    Name = "Slot 1 Enchant",
+    Options = ALL_ENCHANTS,
+    CurrentOption = {"ultra-roller"},
+    Callback = function(v) TARGET_ENCHANTS[1].Id = v[1] end
+})
+
+EnchantTab:CreateDropdown({
+    Name = "Slot 2 Enchant",
+    Options = ALL_ENCHANTS,
+    CurrentOption = {"high-roller"},
+    Callback = function(v) TARGET_ENCHANTS[2].Id = v[1] end
+})
 
 EnchantTab:CreateToggle({
     Name = "Auto Enchant All Equipped",
@@ -115,24 +142,29 @@ EnchantTab:CreateToggle({
     Callback = function(v)
         enchantRunning = v
         if v then
-            getgenv().ActivityStatus.current = "Auto Enchanting all pets with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
             enchantThread = task.spawn(function()
                 local pets = getEquippedPets()
-                print("[Enchant] Found " .. #pets .. " enchantable pets")
+                local enchantMsg = "Auto Enchanting all pets with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
+                
+                -- PASS 1: Enchant Slot 1 on ALL pets
                 for i, pet in ipairs(pets) do
                     if not enchantRunning then break end
-                    print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
+                    getgenv().ActivityStatus.current = enchantMsg .. " (Pet " .. i .. "/" .. #pets .. ": " .. pet.Name .. " Slot 1)"
                     enchantSingleSlot(pet.Id, 1, TARGET_ENCHANTS[1].Id)
                     if i < #pets then task.wait(0.5) end
                 end
+                
+                -- PASS 2: Enchant Slot 2 on ALL pets
                 if enchantRunning then
                     for i, pet in ipairs(pets) do
                         if not enchantRunning then break end
+                        getgenv().ActivityStatus.current = enchantMsg .. " (Pet " .. i .. "/" .. #pets .. ": " .. pet.Name .. " Slot 2)"
                         enchantSingleSlot(pet.Id, 2, TARGET_ENCHANTS[2].Id)
                         if i < #pets then task.wait(0.5) end
                     end
                 end
-                getgenv().ActivityStatus.current = "Done Enchanting"
+                
+                getgenv().ActivityStatus.current = "Done Enchanting all pets!"
                 enchantRunning = false
             end)
         else
