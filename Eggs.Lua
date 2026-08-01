@@ -357,6 +357,10 @@ EggsTab:CreateToggle({
                         
                         local riftExists = true
                         while doodleEnabled and riftExists do
+                            -- Re-claim the flag every cycle
+                            getgenv().questActive = true
+                            getgenv().questEgg = "Doodle Egg"
+                            
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                             riftExists = isDoodleRiftExists()
@@ -419,6 +423,11 @@ EggsTab:CreateToggle({
                             
                             while fourXEnabled and eggFound do
                                 if isDoodleRiftExists() then break end
+                                
+                                -- Re-claim the flag every cycle
+                                getgenv().questActive = true
+                                getgenv().questEgg = eggName
+                                
                                 pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
                                 task.wait(0.05)
                                 
@@ -513,7 +522,7 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
-                    task.wait(0.3)
+                    task.wait(4)
                     if getgenv().questActive then continue end
                     
                     if not wasActive and not getgenv().questActive then
@@ -651,7 +660,7 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
-                    task.wait(0.3)
+                    task.wait(4)
                     if getgenv().questActive then continue end
                     
                     refreshBountyLabels()
@@ -748,7 +757,7 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
-                    task.wait(0.3)
+                    task.wait(4)
                     if getgenv().questActive then continue end
                     
                     if not wasActive and not getgenv().questActive then
@@ -780,7 +789,7 @@ if autoHatchEnabled then
                 task.wait(0.5)
             end
             
-            task.wait(0.3)
+            task.wait(4)
             if getgenv().questActive then continue end
             
             if not wasActive and not getgenv().questActive then
@@ -806,7 +815,7 @@ if bountyEnabled then
                 task.wait(0.5)
             end
             
-            task.wait(0.3)
+            task.wait(4)
             if getgenv().questActive then continue end
             
             refreshBountyLabels()
@@ -856,6 +865,9 @@ if doodleEnabled then
                 
                 local riftExists = true
                 while doodleEnabled and riftExists do
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Doodle Egg"
+                    
                     pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                     riftExists = isDoodleRiftExists()
@@ -903,6 +915,10 @@ if fourXEnabled then
                     
                     while fourXEnabled and eggFound do
                         if isDoodleRiftExists() then break end
+                        
+                        getgenv().questActive = true
+                        getgenv().questEgg = eggName
+                        
                         pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
                         task.wait(0.05)
                         
