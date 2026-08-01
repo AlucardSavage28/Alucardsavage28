@@ -35,7 +35,8 @@ local EVENTS = {
 -- ======================================
 -- EVENT BOARD READER
 -- ======================================
-local function getActiveEvent()
+local function getAllActiveEvents()
+    local events = {}
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         local screenGui = playerGui:FindFirstChild("ScreenGui")
@@ -48,17 +49,20 @@ local function getActiveEvent()
                     if container then
                         local list = container:FindFirstChild("List")
                         if list then
-                            local template = list:FindFirstChild("Template")
-                            if template then
-                                local frame = template:FindFirstChild("Frame")
-                                if frame then
-                                    local title = frame:FindFirstChild("Title")
-                                    if title then
-                                        local eventLabel = title:FindFirstChild("Event")
-                                        local timerLabel = title:FindFirstChild("Timer")
-                                        local eventText = eventLabel and eventLabel.Text or "None"
-                                        local timerText = timerLabel and timerLabel.Text or "?"
-                                        return eventText .. " " .. timerText
+                            for _, child in ipairs(list:GetChildren()) do
+                                if child:IsA("Frame") and child.Name ~= "UIListLayout" and child.Name ~= "UIPadding" then
+                                    local frame = child:FindFirstChild("Frame")
+                                    if frame then
+                                        local title = frame:FindFirstChild("Title")
+                                        if title then
+                                            local eventLabel = title:FindFirstChild("Event")
+                                            if eventLabel then
+                                                local eventText = eventLabel.Text
+                                                if eventText and eventText ~= "" then
+                                                    table.insert(events, eventText)
+                                                end
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -68,20 +72,41 @@ local function getActiveEvent()
             end
         end
     end
-    return "No active event"
+    return events
 end
+
+local function getActiveEventDisplay()
+    local events = getAllActiveEvents()
+    if #events == 0 then
+        return "No Event"
+    end
+    return table.concat(events, ", ")
+end
+
+local lastEventDisplay = ""
 
 -- ======================================
 -- UI - AUTO EVENT
 -- ======================================
 EventTab:CreateSection("Auto Event")
 
-local activeEventLabel = EventTab:CreateLabel("Active: " .. getActiveEvent())
+local activeEventLabel = EventTab:CreateLabel("Active: " .. getActiveEventDisplay())
 
 task.spawn(function()
     while true do
         task.wait(30)
-        pcall(function() activeEventLabel:SetText("Active: " .. getActiveEvent()) end)
+        local display = getActiveEventDisplay()
+        pcall(function() activeEventLabel:SetText("Active: " .. display) end)
+        
+        if display ~= lastEventDisplay then
+            lastEventDisplay = display
+            if display == "No Event" then
+                getgenv().ActivityStatus.current = "Event Board = No Event"
+            else
+                getgenv().ActivityStatus.current = "Event Board = " .. display
+            end
+            getgenv().ActivityStatus.trigger = true
+        end
     end
 end)
 
@@ -102,8 +127,6 @@ EventTab:CreateToggle({
         if v then
             eventThread = task.spawn(function()
                 while eventRunning do
-                    getgenv().ActivityStatus.current = "Adding Event: " .. selectedEvent
-                    getgenv().ActivityStatus.trigger = true
                     pcall(function() RE:FireServer("PurchaseEventBoard", selectedEvent) end)
                     task.wait(900)
                 end
