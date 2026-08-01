@@ -155,7 +155,10 @@ PetTab:CreateToggle({
                     task.wait(5)
                     
                     local data = LocalData:Get()
-                    if not data or not data.Pets then continue end
+                    if not data or not data.Pets then
+                        print("[Rebirth] No pet data!")
+                        continue
+                    end
                     
                     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
                     for _, pet in pairs(data.Pets) do
@@ -175,6 +178,8 @@ PetTab:CreateToggle({
                         end
                     end
                     
+                    print("[Rebirth Debug] Normal:" .. #groups.Normal .. " Shiny:" .. #groups.Shiny .. " Mythic:" .. #groups.Mythic .. " SM:" .. #groups.ShinyMythic)
+                    
                     local selectedGroup = nil
                     if #groups.Normal >= 5 then selectedGroup = groups.Normal
                     elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny
@@ -183,6 +188,7 @@ PetTab:CreateToggle({
                     end
                     
                     if selectedGroup then
+                        print("[Rebirth Debug] Using group with " .. #selectedGroup .. " pets")
                         local payload = {}
                         local usedWithVariant = {}
                         for i = 1, 5 do
@@ -212,6 +218,8 @@ PetTab:CreateToggle({
                         end
                         
                         task.wait(1.5)
+                    else
+                        print("[Rebirth Debug] No group has 5+ pets!")
                     end
                 end
             end)
