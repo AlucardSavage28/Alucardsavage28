@@ -162,7 +162,12 @@ AutoTab:CreateToggle({
                 while presentEnabled do
                     local count = collectAllPresents()
                     if count > 0 then
+                        getgenv().ActivityStatus.current = "Collecting Presents (" .. count .. " found)"
+                        getgenv().ActivityStatus.trigger = true
                         print("[Auto] Collected " .. count .. " presents!")
+                    else
+                        getgenv().ActivityStatus.current = "Done collecting presents"
+                        getgenv().ActivityStatus.trigger = true
                     end
                     task.wait(0.5)
                 end
