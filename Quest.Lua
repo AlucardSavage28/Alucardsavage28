@@ -113,7 +113,6 @@ local function completeQuest(quest)
     getgenv().questActive = true
     
     if quest.type == "Bubbles" then
-        getgenv().ActivityStatus.current = "Doing Season Pass now... (Bubbles)"
         getgenv().questEgg = nil
         local prevPos = savePosition()
         local sellPos = getSellPosition()
@@ -127,12 +126,10 @@ local function completeQuest(quest)
             if not stillActive then break end
         end
         restorePosition(prevPos)
-        getgenv().ActivityStatus.current = "Season Pass done!"
         
     elseif quest.type == "Hatch" then
         if quest.egg then
             local eggName = quest.egg
-            getgenv().ActivityStatus.current = "Doing Season Pass now... (Hatching " .. eggName .. ")"
             getgenv().questEgg = eggName
             local prevPos = savePosition()
             local pos = EGG_LOCATIONS[eggName] or EGG_LOCATIONS["Magma Egg"]
@@ -146,9 +143,7 @@ local function completeQuest(quest)
                 if not stillActive then break end
             end
             restorePosition(prevPos)
-            getgenv().ActivityStatus.current = "Season Pass done!"
         elseif quest.rarity then
-            getgenv().ActivityStatus.current = "Doing Season Pass now... (Hatching Nightmare Egg for rarity)"
             getgenv().questEgg = "Nightmare Egg"
             local prevPos = savePosition()
             local pos = EGG_LOCATIONS["Nightmare Egg"] if pos then teleportTo(pos) end
@@ -161,7 +156,6 @@ local function completeQuest(quest)
                 if not stillActive then break end
             end
             restorePosition(prevPos)
-            getgenv().ActivityStatus.current = "Season Pass done!"
         else
             getgenv().questActive = false; getgenv().questEgg = nil; task.wait(5)
         end
@@ -172,7 +166,6 @@ local function completeQuest(quest)
         if curr:lower():find("pearl") then
             local crateName, crateAmount = getAvailableCrate()
             if crateName and crateAmount > 0 then
-                getgenv().ActivityStatus.current = "Doing Season Pass now... (Opening " .. crateName .. ")"
                 getgenv().questEgg = nil
                 local prevPos = savePosition()
                 teleportTo(SEVENSEAS_SPAWN)
@@ -190,12 +183,10 @@ local function completeQuest(quest)
                     if not stillActive then break end
                 end
                 restorePosition(prevPos)
-                getgenv().ActivityStatus.current = "Season Pass done!"
             else
                 getgenv().questActive = false; getgenv().questEgg = nil; task.wait(1); return
             end
         elseif curr:lower():find("gem") then
-            getgenv().ActivityStatus.current = "Doing Season Pass now... (Collecting Gems)"
             getgenv().questEgg = nil
             local prevPos = savePosition()
             constants.DefaultPickupRadius = math.huge
@@ -211,9 +202,7 @@ local function completeQuest(quest)
             task.cancel(orbThread); task.cancel(shopThread)
             constants.DefaultPickupRadius = originalRadius
             restorePosition(prevPos)
-            getgenv().ActivityStatus.current = "Season Pass done!"
         elseif curr:lower():find("ticket") then
-            getgenv().ActivityStatus.current = "Doing Season Pass now... (Collecting Tickets)"
             getgenv().questEgg = nil
             local prevPos = savePosition()
             constants.DefaultPickupRadius = math.huge
@@ -228,9 +217,7 @@ local function completeQuest(quest)
             task.cancel(orbThread)
             constants.DefaultPickupRadius = originalRadius
             restorePosition(prevPos)
-            getgenv().ActivityStatus.current = "Season Pass done!"
         else
-            getgenv().ActivityStatus.current = "Doing Season Pass now... (Collecting Coins)"
             getgenv().questEgg = nil
             local prevPos = savePosition()
             constants.DefaultPickupRadius = math.huge
@@ -247,7 +234,6 @@ local function completeQuest(quest)
             task.cancel(orbThread)
             constants.DefaultPickupRadius = originalRadius
             restorePosition(prevPos)
-            getgenv().ActivityStatus.current = "Season Pass done!"
         end
     end
     
