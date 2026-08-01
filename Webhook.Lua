@@ -177,12 +177,25 @@ local function getBuffTime(buffName)
         if screenGui then
             local buffs = screenGui:FindFirstChild("Buffs")
             if buffs then
-                local buff = buffs:FindFirstChild(buffName)
-                if buff then
-                    local button = buff:FindFirstChild("Button")
-                    if button then
-                        local label = button:FindFirstChild("Label")
-                        if label and label.Text ~= "" then return label.Text end
+                for _, buff in ipairs(buffs:GetChildren()) do
+                    if buff.Name == buffName then
+                        local button = buff:FindFirstChild("Button")
+                        if button then
+                            local label = button:FindFirstChild("Label")
+                            if label and label.Text ~= "" then
+                                local text = label.Text
+                                -- For Lucky: skip MM:SS format (Lucky Eggs), keep long duration (Lucky Potion)
+                                if buffName == "Lucky" then
+                                    if text:find("^%d+:%d+$") then
+                                        -- Skip short buffs like "4:52"
+                                    else
+                                        return text
+                                    end
+                                else
+                                    return text
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -199,8 +212,6 @@ local function getBuffTimesForEmbed()
         {"Lucky Potion", "Lucky"},
         {"Speed Potion", "Speed"},
         {"Mythic Potion", "Mythic"},
-        {"Luck Rune", "Luck"},
-        {"Secret Rune", "Secret"},
     }
     local lines = {}
     for _, buff in ipairs(buffs) do
@@ -313,7 +324,6 @@ task.spawn(function()
         
         local debugStats = getDebugStats()
         
-        -- Fragments
         local fragData = data and data.Fragments
         local fragmentText = "N/A"
         if fragData then
