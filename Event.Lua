@@ -12,9 +12,16 @@ local player = Players.LocalPlayer
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
 -- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.event then settings.event = {} end
+local eventSettings = settings.event
+
+-- ======================================
 -- SETTINGS
 -- ======================================
-local selectedEvent = "Luck Event"
+local selectedEvent = eventSettings.selectedEvent or "Luck Event"
 local eventRunning = false
 local eventThread = nil
 
@@ -113,17 +120,23 @@ end)
 EventTab:CreateDropdown({
     Name = "Select Event",
     Options = EVENTS,
-    CurrentOption = {"Luck Event"},
+    CurrentOption = {selectedEvent},
     Callback = function(v)
         selectedEvent = v[1]
+        eventSettings.selectedEvent = v[1]
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Add Event",
-    CurrentValue = false,
+    CurrentValue = eventSettings.autoAddEvent or false,
     Callback = function(v)
         eventRunning = v
+        eventSettings.autoAddEvent = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             eventThread = task.spawn(function()
                 while eventRunning do
@@ -144,9 +157,12 @@ EventTab:CreateSection("Crystal Shop")
 
 EventTab:CreateToggle({
     Name = "Auto Buy Hatching Rune",
-    CurrentValue = false,
+    CurrentValue = eventSettings.autoBuyRune or false,
     Callback = function(v)
         runeRunning = v
+        eventSettings.autoBuyRune = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             runeThread = task.spawn(function()
                 while runeRunning do
@@ -164,9 +180,12 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Green And Blue Fragment",
-    CurrentValue = false,
+    CurrentValue = eventSettings.autoBuyGreenBlue or false,
     Callback = function(v)
         greenBlueRunning = v
+        eventSettings.autoBuyGreenBlue = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             greenBlueThread = task.spawn(function()
                 while greenBlueRunning do
@@ -183,9 +202,12 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Purple And Rainbow Fragment",
-    CurrentValue = false,
+    CurrentValue = eventSettings.autoBuyPurpleRainbow or false,
     Callback = function(v)
         purpleRainbowRunning = v
+        eventSettings.autoBuyPurpleRainbow = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             purpleRainbowThread = task.spawn(function()
                 while purpleRainbowRunning do
@@ -202,9 +224,12 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Power Crystal",
-    CurrentValue = false,
+    CurrentValue = eventSettings.autoBuyPowerCrystal or false,
     Callback = function(v)
         crystalRunning = v
+        eventSettings.autoBuyPowerCrystal = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             crystalThread = task.spawn(function()
                 while crystalRunning do
@@ -220,9 +245,12 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Sunburst",
-    CurrentValue = false,
+    CurrentValue = eventSettings.autoBuySunburst or false,
     Callback = function(v)
         sunburstRunning = v
+        eventSettings.autoBuySunburst = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             sunburstThread = task.spawn(function()
                 while sunburstRunning do
