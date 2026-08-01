@@ -1,3 +1,6 @@
+-- ================================================
+-- ENCHANT TAB
+-- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 
@@ -93,7 +96,6 @@ local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
         
         local currentEnchant = (pet.Enchants or {})[targetSlot]
         if currentEnchant and currentEnchant.Id == targetEnchantId then
-            print("[Enchant] Slot " .. targetSlot .. " already has " .. ENCHANT_DISPLAY[targetEnchantId])
             return true
         end
         
@@ -149,9 +151,12 @@ EnchantTab:CreateToggle({
         if v then
             enchantThread = task.spawn(function()
                 local pets = getEquippedPets()
-                print("[Enchant] Found " .. #pets .. " enchantable pets (skipped Super Legendary)")
                 
-                print("[Enchant] === PASS 1: Slot 1 (" .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. ") ===")
+                getgenv().ActivityStatus.current = "Auto Enchanting all pets with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
+                getgenv().ActivityStatus.trigger = true
+                
+                print("[Enchant] Found " .. #pets .. " enchantable pets")
+                
                 for i, pet in ipairs(pets) do
                     if not enchantRunning then break end
                     print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
@@ -160,7 +165,6 @@ EnchantTab:CreateToggle({
                 end
                 
                 if enchantRunning then
-                    print("[Enchant] === PASS 2: Slot 2 (" .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id] .. ") ===")
                     for i, pet in ipairs(pets) do
                         if not enchantRunning then break end
                         print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
@@ -168,6 +172,9 @@ EnchantTab:CreateToggle({
                         if i < #pets then task.wait(0.5) end
                     end
                 end
+                
+                getgenv().ActivityStatus.current = "Done Enchanting"
+                getgenv().ActivityStatus.trigger = true
                 
                 print("[Enchant] All pets done!")
                 enchantRunning = false
@@ -200,55 +207,14 @@ local function RunEnchant(primary, secondary, item1, item2)
     loadstring(game:HttpGet("https://raw.githubusercontent.com/issascripts/bgsi/refs/heads/main/coolestautoenchantintown.lua"))()
 end
 
-EnchantTab:CreateButton({
-    Name = "Secret Hunter + Ultra Roller",
-    Callback = function()
-        RunEnchant({"Secret Hunter","Ultra Roller"}, {"Secret Hunter","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal")
-    end
-})
-
-EnchantTab:CreateButton({
-    Name = "Ultra Roller + High Roller",
-    Callback = function()
-        RunEnchant({"High Roller","Ultra Roller"}, {"High Roller","Ultra Roller"}, "Shadow Crystal", "Gems")
-    end
-})
-
-EnchantTab:CreateButton({
-    Name = "Shiny Seeker + Ultra Roller",
-    Callback = function()
-        RunEnchant({"Shiny Seeker","Ultra Roller"}, {"Shiny Seeker","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal")
-    end
-})
+EnchantTab:CreateButton({Name = "Secret Hunter + Ultra Roller", Callback = function() RunEnchant({"Secret Hunter","Ultra Roller"}, {"Secret Hunter","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal") end})
+EnchantTab:CreateButton({Name = "Ultra Roller + High Roller", Callback = function() RunEnchant({"High Roller","Ultra Roller"}, {"High Roller","Ultra Roller"}, "Shadow Crystal", "Gems") end})
+EnchantTab:CreateButton({Name = "Shiny Seeker + Ultra Roller", Callback = function() RunEnchant({"Shiny Seeker","Ultra Roller"}, {"Shiny Seeker","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal") end})
 
 EnchantTab:CreateSection("Bubbler Enchanter")
-
-EnchantTab:CreateButton({
-    Name = "Team Up V + Bubbler V",
-    Callback = function()
-        RunEnchant({"Team Up V","Bubbler V"}, {"Team Up V","Bubbler V"}, "Gems", "Gems")
-    end
-})
-
-EnchantTab:CreateButton({
-    Name = "Determination + Bubbler V",
-    Callback = function()
-        RunEnchant({"Determination","Bubbler V"}, {"Determination","Bubbler V"}, "Shadow Crystal", "Gems")
-    end
-})
+EnchantTab:CreateButton({Name = "Team Up V + Bubbler V", Callback = function() RunEnchant({"Team Up V","Bubbler V"}, {"Team Up V","Bubbler V"}, "Gems", "Gems") end})
+EnchantTab:CreateButton({Name = "Determination + Bubbler V", Callback = function() RunEnchant({"Determination","Bubbler V"}, {"Determination","Bubbler V"}, "Shadow Crystal", "Gems") end})
 
 EnchantTab:CreateSection("Currency Enchanter")
-
-EnchantTab:CreateButton({
-    Name = "Team Up V + Looter V",
-    Callback = function()
-        RunEnchant({"Team Up V","Looter V"}, {"Team Up V","Looter V"}, "Gems", "Gems")
-    end
-})
-
-EnchantTab:CreateButton({
-    Name = "Determination + Looter V",
-    Callback = function()
-        RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems")
-    end
-})
+EnchantTab:CreateButton({Name = "Team Up V + Looter V", Callback = function() RunEnchant({"Team Up V","Looter V"}, {"Team Up V","Looter V"}, "Gems", "Gems") end})
+EnchantTab:CreateButton({Name = "Determination + Looter V", Callback = function() RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems") end})
