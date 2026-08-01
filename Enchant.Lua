@@ -76,44 +76,86 @@ local function getFoundTargetEnchant(pet)
     return nil, nil
 end
 
-local function enchantPet(petId)
+local function isSecretOnly(enchantId)
+    local data = EnchantsData[enchantId]
+    return data and data.IsSecretOnly
+end
+
+local function getCurrencyForEnchant(enchantId)
+    if isSecretOnly(enchantId) then return "Shadow Crystal" end
+    return "Gems"
+end
+
+local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
+    local targetIsSecret = isSecretOnly(targetEnchantId)
+    
+    while enchantRunning do
+        local pet = findPetById(petId)
+        if not pet then return false end
+        
+        local currentEnchant = (pet.Enchants or {})[targetSlot]
+        if currentEnchant and currentEnchant.Id == targetEnchantId then
+            print("[Enchant] Slot " .. targetSlot .. " done: " .. ENCHANT_DISPLAY[targetEnchantId])
+            return true
+        end
+        
+        if targetIsSecret then
+            -- Lock the OTHER slot, reroll this one with crystal
+            local lockSlot = (targetSlot == 1) and 2 or 1
+            RemoteEvent:FireServer("UseShadowCrystal", petId, lockSlot)
+        else
+            -- Use gems on single slot
+            RemoteEvent:FireServer("RerollEnchant", petId, targetSlot)
+        end
+        task.wait(COOLDOWN)
+    end
+    return false
+end
+
+local function enchantBothSlots(petId)
+    -- Keep rerolling both until any target found
     while enchantRunning do
         local pet = findPetById(petId)
         if not pet then return end
         
         local foundTarget, foundSlot = getFoundTargetEnchant(pet)
         if foundTarget then
-            print("[Enchant] Found " .. ENCHANT_DISPLAY[foundTarget.Id] .. " in Slot " .. foundSlot)
-            
             local neededTarget = nil
             for _, target in ipairs(TARGET_ENCHANTS) do
                 if target.Id ~= foundTarget.Id then neededTarget = target; break end
             end
-            if not neededTarget then
-                print("[Enchant] Both targets found!")
-                return
-            end
+            if not neededTarget then return end
             
-            local slotToReroll = (foundSlot == 1) and 2 or 1
-            print("[Enchant] Rerolling Slot " .. slotToReroll .. " for " .. ENCHANT_DISPLAY[neededTarget.Id])
+            local rerollSlot = (foundSlot == 1) and 2 or 1
+            local neededIsSecret = isSecretOnly(neededTarget.Id)
             
             while enchantRunning do
                 local currentPet = findPetById(petId)
                 if not currentPet then return end
                 
-                local enchantInSlot = (currentPet.Enchants or {})[slotToReroll]
+                local enchantInSlot = (currentPet.Enchants or {})[rerollSlot]
                 if enchantInSlot and enchantInSlot.Id == neededTarget.Id then
                     print("[Enchant] Done! " .. ENCHANT_DISPLAY[foundTarget.Id] .. " + " .. ENCHANT_DISPLAY[neededTarget.Id])
                     return
                 end
                 
-                RemoteEvent:FireServer("RerollEnchant", petId, slotToReroll)
+                if neededIsSecret then
+                    RemoteEvent:FireServer("UseShadowCrystal", petId, foundSlot)
+                else
+                    RemoteEvent:FireServer("RerollEnchant", petId, rerollSlot)
+                end
                 task.wait(COOLDOWN)
             end
             return
         end
         
-        RemoteFunction:InvokeServer("RerollEnchants", petId, REROLL_CURRENCY)
+        -- No target found, reroll both with appropriate currency
+        local useCrystal = isSecretOnly(TARGET_ENCHANTS[1].Id) or isSecretOnly(TARGET_ENCHANTS[2].Id)
+        if useCrystal then
+            RemoteEvent:FireServer("UseShadowCrystal", petId, nil)
+        else
+            RemoteFunction:InvokeServer("RerollEnchants", petId, "Gems")
+        end
         task.wait(COOLDOWN)
     end
 end
@@ -123,7 +165,7 @@ end
 -- ======================================
 EnchantTab:CreateSection("Manual Enchant")
 
-EnchantTab:CreateLabel("If you wanna use Enchant that can't be rolled with shadow crystal you might need to change the reroll currency to Gems after getting targetted enchant on slot 1 with shadow crystal")
+EnchantTab:CreateLabel("Smart currency: Script auto-detects if enchant needs Shadow Crystal or Gems")
 
 EnchantTab:CreateDropdown({
     Name = "Slot 1 Enchant",
@@ -143,15 +185,6 @@ EnchantTab:CreateDropdown({
     end
 })
 
-EnchantTab:CreateDropdown({
-    Name = "Currency",
-    Options = {"Shadow Crystal", "Gems"},
-    CurrentOption = {"Shadow Crystal"},
-    Callback = function(v)
-        REROLL_CURRENCY = v[1]
-    end
-})
-
 EnchantTab:CreateToggle({
     Name = "Auto Enchant All Equipped",
     CurrentValue = false,
@@ -162,11 +195,24 @@ EnchantTab:CreateToggle({
                 local pets = getEquippedPets()
                 print("[Enchant] Found " .. #pets .. " equipped pets")
                 
+                -- PASS 1: Enchant Slot 1 on ALL pets
+                print("[Enchant] === PASS 1: Slot 1 ===")
                 for i, pet in ipairs(pets) do
                     if not enchantRunning then break end
                     print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
-                    enchantPet(pet.Id)
-                    if i < #pets then task.wait(1) end
+                    enchantSingleSlot(pet.Id, 1, TARGET_ENCHANTS[1].Id)
+                    if i < #pets then task.wait(0.5) end
+                end
+                
+                -- PASS 2: Enchant Slot 2 on ALL pets
+                if enchantRunning then
+                    print("[Enchant] === PASS 2: Slot 2 ===")
+                    for i, pet in ipairs(pets) do
+                        if not enchantRunning then break end
+                        print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
+                        enchantSingleSlot(pet.Id, 2, TARGET_ENCHANTS[2].Id)
+                        if i < #pets then task.wait(0.5) end
+                    end
                 end
                 
                 print("[Enchant] All pets done!")
@@ -200,61 +246,14 @@ local function RunEnchant(primary, secondary, item1, item2)
     loadstring(game:HttpGet("https://raw.githubusercontent.com/issascripts/bgsi/refs/heads/main/coolestautoenchantintown.lua"))()
 end
 
-EnchantTab:CreateButton({
-    Name = "Secret Hunter + Ultra Roller",
-    Callback = function()
-        RunEnchant({"Secret Hunter","Ultra Roller"}, {"Secret Hunter","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal")
-    end
-})
+EnchantTab:CreateButton({Name = "Secret Hunter + Ultra Roller", Callback = function() RunEnchant({"Secret Hunter","Ultra Roller"}, {"Secret Hunter","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal") end})
+EnchantTab:CreateButton({Name = "Ultra Roller + High Roller", Callback = function() RunEnchant({"High Roller","Ultra Roller"}, {"High Roller","Ultra Roller"}, "Shadow Crystal", "Gems") end})
+EnchantTab:CreateButton({Name = "Shiny Seeker + Ultra Roller", Callback = function() RunEnchant({"Shiny Seeker","Ultra Roller"}, {"Shiny Seeker","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal") end})
 
-EnchantTab:CreateButton({
-    Name = "Ultra Roller + High Roller",
-    Callback = function()
-        RunEnchant({"High Roller","Ultra Roller"}, {"High Roller","Ultra Roller"}, "Shadow Crystal", "Gems")
-    end
-})
-
-EnchantTab:CreateButton({
-    Name = "Shiny Seeker + Ultra Roller",
-    Callback = function()
-        RunEnchant({"Shiny Seeker","Ultra Roller"}, {"Shiny Seeker","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal")
-    end
-})
-
--- ======================================
--- BUBBLER ENCHANTER
--- ======================================
 EnchantTab:CreateSection("Bubbler Enchanter")
+EnchantTab:CreateButton({Name = "Team Up V + Bubbler V", Callback = function() RunEnchant({"Team Up V","Bubbler V"}, {"Team Up V","Bubbler V"}, "Gems", "Gems") end})
+EnchantTab:CreateButton({Name = "Determination + Bubbler V", Callback = function() RunEnchant({"Determination","Bubbler V"}, {"Determination","Bubbler V"}, "Shadow Crystal", "Gems") end})
 
-EnchantTab:CreateButton({
-    Name = "Team Up V + Bubbler V",
-    Callback = function()
-        RunEnchant({"Team Up V","Bubbler V"}, {"Team Up V","Bubbler V"}, "Gems", "Gems")
-    end
-})
-
-EnchantTab:CreateButton({
-    Name = "Determination + Bubbler V",
-    Callback = function()
-        RunEnchant({"Determination","Bubbler V"}, {"Determination","Bubbler V"}, "Shadow Crystal", "Gems")
-    end
-})
-
--- ======================================
--- CURRENCY ENCHANTER
--- ======================================
 EnchantTab:CreateSection("Currency Enchanter")
-
-EnchantTab:CreateButton({
-    Name = "Team Up V + Looter V",
-    Callback = function()
-        RunEnchant({"Team Up V","Looter V"}, {"Team Up V","Looter V"}, "Gems", "Gems")
-    end
-})
-
-EnchantTab:CreateButton({
-    Name = "Determination + Looter V",
-    Callback = function()
-        RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems")
-    end
-})
+EnchantTab:CreateButton({Name = "Team Up V + Looter V", Callback = function() RunEnchant({"Team Up V","Looter V"}, {"Team Up V","Looter V"}, "Gems", "Gems") end})
+EnchantTab:CreateButton({Name = "Determination + Looter V", Callback = function() RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems") end})
