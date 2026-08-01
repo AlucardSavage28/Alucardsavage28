@@ -146,19 +146,18 @@ PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
     CurrentValue = false,
     Callback = function(V)
+        print("[REBIRTH] Callback fired! V = " .. tostring(V))
         fuseAllActive = V
         if V then
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
+                print("[REBIRTH] Thread started!")
                 local lastPrint = ""
                 while fuseAllActive do
                     task.wait(5)
                     
                     local data = LocalData:Get()
-                    if not data or not data.Pets then
-                        print("[Rebirth] No pet data!")
-                        continue
-                    end
+                    if not data or not data.Pets then continue end
                     
                     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
                     for _, pet in pairs(data.Pets) do
@@ -178,7 +177,7 @@ PetTab:CreateToggle({
                         end
                     end
                     
-                    print("[Rebirth] Normal:" .. #groups.Normal .. " Shiny:" .. #groups.Shiny .. " Mythic:" .. #groups.Mythic .. " SM:" .. #groups.ShinyMythic)
+                    print("[REBIRTH] Normal:" .. #groups.Normal .. " Shiny:" .. #groups.Shiny .. " Mythic:" .. #groups.Mythic .. " SM:" .. #groups.ShinyMythic)
                     
                     local selectedGroup = nil
                     if #groups.Normal >= 5 then selectedGroup = groups.Normal
@@ -188,7 +187,6 @@ PetTab:CreateToggle({
                     end
                     
                     if selectedGroup then
-                        print("[Rebirth] Using group with " .. #selectedGroup .. " pets")
                         local payload = {}
                         local usedWithVariant = {}
                         for i = 1, 5 do
@@ -199,38 +197,28 @@ PetTab:CreateToggle({
                             elseif pet.Shiny then variant = "Shiny"
                             elseif pet.Mythic then variant = "Mythic" end
                             table.insert(usedWithVariant, variant .. " " .. pet.Name)
-                            print("[Rebirth] Pet " .. i .. ": " .. variant .. " " .. pet.Name .. " (" .. pet.Id .. ")")
                         end
                         
                         local text = table.concat(usedWithVariant, ", ")
-                        
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                         
-                        print("[Rebirth] Sending remote...")
+                        print("[REBIRTH] Fusing: " .. text)
                         local ok, err = pcall(function()
                             NetworkRemote:InvokeServer("UseRebirthMachine", payload)
                         end)
-                        print("[Rebirth] Remote result: " .. tostring(ok) .. " | " .. tostring(err))
+                        print("[REBIRTH] Remote: " .. tostring(ok) .. " | " .. tostring(err))
                         
                         getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
                         getgenv().ActivityStatus.trigger = true
                         
-                        if text ~= lastPrint then
-                            lastPrint = text
-                        end
-                        
+                        if text ~= lastPrint then lastPrint = text end
                         task.wait(1.5)
-                    else
-                        print("[Rebirth] No group has 5+ pets!")
                     end
                 end
             end)
         else
             fuseAllActive = false
-            if fuseAllThread then
-                task.cancel(fuseAllThread)
-                fuseAllThread = nil
-            end
+            if fuseAllThread then task.cancel(fuseAllThread); fuseAllThread = nil end
         end
     end,
 })
