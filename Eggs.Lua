@@ -94,8 +94,8 @@ local currentBountyPet = "Unknown"
 local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
-local fourXEnabled = false
-local doodleEnabled = false
+local fourXEnabled = eggSettings.auto4x or false
+local doodleEnabled = eggSettings.autoDoodle or false
 local autoHatchEnabled = eggSettings.autoHatch or false
 local spamEEnabled = false
 local hideAnimEnabled = eggSettings.hideAnim or false
@@ -319,7 +319,7 @@ EggsTab:CreateSection("------- Special Eggs -------")
 -- DOODLE RIFT (Priority 1)
 EggsTab:CreateToggle({
     Name = "Auto Doodle Rift",
-    CurrentValue = eggSettings.autoDoodle or false,
+    CurrentValue = doodleEnabled,
     Callback = function(v)
         doodleEnabled = v
         eggSettings.autoDoodle = v
@@ -383,7 +383,7 @@ EggsTab:CreateToggle({
 -- 4X EGG (Priority 2 - Auto Detect)
 EggsTab:CreateToggle({
     Name = "Auto 4x Egg",
-    CurrentValue = eggSettings.auto4x or false,
+    CurrentValue = fourXEnabled,
     Callback = function(v)
         fourXEnabled = v
         eggSettings.auto4x = v
@@ -758,5 +758,162 @@ EggsTab:CreateToggle({
         end
     end
 })
+
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if autoHatchEnabled then
+    autoHatchThread = task.spawn(function()
+        local wasActive = false
+        while autoHatchEnabled do
+            while getgenv().questActive and autoHatchEnabled do
+                wasActive = false
+                task.wait(0.5)
+            end
+            
+            if not wasActive and not getgenv().questActive then
+                getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
+                getgenv().ActivityStatus.trigger = true
+                wasActive = true
+            end
+            
+            teleportToEgg(selectedEgg)
+            pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
+            task.wait(0.05)
+        end
+    end)
+end
+
+if bountyEnabled then
+    refreshBountyLabels()
+    bountyThread = task.spawn(function()
+        local wasActive = false
+        while bountyEnabled do
+            while getgenv().questActive and bountyEnabled do
+                wasActive = false
+                task.wait(0.5)
+            end
+            
+            refreshBountyLabels()
+            
+            if not wasActive and not getgenv().questActive then
+                getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
+                getgenv().ActivityStatus.trigger = true
+                wasActive = true
+            end
+            
+            teleportToEgg(currentBountyEgg)
+            pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
+            task.wait(0.05)
+        end
+    end)
+end
+
+if doodleEnabled then
+    doodleThread = task.spawn(function()
+        while doodleEnabled do
+            if isDoodleRiftExists() then
+                getgenv().questActive = true
+                getgenv().questEgg = "Doodle Egg"
+                task.wait(0.3)
+                
+                getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
+                getgenv().ActivityStatus.trigger = true
+                
+                local riftFolder = workspace:FindFirstChild("Rendered")
+                if riftFolder then
+                    local rifts = riftFolder:FindFirstChild("Rifts")
+                    if rifts then
+                        local doodleRift = rifts:FindFirstChild("doodle-rift")
+                        if doodleRift then
+                            for _, child in ipairs(doodleRift:GetDescendants()) do
+                                if child:IsA("BasePart") then
+                                    local root = getRoot()
+                                    if root then root.CFrame = CFrame.new(child.Position + Vector3.new(0, 5, 0)) end
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                task.wait(0.3)
+                
+                local riftExists = true
+                while doodleEnabled and riftExists do
+                    pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                    riftExists = isDoodleRiftExists()
+                end
+                
+                getgenv().ActivityStatus.current = "Finished Doodle Rift"
+                getgenv().ActivityStatus.trigger = true
+                
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end
+            
+            task.wait(1)
+        end
+    end)
+end
+
+if fourXEnabled then
+    fourXThread = task.spawn(function()
+        while fourXEnabled do
+            if not isDoodleRiftExists() then
+                local eggFound = false
+                local eggName = nil
+                local eggObj = nil
+                
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj.Name:find("4x Luck") and obj:IsA("Model") then
+                        eggFound = true
+                        eggName = obj.Name
+                        eggObj = obj
+                        break
+                    end
+                end
+                
+                if eggFound and eggObj then
+                    getgenv().questActive = true
+                    getgenv().questEgg = eggName
+                    
+                    getgenv().ActivityStatus.current = "Doing 4x Egg right now"
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    local pos = eggObj:GetPivot().Position
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+                    
+                    while fourXEnabled and eggFound do
+                        if isDoodleRiftExists() then break end
+                        pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
+                        task.wait(0.05)
+                        
+                        eggFound = false
+                        for _, obj2 in ipairs(workspace:GetDescendants()) do
+                            if obj2.Name == eggName and obj2:IsA("Model") then
+                                eggFound = true; break
+                            end
+                        end
+                    end
+                    
+                    getgenv().ActivityStatus.current = "Finished 4x Egg"
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    getgenv().questActive = false
+                    getgenv().questEgg = nil
+                end
+            end
+            
+            task.wait(1)
+        end
+    end)
+end
+
+if hideAnimEnabled then
+    getgenv().animationHidden = true
+end
 
 print("[Eggs] Loaded!")
