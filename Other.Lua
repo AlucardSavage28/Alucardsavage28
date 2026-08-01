@@ -41,20 +41,13 @@ local bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
 
 local function getHatches()
     local leaderstats = player:FindFirstChild("leaderstats")
-    if leaderstats then
-        for _, stat in ipairs(leaderstats:GetChildren()) do
-            if stat.Name:find("Hatches") then
-                return tonumber(stat.Value) or 0
-            end
-        end
-    end
+    if leaderstats then for _, stat in ipairs(leaderstats:GetChildren()) do if stat.Name:find("Hatches") then return tonumber(stat.Value) or 0 end end end
     return 0
 end
 
 local function getChanceDisplay(chance)
     if chance >= 1 then return chance .. "%"
-    elseif chance > 0 then
-        local oneIn = 100 / chance
+    elseif chance > 0 then local oneIn = 100 / chance
         if oneIn >= 1e9 then return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
         elseif oneIn >= 1e6 then return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
         elseif oneIn >= 1e3 then return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
@@ -74,14 +67,11 @@ local function checkForBestHatch()
             if info and info.Rarity and info.Chance then
                 local rarity = info.Rarity
                 local isTracked = false
-                for _, r in ipairs(TRACKED_RARITIES) do
-                    if rarity:find(r) then isTracked = true; rarity = r; break end
-                end
+                for _, r in ipairs(TRACKED_RARITIES) do if rarity:find(r) then isTracked = true; rarity = r; break end end
                 if isTracked then
                     local chance = tonumber(info.Chance) or 0
                     if chance > 0 and chance < bestHatchChance then
-                        bestHatchChance = chance
-                        bestHatchName = pet.Name
+                        bestHatchChance = chance; bestHatchName = pet.Name
                         if pet.Shiny and pet.Mythic then bestHatchVariant = "Shiny Mythic"
                         elseif pet.Shiny then bestHatchVariant = "Shiny"
                         elseif pet.Mythic then bestHatchVariant = "Mythic"
@@ -99,14 +89,11 @@ end
 local function updateStats()
     currentHatches = getHatches()
     local elapsed = os.clock() - startTime
-    local minutes = elapsed / 60
-    local hours = elapsed / 3600
+    local minutes = elapsed / 60; local hours = elapsed / 3600
     local hatchedSinceStart = currentHatches - startHatches
     local perMin = minutes > 0 and math.floor(hatchedSinceStart / minutes) or 0
     local perHour = hours > 0 and math.floor(hatchedSinceStart / hours) or 0
-    local h = math.floor(elapsed / 3600)
-    local m = math.floor((elapsed % 3600) / 60)
-    local s = math.floor(elapsed % 60)
+    local h = math.floor(elapsed / 3600); local m = math.floor((elapsed % 3600) / 60); local s = math.floor(elapsed % 60)
     local timeStr = string.format("%02d:%02d:%02d", h, m, s)
     if hatchedLabel then hatchedLabel.Text = "Hatched: " .. hatchedSinceStart end
     if rateLabel then rateLabel.Text = "Rate: " .. perMin .. "/min | " .. perHour .. "/hr" end
@@ -118,52 +105,31 @@ local function createStatsUI()
     if screenGui then return end
     seenPetIds = {}
     local data = LocalData:Get()
-    if data and data.Pets then
-        for petId, _ in pairs(data.Pets) do seenPetIds[petId] = true end
-    end
+    if data and data.Pets then for petId, _ in pairs(data.Pets) do seenPetIds[petId] = true end end
     bestHatchReady = true
     
-    screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "StatsTracker"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = player:WaitForChild("PlayerGui")
-    
-    frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 135)
-    frame.Position = UDim2.new(1, -210, 0, 10)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    frame.BackgroundTransparency = 0.2
-    frame.BorderSizePixel = 0
-    frame.Parent = screenGui
-    
+    screenGui = Instance.new("ScreenGui"); screenGui.Name = "StatsTracker"; screenGui.ResetOnSpawn = false; screenGui.Parent = player:WaitForChild("PlayerGui")
+    frame = Instance.new("Frame"); frame.Size = UDim2.new(0, 200, 0, 135); frame.Position = UDim2.new(1, -210, 0, 10)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20); frame.BackgroundTransparency = 0.2; frame.BorderSizePixel = 0; frame.Parent = screenGui
     local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 8); corner.Parent = frame
     
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -10, 0, 22); title.Position = UDim2.new(0, 5, 0, 5)
-    title.BackgroundTransparency = 1; title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.Text = "Stats Tracker"; title.Font = Enum.Font.GothamBold; title.TextSize = 14
-    title.TextXAlignment = Enum.TextXAlignment.Left; title.Parent = frame
+    local title = Instance.new("TextLabel"); title.Size = UDim2.new(1, -10, 0, 22); title.Position = UDim2.new(0, 5, 0, 5)
+    title.BackgroundTransparency = 1; title.TextColor3 = Color3.fromRGB(255, 255, 255); title.Text = "Stats Tracker"
+    title.Font = Enum.Font.GothamBold; title.TextSize = 14; title.TextXAlignment = Enum.TextXAlignment.Left; title.Parent = frame
     
-    hatchedLabel = Instance.new("TextLabel")
-    hatchedLabel.Size = UDim2.new(1, -10, 0, 18); hatchedLabel.Position = UDim2.new(0, 5, 0, 28)
-    hatchedLabel.BackgroundTransparency = 1; hatchedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    hatchedLabel.Text = "Hatched: 0"; hatchedLabel.Font = Enum.Font.Gotham; hatchedLabel.TextSize = 12
-    hatchedLabel.TextXAlignment = Enum.TextXAlignment.Left; hatchedLabel.Parent = frame
+    hatchedLabel = Instance.new("TextLabel"); hatchedLabel.Size = UDim2.new(1, -10, 0, 18); hatchedLabel.Position = UDim2.new(0, 5, 0, 28)
+    hatchedLabel.BackgroundTransparency = 1; hatchedLabel.TextColor3 = Color3.fromRGB(200, 200, 200); hatchedLabel.Text = "Hatched: 0"
+    hatchedLabel.Font = Enum.Font.Gotham; hatchedLabel.TextSize = 12; hatchedLabel.TextXAlignment = Enum.TextXAlignment.Left; hatchedLabel.Parent = frame
     
-    rateLabel = Instance.new("TextLabel")
-    rateLabel.Size = UDim2.new(1, -10, 0, 18); rateLabel.Position = UDim2.new(0, 5, 0, 47)
-    rateLabel.BackgroundTransparency = 1; rateLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    rateLabel.Text = "Rate: 0/min | 0/hr"; rateLabel.Font = Enum.Font.Gotham; rateLabel.TextSize = 12
-    rateLabel.TextXAlignment = Enum.TextXAlignment.Left; rateLabel.Parent = frame
+    rateLabel = Instance.new("TextLabel"); rateLabel.Size = UDim2.new(1, -10, 0, 18); rateLabel.Position = UDim2.new(0, 5, 0, 47)
+    rateLabel.BackgroundTransparency = 1; rateLabel.TextColor3 = Color3.fromRGB(200, 200, 200); rateLabel.Text = "Rate: 0/min | 0/hr"
+    rateLabel.Font = Enum.Font.Gotham; rateLabel.TextSize = 12; rateLabel.TextXAlignment = Enum.TextXAlignment.Left; rateLabel.Parent = frame
     
-    timeLabel = Instance.new("TextLabel")
-    timeLabel.Size = UDim2.new(1, -10, 0, 18); timeLabel.Position = UDim2.new(0, 5, 0, 66)
-    timeLabel.BackgroundTransparency = 1; timeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    timeLabel.Text = "Time: 00:00:00"; timeLabel.Font = Enum.Font.Gotham; timeLabel.TextSize = 12
-    timeLabel.TextXAlignment = Enum.TextXAlignment.Left; timeLabel.Parent = frame
+    timeLabel = Instance.new("TextLabel"); timeLabel.Size = UDim2.new(1, -10, 0, 18); timeLabel.Position = UDim2.new(0, 5, 0, 66)
+    timeLabel.BackgroundTransparency = 1; timeLabel.TextColor3 = Color3.fromRGB(200, 200, 200); timeLabel.Text = "Time: 00:00:00"
+    timeLabel.Font = Enum.Font.Gotham; timeLabel.TextSize = 12; timeLabel.TextXAlignment = Enum.TextXAlignment.Left; timeLabel.Parent = frame
     
-    bestHatchLabel = Instance.new("TextLabel")
-    bestHatchLabel.Size = UDim2.new(1, -10, 0, 36); bestHatchLabel.Position = UDim2.new(0, 5, 0, 88)
+    bestHatchLabel = Instance.new("TextLabel"); bestHatchLabel.Size = UDim2.new(1, -10, 0, 36); bestHatchLabel.Position = UDim2.new(0, 5, 0, 88)
     bestHatchLabel.BackgroundTransparency = 1; bestHatchLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
     bestHatchLabel.Text = "Best Hatch: None\nOdds: N/A"; bestHatchLabel.Font = Enum.Font.Gotham; bestHatchLabel.TextSize = 11
     bestHatchLabel.TextXAlignment = Enum.TextXAlignment.Left; bestHatchLabel.RichText = true; bestHatchLabel.Parent = frame
@@ -182,23 +148,14 @@ local function destroyStatsUI() if screenGui then screenGui:Destroy(); screenGui
 -- AUTO BUY SHOP
 -- ======================================
 local SHOP_ITEMS = {
-    ["shadow-shop"] = {1, 2, 3},
-    ["alien-shop"] = {1, 2, 3},
-    ["shard-shop"] = {1, 2, 3},
-    ["dice-shop"] = {1, 2, 3},
-    ["traveling-merchant"] = {1, 2, 3},
+    ["shadow-shop"] = {1, 2, 3}, ["alien-shop"] = {1, 2, 3}, ["shard-shop"] = {1, 2, 3},
+    ["dice-shop"] = {1, 2, 3}, ["traveling-merchant"] = {1, 2, 3},
 }
-
 local selectedShop = "shadow-shop"
-local shopRunning = false
-local shopThread = nil
-local buyAllRunning = false
-local buyAllThread = nil
+local shopRunning = false; local shopThread = nil
+local buyAllRunning = false; local buyAllThread = nil
 
-local function buyShop(shopName)
-    local items = SHOP_ITEMS[shopName]
-    if items then for _, itemNum in ipairs(items) do pcall(function() RE:FireServer("BuyShopItem", shopName, itemNum, true) end) end end
-end
+local function buyShop(shopName) local items = SHOP_ITEMS[shopName] if items then for _, itemNum in ipairs(items) do pcall(function() RE:FireServer("BuyShopItem", shopName, itemNum, true) end) end end end
 
 -- ======================================
 -- EFFECTS
