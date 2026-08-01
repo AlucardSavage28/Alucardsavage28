@@ -34,7 +34,8 @@ local function getNode()
             local raw = piece.Node.Part
             if typeof(raw) == "number" then return raw
             elseif typeof(raw) == "string" then return tonumber(raw)
-            elseif typeof(raw) == "Instance" then return tonumber(raw.Name) end
+            elseif typeof(raw) == "Instance" then return tonumber(raw.Name)
+            end
         end
     end
     return nil
@@ -45,7 +46,10 @@ local function getClosest(current, list)
     local dist = math.huge
     for _, num in ipairs(list) do
         local d = (num >= current) and (num - current) or (88 - current + num)
-        if d < dist then dist = d; closest = num end
+        if d < dist then
+            dist = d
+            closest = num
+        end
     end
     return closest, dist
 end
@@ -88,7 +92,8 @@ end
 local function waitForNodeChange(oldNode, timeout)
     local elapsed = 0
     while elapsed < timeout do
-        task.wait(0.3); elapsed = elapsed + 0.3
+        task.wait(0.3)
+        elapsed = elapsed + 0.3
         local current = getNode()
         if current and current ~= oldNode then return current end
     end
@@ -98,17 +103,36 @@ end
 local function loop()
     while running do
         local node = getNode()
-        if not node then task.wait(2); continue end
+        if not node then
+            task.wait(2)
+            continue
+        end
+
         local target, dist = getClosest(node, TILE_TYPES[targetTile])
         local goldenAvailable = hasGoldenDice()
         local diceName = "Dice"
         local waitTime = 2.5
-        if goldenAvailable and dist <= 2 then diceName = "Golden Dice"; waitTime = 1.5
-        elseif dist >= 10 then diceName = "Giant Dice"; waitTime = 4.5
-        else diceName = "Dice"; waitTime = 2.5 end
+
+        if goldenAvailable and dist <= 2 then
+            diceName = "Golden Dice"
+            waitTime = 1.5
+        elseif dist >= 10 then
+            diceName = "Giant Dice"
+            waitTime = 4.5
+        else
+            diceName = "Dice"
+            waitTime = 2.5
+        end
+
         local selected = selectDice(diceName)
-        if not selected then diceName = "Dice"; waitTime = 2.5; selectDice("Dice") end
-        task.wait(0.3); pressRoll()
+        if not selected then
+            diceName = "Dice"
+            waitTime = 2.5
+            selectDice("Dice")
+        end
+
+        task.wait(0.3)
+        pressRoll()
         waitForNodeChange(node, waitTime + 2)
         task.wait(1)
     end
@@ -118,7 +142,35 @@ end
 -- UI
 -- ======================================
 DiceBoardTab:CreateSection("Settings")
-DiceBoardTab:CreateDropdown({Name = "Target Tile", CurrentOption = {"Chance"}, Options = {"Chance","Dice-Key","Dice","Giant-Dice","Golden-Dice","Infinity-Elixir","Special-Egg","Super-Ticket","Basic"}, Callback = function(v) targetTile = v[1] end})
-DiceBoardTab:CreateToggle({Name = "Auto Dice Board", CurrentValue = false, Callback = function(v) running = v if v then if not getBoardHUD() then running = false; return end thread = task.spawn(loop) else running = false if thread then task.cancel(thread) end end end})
+
+DiceBoardTab:CreateDropdown({
+    Name = "Target Tile",
+    CurrentOption = {"Chance"},
+    Options = {
+        "Chance","Dice-Key","Dice","Giant-Dice","Golden-Dice",
+        "Infinity-Elixir","Special-Egg","Super-Ticket","Basic"
+    },
+    Callback = function(v)
+        targetTile = v[1]
+    end
+})
+
+DiceBoardTab:CreateToggle({
+    Name = "Auto Dice Board",
+    CurrentValue = false,
+    Callback = function(v)
+        running = v
+        if v then
+            if not getBoardHUD() then
+                running = false
+                return
+            end
+            thread = task.spawn(loop)
+        else
+            running = false
+            if thread then task.cancel(thread) end
+        end
+    end
+})
 
 print("[DiceBoard] Loaded!")
