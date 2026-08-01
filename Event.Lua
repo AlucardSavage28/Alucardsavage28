@@ -7,6 +7,8 @@ local Window = getgenv().Window
 local EventTab = Window:CreateTab("Event", nil)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
 -- ======================================
@@ -31,9 +33,58 @@ local EVENTS = {
 }
 
 -- ======================================
+-- EVENT BOARD READER
+-- ======================================
+local function getActiveEvent()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local screenGui = playerGui:FindFirstChild("ScreenGui")
+        if screenGui then
+            local eventBoard = screenGui:FindFirstChild("EventBoard")
+            if eventBoard then
+                local activeEvents = eventBoard:FindFirstChild("Frame") and eventBoard.Frame:FindFirstChild("Main") and eventBoard.Frame.Main:FindFirstChild("ActiveEvents")
+                if activeEvents then
+                    local container = activeEvents:FindFirstChild("Container")
+                    if container then
+                        local list = container:FindFirstChild("List")
+                        if list then
+                            local template = list:FindFirstChild("Template")
+                            if template then
+                                local frame = template:FindFirstChild("Frame")
+                                if frame then
+                                    local title = frame:FindFirstChild("Title")
+                                    if title then
+                                        local eventLabel = title:FindFirstChild("Event")
+                                        local timerLabel = title:FindFirstChild("Timer")
+                                        local eventText = eventLabel and eventLabel.Text or "None"
+                                        local timerText = timerLabel and timerLabel.Text or "?"
+                                        return eventText .. " " .. timerText
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return "No active event"
+end
+
+-- ======================================
 -- UI - AUTO EVENT
 -- ======================================
 EventTab:CreateSection("Auto Event")
+
+local activeEventLabel = EventTab:CreateLabel("Active: " .. getActiveEvent())
+
+-- Update active event label every 30 seconds
+task.spawn(function()
+    while true do
+        task.wait(30)
+        pcall(function() activeEventLabel:SetText("Active: " .. getActiveEvent()) end)
+    end
+end)
 
 EventTab:CreateDropdown({
     Name = "Select Event",
@@ -53,7 +104,7 @@ EventTab:CreateToggle({
             eventThread = task.spawn(function()
                 while eventRunning do
                     pcall(function() RE:FireServer("PurchaseEventBoard", selectedEvent) end)
-                    task.wait(900) -- 15 minutes
+                    task.wait(900)
                 end
             end)
         else
