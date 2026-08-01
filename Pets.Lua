@@ -151,11 +151,15 @@ PetTab:CreateToggle({
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
                 local lastPrint = ""
+                local wasActive = false
                 while fuseAllActive do
                     task.wait(5)
                     
                     local data = LocalData:Get()
-                    if not data or not data.Pets then continue end
+                    if not data or not data.Pets then
+                        wasActive = false
+                        continue
+                    end
                     
                     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
                     for _, pet in pairs(data.Pets) do
@@ -203,8 +207,11 @@ PetTab:CreateToggle({
                             NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
                         end)
                         
-                        getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                        getgenv().ActivityStatus.trigger = true
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                            getgenv().ActivityStatus.trigger = true
+                            wasActive = true
+                        end
                         
                         if text ~= lastPrint then
                             print("[Rebirth] " .. text)
@@ -212,6 +219,8 @@ PetTab:CreateToggle({
                         end
                         
                         task.wait(1.5)
+                    else
+                        wasActive = false
                     end
                 end
             end)
