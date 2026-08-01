@@ -53,6 +53,8 @@ TradeTab:CreateToggle({
                     if targetPlayer ~= "" then
                         local target = Players:FindFirstChild(targetPlayer)
                         if target then
+                            getgenv().ActivityStatus.current = "Sending trade to " .. targetPlayer
+                            getgenv().ActivityStatus.trigger = true
                             pcall(function()
                                 Remote:FireServer("TradeRequest", target)
                             end)
@@ -138,17 +140,24 @@ TradeTab:CreateToggle({
                     
                     local data = LocalData:Get()
                     local added = 0
+                    local petNames = {}
                     if data and data.Pets then
                         for _, pet in pairs(data.Pets) do
                             if not pet.Locked and added < 12 then
                                 pcall(function()
                                     Remote:FireServer("TradeAddPet", pet.Id .. ":0")
                                 end)
+                                table.insert(petNames, pet.Name)
                                 added = added + 1
                                 task.wait(0.15)
                             end
                             if added >= 12 then break end
                         end
+                    end
+                    
+                    if #petNames > 0 then
+                        getgenv().ActivityStatus.current = "Auto moving pets to trade: " .. table.concat(petNames, ", ")
+                        getgenv().ActivityStatus.trigger = true
                     end
                     
                     task.wait(0.5)
