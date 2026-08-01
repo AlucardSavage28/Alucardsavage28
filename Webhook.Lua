@@ -118,13 +118,19 @@ end
 local function getPetChance(petInfo)
     if petInfo.Chance then
         local chance = tonumber(petInfo.Chance) or 0
-        if chance >= 1 then return chance .. "%"
+        if chance >= 1 then
+            return chance .. "%"
         elseif chance > 0 then
             local oneIn = 100 / chance
-            if oneIn >= 1e9 then return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
-            elseif oneIn >= 1e6 then return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
-            elseif oneIn >= 1e3 then return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
-            else return "1/" .. string.format("%.0f", oneIn) end
+            if oneIn >= 1e9 then
+                return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
+            elseif oneIn >= 1e6 then
+                return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
+            elseif oneIn >= 1e3 then
+                return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
+            else
+                return "1/" .. string.format("%.0f", oneIn)
+            end
         end
     end
     return "Unknown"
@@ -132,11 +138,17 @@ end
 
 local function getExists(petName, variant)
     local name = petName
-    if variant and variant ~= "Normal" then name = variant .. " " .. petName end
-    local ok, result = pcall(function() return Remote:InvokeServer("GetExisting", name) end)
+    if variant and variant ~= "Normal" then
+        name = variant .. " " .. petName
+    end
+    local ok, result = pcall(function()
+        return Remote:InvokeServer("GetExisting", name)
+    end)
     if ok and result then
         local num = tonumber(result) or 0
-        if num > 0 then return formatExist(num) end
+        if num > 0 then
+            return formatExist(num)
+        end
     end
     return "N/A"
 end
@@ -264,15 +276,43 @@ local function sendToWebhook(queue, url)
     while #queue > 0 do
         local p = table.remove(queue, 1)
         pcall(function()
-            request({Url = url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(p)})
+            request({
+                Url = url,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(p)
+            })
         end)
         task.wait(1)
     end
 end
 
-local function processHatch() if not hatchProcessing then hatchProcessing = true task.spawn(function() sendToWebhook(hatchQueue, HATCH_WEBHOOK_URL) hatchProcessing = false end) end end
-local function processPublic() if not publicProcessing then publicProcessing = true task.spawn(function() sendToWebhook(publicQueue, PUBLIC_WEBHOOK_URL) publicProcessing = false end) end end
-local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
+local function processHatch()
+    if hatchProcessing then return end
+    hatchProcessing = true
+    task.spawn(function()
+        sendToWebhook(hatchQueue, HATCH_WEBHOOK_URL)
+        hatchProcessing = false
+    end)
+end
+
+local function processPublic()
+    if publicProcessing then return end
+    publicProcessing = true
+    task.spawn(function()
+        sendToWebhook(publicQueue, PUBLIC_WEBHOOK_URL)
+        publicProcessing = false
+    end)
+end
+
+local function processOnline()
+    if onlineProcessing then return end
+    onlineProcessing = true
+    task.spawn(function()
+        sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL)
+        onlineProcessing = false
+    end)
+end
 
 -- ======================================
 -- ONLINE PING
@@ -284,7 +324,9 @@ local lastPingTime = os.time()
 local leaderstats = player:FindFirstChild("leaderstats")
 if leaderstats then
     for _, stat in ipairs(leaderstats:GetChildren()) do
-        if stat.Name:find("Hatches") then lastHatches = tonumber(stat.Value) or 0 end
+        if stat.Name:find("Hatches") then
+            lastHatches = tonumber(stat.Value) or 0
+        end
     end
 end
 
@@ -353,12 +395,16 @@ local knownPets = {}
 local initData = LocalData:Get()
 if initData and initData.Pets then
     for _, pet in pairs(initData.Pets) do
-        if pet.Super then knownPets[pet.Id] = true
+        if pet.Super then
+            knownPets[pet.Id] = true
         else
             local info = Pets[pet.Name]
             if info and info.Rarity then
                 for r in pairs(TRACKED_RARITIES) do
-                    if info.Rarity:find(r) then knownPets[pet.Id] = true; break end
+                    if info.Rarity:find(r) then
+                        knownPets[pet.Id] = true
+                        break
+                    end
                 end
             end
         end
@@ -382,16 +428,21 @@ task.spawn(function()
                     end
                     
                     local shouldTrack = false
-                    if isSuper then shouldTrack = true
+                    if isSuper then
+                        shouldTrack = true
                     elseif info and info.Rarity then
                         for r in pairs(TRACKED_RARITIES) do
-                            if info.Rarity:find(r) then shouldTrack = true; break end
+                            if info.Rarity:find(r) then
+                                shouldTrack = true
+                                break
+                            end
                         end
                     end
                     
                     if shouldTrack then
                         local rarity = info and info.Rarity or "Super Legendary"
                         if isSuper then rarity = "Super Legendary" end
+                        
                         knownPets[pet.Id] = true
                         
                         local debugStats = getDebugStats()
@@ -406,7 +457,9 @@ task.spawn(function()
                                 end
                             end
                             local displayEnchants = {}
-                            for _, id in ipairs(enchantNames) do table.insert(displayEnchants, ENCHANT_NAMES[id] or id) end
+                            for _, id in ipairs(enchantNames) do
+                                table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
+                            end
                             local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
                             local variant = "Normal"
                             if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
@@ -428,7 +481,9 @@ task.spawn(function()
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
                             local pingMsg = "<@"..DISCORD_USER_ID..">"
-                            if displayStr ~= "None" then pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!" end
+                            if displayStr ~= "None" then
+                                pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!"
+                            end
                             
                             table.insert(hatchQueue, {content = pingMsg, embeds = {embed}})
                             processHatch()
@@ -520,12 +575,18 @@ task.spawn(function()
         local rendered = workspace:FindFirstChild("Rendered")
         if rendered then
             for _, obj in ipairs(rendered:GetDescendants()) do
-                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then fourXFound = true; break end
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
+                    fourXFound = true
+                    break
+                end
             end
         end
         if not fourXFound then
             for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then fourXFound = true; break end
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
+                    fourXFound = true
+                    break
+                end
             end
         end
         
@@ -533,39 +594,94 @@ task.spawn(function()
         local doodleRiftFound = false
         if riftFolder then
             riftFolder = riftFolder:FindFirstChild("Rifts")
-            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then doodleRiftFound = true end
+            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then
+                doodleRiftFound = true
+            end
         end
         
         if fourXFound and not was4xPlushieActive then
             was4xPlushieActive = true
-            pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = "<@"..DISCORD_USER_ID.."> 4x Plushie Egg Has Spawned!", embeds = {{title = "4x Plushie Egg Spawned!", description = "Go hatch it now!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
-        elseif not fourXFound then was4xPlushieActive = false end
+            local payload = {
+                content = "<@"..DISCORD_USER_ID.."> 4x Plushie Egg Has Spawned!",
+                embeds = {{
+                    title = "4x Plushie Egg Spawned!",
+                    description = "Go hatch it now!",
+                    color = 0xFF4500,
+                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
+                }}
+            }
+            pcall(function()
+                request({
+                    Url = HATCH_WEBHOOK_URL,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode(payload)
+                })
+            end)
+        elseif not fourXFound then
+            was4xPlushieActive = false
+        end
         
         if doodleRiftFound and not wasDoodleRiftActive then
             wasDoodleRiftActive = true
-            pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!", embeds = {{title = "Doodle Rift Appeared!", description = "Go summon and hatch!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
-        elseif not doodleRiftFound then wasDoodleRiftActive = false end
+            local payload = {
+                content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!",
+                embeds = {{
+                    title = "Doodle Rift Appeared!",
+                    description = "Go summon and hatch!",
+                    color = 0xFF4500,
+                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
+                }}
+            }
+            pcall(function()
+                request({
+                    Url = HATCH_WEBHOOK_URL,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode(payload)
+                })
+            end)
+        elseif not doodleRiftFound then
+            wasDoodleRiftActive = false
+        end
     end
 end)
 
 -- ======================================
 -- ANIMATION TOGGLE
 -- ======================================
-local success, mod = pcall(function() return require(ReplicatedStorage.Client.Effects.HatchEgg) end)
+local success, mod = pcall(function()
+    return require(ReplicatedStorage.Client.Effects.HatchEgg)
+end)
 if success and mod then
     local originalPlay = mod.Play
-    mod.Play = newcclosure(function(self, data)
+    local hookedFunction = newcclosure(function(self, data)
         if getgenv().animationHidden then return end
         return originalPlay(self, data)
     end)
+    mod.Play = hookedFunction
 end
 
 -- ======================================
 -- UI
 -- ======================================
 WebhookTab:CreateSection("Settings")
-WebhookTab:CreateToggle({Name = "Hide Username (shows 'Hidden')", CurrentValue = false, Callback = function(v) hideUsername = v end})
-WebhookTab:CreateToggle({Name = "On/Off Rare Egg Notification", CurrentValue = true, Callback = function(v) rareEggNotify = v end})
+
+WebhookTab:CreateToggle({
+    Name = "Hide Username (shows 'Hidden')",
+    CurrentValue = false,
+    Callback = function(v)
+        hideUsername = v
+    end
+})
+
+WebhookTab:CreateToggle({
+    Name = "On/Off Rare Egg Notification",
+    CurrentValue = true,
+    Callback = function(v)
+        rareEggNotify = v
+    end
+})
 
 WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
