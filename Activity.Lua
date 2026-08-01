@@ -16,7 +16,6 @@ local player = Players.LocalPlayer
 -- ======================================
 local config = getgenv().config or {}
 local ACTIVITY_WEBHOOK_URL = config.HATCH_WEBHOOK_URL or ""
-local DISCORD_USER_ID = config.DISCORD_USER_ID or ""
 
 local request = http_request or request or (syn and syn.request)
 
@@ -48,7 +47,6 @@ local function sendActivity(msg)
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
-                content = "<@"..DISCORD_USER_ID..">",
                 embeds = {{
                     title = player.Name .. "'s Activity",
                     description = msg,
