@@ -118,19 +118,13 @@ end
 local function getPetChance(petInfo)
     if petInfo.Chance then
         local chance = tonumber(petInfo.Chance) or 0
-        if chance >= 1 then
-            return chance .. "%"
+        if chance >= 1 then return chance .. "%"
         elseif chance > 0 then
             local oneIn = 100 / chance
-            if oneIn >= 1e9 then
-                return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
-            elseif oneIn >= 1e6 then
-                return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
-            elseif oneIn >= 1e3 then
-                return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
-            else
-                return "1/" .. string.format("%.0f", oneIn)
-            end
+            if oneIn >= 1e9 then return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
+            elseif oneIn >= 1e6 then return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
+            elseif oneIn >= 1e3 then return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
+            else return "1/" .. string.format("%.0f", oneIn) end
         end
     end
     return "Unknown"
@@ -138,17 +132,11 @@ end
 
 local function getExists(petName, variant)
     local name = petName
-    if variant and variant ~= "Normal" then
-        name = variant .. " " .. petName
-    end
-    local ok, result = pcall(function()
-        return Remote:InvokeServer("GetExisting", name)
-    end)
+    if variant and variant ~= "Normal" then name = variant .. " " .. petName end
+    local ok, result = pcall(function() return Remote:InvokeServer("GetExisting", name) end)
     if ok and result then
         local num = tonumber(result) or 0
-        if num > 0 then
-            return formatExist(num)
-        end
+        if num > 0 then return formatExist(num) end
     end
     return "N/A"
 end
@@ -180,6 +168,52 @@ local function getImage(petName, ex)
 end
 
 -- ======================================
+-- BUFF TIMER
+-- ======================================
+local function getBuffTime(buffName)
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local screenGui = playerGui:FindFirstChild("ScreenGui")
+        if screenGui then
+            local buffs = screenGui:FindFirstChild("Buffs")
+            if buffs then
+                local buff = buffs:FindFirstChild(buffName)
+                if buff then
+                    local button = buff:FindFirstChild("Button")
+                    if button then
+                        local label = button:FindFirstChild("Label")
+                        if label and label.Text ~= "" then return label.Text end
+                    end
+                end
+            end
+        end
+    end
+    return "N/A"
+end
+
+local function getBuffTimesForEmbed()
+    local buffs = {
+        {"Secret Elixir", "Secret Elixir"},
+        {"Ultra Infinity Elixir", "Ultra Infinity Elixir"},
+        {"Infinity Elixir", "Infinity Elixir"},
+        {"Lucky Potion", "Lucky"},
+        {"Speed Potion", "Speed"},
+        {"Mythic Potion", "Mythic"},
+        {"Luck Rune", "Luck"},
+        {"Secret Rune", "Secret"},
+    }
+    local lines = {}
+    for _, buff in ipairs(buffs) do
+        local time = getBuffTime(buff[2])
+        if time and time ~= "N/A" and time ~= "0s" then
+            table.insert(lines, buff[1] .. ": " .. time)
+        end
+    end
+    if #lines == 0 then return "No active buffs" end
+    return table.concat(lines, "\n")
+end
+
+-- ======================================
 -- DEBUG STATS EXTRACTION
 -- ======================================
 local function getDebugStats()
@@ -189,17 +223,14 @@ local function getDebugStats()
         SecretLuck = "N/A",
         HatchSpeed = "N/A",
     }
-    
     Remote:FireServer("SetSetting", "Debug", true)
     task.wait(0.5)
-    
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         for _, obj in ipairs(playerGui:GetDescendants()) do
             if obj:IsA("TextLabel") then
                 local text = obj.Text
                 text = text:gsub("<[^>]+>", "")
-                
                 if stats.TotalLuck == "N/A" and text:find("🍀 Lucky") then stats.TotalLuck = text end
                 if stats.InfinityLuck == "N/A" and text:find("♾️ Ultra Infinity Luck") then stats.InfinityLuck = text end
                 if stats.SecretLuck == "N/A" and text:find("❓ Secret/Infinity Luck") then stats.SecretLuck = text end
@@ -207,7 +238,6 @@ local function getDebugStats()
             end
         end
     end
-    
     return stats
 end
 
@@ -236,32 +266,9 @@ local function sendToWebhook(queue, url)
     end
 end
 
-local function processHatch()
-    if hatchProcessing then return end
-    hatchProcessing = true
-    task.spawn(function()
-        sendToWebhook(hatchQueue, HATCH_WEBHOOK_URL)
-        hatchProcessing = false
-    end)
-end
-
-local function processPublic()
-    if publicProcessing then return end
-    publicProcessing = true
-    task.spawn(function()
-        sendToWebhook(publicQueue, PUBLIC_WEBHOOK_URL)
-        publicProcessing = false
-    end)
-end
-
-local function processOnline()
-    if onlineProcessing then return end
-    onlineProcessing = true
-    task.spawn(function()
-        sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL)
-        onlineProcessing = false
-    end)
-end
+local function processHatch() if not hatchProcessing then hatchProcessing = true task.spawn(function() sendToWebhook(hatchQueue, HATCH_WEBHOOK_URL) hatchProcessing = false end) end end
+local function processPublic() if not publicProcessing then publicProcessing = true task.spawn(function() sendToWebhook(publicQueue, PUBLIC_WEBHOOK_URL) publicProcessing = false end) end end
+local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
 -- ONLINE PING
@@ -273,9 +280,7 @@ local lastPingTime = os.time()
 local leaderstats = player:FindFirstChild("leaderstats")
 if leaderstats then
     for _, stat in ipairs(leaderstats:GetChildren()) do
-        if stat.Name:find("Hatches") then
-            lastHatches = tonumber(stat.Value) or 0
-        end
+        if stat.Name:find("Hatches") then lastHatches = tonumber(stat.Value) or 0 end
     end
 end
 
@@ -307,6 +312,17 @@ task.spawn(function()
         lastPingTime = os.time()
         
         local debugStats = getDebugStats()
+        
+        -- Fragments
+        local fragData = data and data.Fragments
+        local fragmentText = "N/A"
+        if fragData then
+            fragmentText = 
+                "Green: " .. (fragData.Green or 0) .. "/250\n" ..
+                "Blue: " .. (fragData.Blue or 0) .. "/250\n" ..
+                "Purple: " .. (fragData.Purple or 0) .. "/250\n" ..
+                "Rainbow: " .. (fragData.Rainbow or 0) .. "/250"
+        end
 
         table.insert(onlineQueue, {
             embeds = {{
@@ -316,6 +332,7 @@ task.spawn(function()
                     "Online: " .. hours .. "h " .. minutes .. "m\n" ..
                     "Coins: " .. coins .. "\nGems: " .. gems .. "\nBubbles: " .. bubbles .. "\n\n" ..
                     "**Hatch Rate**\nPer Minute: " .. perMin .. "\nPer Hour: " .. perHour .. "\n\n" ..
+                    "**Fragments**\n" .. fragmentText .. "\n\n" ..
                     "**Stats**\n" .. debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed,
                 color = 3447003,
                 footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
@@ -333,16 +350,12 @@ local knownPets = {}
 local initData = LocalData:Get()
 if initData and initData.Pets then
     for _, pet in pairs(initData.Pets) do
-        if pet.Super then
-            knownPets[pet.Id] = true
+        if pet.Super then knownPets[pet.Id] = true
         else
             local info = Pets[pet.Name]
             if info and info.Rarity then
                 for r in pairs(TRACKED_RARITIES) do
-                    if info.Rarity:find(r) then
-                        knownPets[pet.Id] = true
-                        break
-                    end
+                    if info.Rarity:find(r) then knownPets[pet.Id] = true; break end
                 end
             end
         end
@@ -366,25 +379,21 @@ task.spawn(function()
                     end
                     
                     local shouldTrack = false
-                    if isSuper then
-                        shouldTrack = true
+                    if isSuper then shouldTrack = true
                     elseif info and info.Rarity then
                         for r in pairs(TRACKED_RARITIES) do
-                            if info.Rarity:find(r) then
-                                shouldTrack = true
-                                break
-                            end
+                            if info.Rarity:find(r) then shouldTrack = true; break end
                         end
                     end
                     
                     if shouldTrack then
                         local rarity = info and info.Rarity or "Super Legendary"
                         if isSuper then rarity = "Super Legendary" end
-                        
                         knownPets[pet.Id] = true
                         
                         local debugStats = getDebugStats()
                         local statsStr = debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed
+                        local buffStr = getBuffTimesForEmbed()
                         
                         if isSuper then
                             local enchantNames = {}
@@ -394,9 +403,7 @@ task.spawn(function()
                                 end
                             end
                             local displayEnchants = {}
-                            for _, id in ipairs(enchantNames) do
-                                table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
-                            end
+                            for _, id in ipairs(enchantNames) do table.insert(displayEnchants, ENCHANT_NAMES[id] or id) end
                             local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
                             local variant = "Normal"
                             if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
@@ -412,14 +419,13 @@ task.spawn(function()
                                 fields = {
                                     {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems, inline = false},
                                     {name = "Ultra Legendary Enchant", value = displayStr, inline = false},
-                                    {name = "Stats", value = statsStr, inline = false}
+                                    {name = "Stats", value = statsStr, inline = false},
+                                    {name = "Buff Time Left", value = buffStr, inline = false}
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
                             local pingMsg = "<@"..DISCORD_USER_ID..">"
-                            if displayStr ~= "None" then
-                                pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!"
-                            end
+                            if displayStr ~= "None" then pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!" end
                             
                             table.insert(hatchQueue, {content = pingMsg, embeds = {embed}})
                             processHatch()
@@ -462,7 +468,8 @@ task.spawn(function()
                                 fields = {
                                     {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
                                     {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false},
-                                    {name = "Stats", value = statsStr, inline = false}
+                                    {name = "Stats", value = statsStr, inline = false},
+                                    {name = "Buff Time Left", value = buffStr, inline = false}
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
@@ -510,18 +517,12 @@ task.spawn(function()
         local rendered = workspace:FindFirstChild("Rendered")
         if rendered then
             for _, obj in ipairs(rendered:GetDescendants()) do
-                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
-                    fourXFound = true
-                    break
-                end
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then fourXFound = true; break end
             end
         end
         if not fourXFound then
             for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
-                    fourXFound = true
-                    break
-                end
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then fourXFound = true; break end
             end
         end
         
@@ -529,101 +530,46 @@ task.spawn(function()
         local doodleRiftFound = false
         if riftFolder then
             riftFolder = riftFolder:FindFirstChild("Rifts")
-            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then
-                doodleRiftFound = true
-            end
+            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then doodleRiftFound = true end
         end
         
         if fourXFound and not was4xPlushieActive then
             was4xPlushieActive = true
-            local payload = {
-                content = "<@"..DISCORD_USER_ID.."> 4x Plushie Egg Has Spawned!",
-                embeds = {{
-                    title = "4x Plushie Egg Spawned!",
-                    description = "Go hatch it now!",
-                    color = 0xFF4500,
-                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
-                }}
-            }
-            pcall(function()
-                request({
-                    Url = HATCH_WEBHOOK_URL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode(payload)
-                })
-            end)
-        elseif not fourXFound then
-            was4xPlushieActive = false
-        end
+            pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = "<@"..DISCORD_USER_ID.."> 4x Plushie Egg Has Spawned!", embeds = {{title = "4x Plushie Egg Spawned!", description = "Go hatch it now!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
+        elseif not fourXFound then was4xPlushieActive = false end
         
         if doodleRiftFound and not wasDoodleRiftActive then
             wasDoodleRiftActive = true
-            local payload = {
-                content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!",
-                embeds = {{
-                    title = "Doodle Rift Appeared!",
-                    description = "Go summon and hatch!",
-                    color = 0xFF4500,
-                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
-                }}
-            }
-            pcall(function()
-                request({
-                    Url = HATCH_WEBHOOK_URL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode(payload)
-                })
-            end)
-        elseif not doodleRiftFound then
-            wasDoodleRiftActive = false
-        end
+            pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!", embeds = {{title = "Doodle Rift Appeared!", description = "Go summon and hatch!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
+        elseif not doodleRiftFound then wasDoodleRiftActive = false end
     end
 end)
 
 -- ======================================
 -- ANIMATION TOGGLE
 -- ======================================
-local success, mod = pcall(function()
-    return require(ReplicatedStorage.Client.Effects.HatchEgg)
-end)
+local success, mod = pcall(function() return require(ReplicatedStorage.Client.Effects.HatchEgg) end)
 if success and mod then
     local originalPlay = mod.Play
-    local hookedFunction = newcclosure(function(self, data)
+    mod.Play = newcclosure(function(self, data)
         if getgenv().animationHidden then return end
         return originalPlay(self, data)
     end)
-    mod.Play = hookedFunction
 end
 
 -- ======================================
 -- UI
 -- ======================================
 WebhookTab:CreateSection("Settings")
-
-WebhookTab:CreateToggle({
-    Name = "Hide Username (shows 'Hidden')",
-    CurrentValue = false,
-    Callback = function(v)
-        hideUsername = v
-    end
-})
-
-WebhookTab:CreateToggle({
-    Name = "On/Off Rare Egg Notification",
-    CurrentValue = true,
-    Callback = function(v)
-        rareEggNotify = v
-    end
-})
+WebhookTab:CreateToggle({Name = "Hide Username (shows 'Hidden')", CurrentValue = false, Callback = function(v) hideUsername = v end})
+WebhookTab:CreateToggle({Name = "On/Off Rare Egg Notification", CurrentValue = true, Callback = function(v) rareEggNotify = v end})
 
 WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Plushie Egg + Doodle Rift")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
-WebhookTab:CreateLabel("Stats added to all embeds")
+WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
 print("Webhook Is Online, Good Luck Hatching Guys! Me (Renoa The Finest) Wishing for our luck")
