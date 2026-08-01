@@ -157,6 +157,9 @@ end
 local function completeQuest(quest)
     getgenv().questActive = true
     
+    getgenv().ActivityStatus.current = "Doing Season Pass now..."
+    getgenv().ActivityStatus.trigger = true
+    
     if quest.type == "Bubbles" then
         getgenv().questEgg = nil
         local prevPos = savePosition()
@@ -378,6 +381,9 @@ local function completeQuest(quest)
         end
     end
     
+    getgenv().ActivityStatus.current = "Season Pass done!"
+    getgenv().ActivityStatus.trigger = true
+    
     getgenv().questActive = false
     getgenv().questEgg = nil
 end
@@ -497,7 +503,11 @@ QuestTab:CreateToggle({
                             end
                         end
                         if questToDo then
+                            getgenv().ActivityStatus.current = "Doing Global Incentive..."
+                            getgenv().ActivityStatus.trigger = true
                             completeQuest(questToDo)
+                            getgenv().ActivityStatus.current = "Global Incentive done!"
+                            getgenv().ActivityStatus.trigger = true
                         else
                             getgenv().questActive = false
                             getgenv().questEgg = nil
