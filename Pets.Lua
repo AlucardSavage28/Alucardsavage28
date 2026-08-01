@@ -187,6 +187,9 @@ PetTab:CreateToggle({
                     end
                     
                     if selectedGroup then
+                        local beforeCount = 0
+                        for _, _ in pairs(data.Pets) do beforeCount = beforeCount + 1 end
+                        
                         local payload = {}
                         local usedWithVariant = {}
                         for i = 1, 5 do
@@ -207,18 +210,28 @@ PetTab:CreateToggle({
                             NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
                         end)
                         
-                        if not wasActive then
-                            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                            getgenv().ActivityStatus.trigger = true
-                            wasActive = true
-                        end
-                        
-                        if text ~= lastPrint then
-                            print("[Rebirth] " .. text)
-                            lastPrint = text
-                        end
-                        
                         task.wait(1.5)
+                        
+                        local data2 = LocalData:Get()
+                        local afterCount = 0
+                        if data2 and data2.Pets then
+                            for _, _ in pairs(data2.Pets) do afterCount = afterCount + 1 end
+                        end
+                        
+                        if afterCount < beforeCount then
+                            if not wasActive then
+                                getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                                getgenv().ActivityStatus.trigger = true
+                                wasActive = true
+                            end
+                            
+                            if text ~= lastPrint then
+                                print("[Rebirth] " .. text)
+                                lastPrint = text
+                            end
+                        else
+                            wasActive = false
+                        end
                     else
                         wasActive = false
                     end
