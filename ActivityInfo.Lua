@@ -20,10 +20,16 @@ if not request then
 end
 
 -- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.activity then settings.activity = {} end
+
+-- ======================================
 -- SETTINGS
 -- ======================================
-local activityWebhookURL = ""
-local activityEnabled = false
+local activityWebhookURL = settings.activity.webhookURL or ""
+local activityEnabled = settings.activity.enabled or false
 local lastSent = ""
 
 -- Initialize global activity tracker
@@ -83,22 +89,26 @@ ActivityTab:CreateLabel("Only sends when the action is actually being performed,
 
 ActivityTab:CreateInput({
     Name = "Activity Webhook URL",
-    CurrentValue = "",
+    CurrentValue = activityWebhookURL,
     PlaceholderText = "https://discord.com/api/webhooks/...",
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         activityWebhookURL = v
+        settings.activity.webhookURL = v
+        getgenv().HubSettings.activity = settings.activity
+        saveHubSettings()
     end
 })
 
 ActivityTab:CreateToggle({
     Name = "Turn On/Turn Off",
-    CurrentValue = false,
+    CurrentValue = activityEnabled,
     Callback = function(v)
         activityEnabled = v
-        if v then
-            lastSent = ""
-        end
+        lastSent = ""
+        settings.activity.enabled = v
+        getgenv().HubSettings.activity = settings.activity
+        saveHubSettings()
     end
 })
 
