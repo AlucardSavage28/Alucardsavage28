@@ -20,6 +20,13 @@ local function fire(action, ...)
 end
 
 -- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.auto then settings.auto = {} end
+local autoSettings = settings.auto
+
+-- ======================================
 -- SETTINGS
 -- ======================================
 local presentEnabled = false
@@ -43,19 +50,19 @@ local SELL_POS = Vector3.new(77, 6, -113)
 -- Rune settings
 local rune1Type = "Luck"
 local rune1Tier = "1"
-local rune1Amount = 200
+local rune1Amount = autoSettings.luckRuneAmount or 200
 local rune1Running = false
 local rune1Thread = nil
 
 local rune2Type = "Secret"
 local rune2Tier = "1"
-local rune2Amount = 200
+local rune2Amount = autoSettings.secretRuneAmount or 200
 local rune2Running = false
 local rune2Thread = nil
 
 local rune3Type = "Bubble"
 local rune3Tier = "1"
-local rune3Amount = 200
+local rune3Amount = autoSettings.bubbleRuneAmount or 200
 local rune3Running = false
 local rune3Thread = nil
 
@@ -95,7 +102,7 @@ local function getBoxes()
 end
 
 local boxList = getBoxes()
-local selectedBox = boxList[1] or "Mystery Box"
+local selectedBox = autoSettings.selectedBox or boxList[1] or "Mystery Box"
 
 -- ======================================
 -- FUNCTIONS
@@ -154,9 +161,12 @@ AutoTab:CreateSection("Present Rain")
 
 AutoTab:CreateToggle({
     Name = "Auto Collect Presents",
-    CurrentValue = false,
+    CurrentValue = autoSettings.presentRain or false,
     Callback = function(v)
         presentEnabled = v
+        autoSettings.presentRain = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             local wasCollecting = false
             presentThread = task.spawn(function()
@@ -199,22 +209,30 @@ AutoTab:CreateSection("Auto Rune/Fragment")
 AutoTab:CreateDropdown({
     Name = "Luck Rune Tier",
     Options = {"Luck Tier 1", "Luck Tier 2", "Luck Tier 3"},
-    CurrentOption = {"Luck Tier 1"},
+    CurrentOption = {autoSettings.luckRuneTier or "Luck Tier 1"},
     Callback = function(v)
         local split = string.split(v[1], " ")
         rune1Type = split[1]
         rune1Tier = split[3]
+        autoSettings.luckRuneTier = v[1]
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
     end
 })
 
 AutoTab:CreateInput({
     Name = "Input the amount u want to use",
-    CurrentValue = "200",
+    CurrentValue = tostring(rune1Amount),
     PlaceholderText = "200",
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then rune1Amount = n end
+        if n then
+            rune1Amount = n
+            autoSettings.luckRuneAmount = n
+            getgenv().HubSettings.auto = autoSettings
+            saveHubSettings()
+        end
     end
 })
 
@@ -240,22 +258,30 @@ AutoTab:CreateToggle({
 AutoTab:CreateDropdown({
     Name = "Secret Rune Tier",
     Options = {"Secret Tier 1", "Secret Tier 2", "Secret Tier 3"},
-    CurrentOption = {"Secret Tier 1"},
+    CurrentOption = {autoSettings.secretRuneTier or "Secret Tier 1"},
     Callback = function(v)
         local split = string.split(v[1], " ")
         rune2Type = split[1]
         rune2Tier = split[3]
+        autoSettings.secretRuneTier = v[1]
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
     end
 })
 
 AutoTab:CreateInput({
     Name = "Input the amount u want to use",
-    CurrentValue = "200",
+    CurrentValue = tostring(rune2Amount),
     PlaceholderText = "200",
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then rune2Amount = n end
+        if n then
+            rune2Amount = n
+            autoSettings.secretRuneAmount = n
+            getgenv().HubSettings.auto = autoSettings
+            saveHubSettings()
+        end
     end
 })
 
@@ -281,22 +307,30 @@ AutoTab:CreateToggle({
 AutoTab:CreateDropdown({
     Name = "Bubble Rune Tier",
     Options = {"Bubble Tier 1", "Bubble Tier 2", "Bubble Tier 3"},
-    CurrentOption = {"Bubble Tier 1"},
+    CurrentOption = {autoSettings.bubbleRuneTier or "Bubble Tier 1"},
     Callback = function(v)
         local split = string.split(v[1], " ")
         rune3Type = split[1]
         rune3Tier = split[3]
+        autoSettings.bubbleRuneTier = v[1]
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
     end
 })
 
 AutoTab:CreateInput({
     Name = "Input the amount u want to use",
-    CurrentValue = "200",
+    CurrentValue = tostring(rune3Amount),
     PlaceholderText = "200",
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         local n = tonumber(v)
-        if n then rune3Amount = n end
+        if n then
+            rune3Amount = n
+            autoSettings.bubbleRuneAmount = n
+            getgenv().HubSettings.auto = autoSettings
+            saveHubSettings()
+        end
     end
 })
 
@@ -321,9 +355,12 @@ AutoTab:CreateToggle({
 -- Fragment
 AutoTab:CreateToggle({
     Name = "Auto Use All Fragment",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoFragment or false,
     Callback = function(v)
         fragRunning = v
+        autoSettings.autoFragment = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             fragThread = task.spawn(function()
                 while fragRunning do
@@ -347,9 +384,12 @@ AutoTab:CreateSection("Auto")
 
 AutoTab:CreateToggle({
     Name = "Auto Blow Bubble",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoBubble or false,
     Callback = function(v)
         bubbleEnabled = v
+        autoSettings.autoBubble = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             bubbleThread = task.spawn(function()
                 while bubbleEnabled do
@@ -365,9 +405,12 @@ AutoTab:CreateToggle({
 
 AutoTab:CreateToggle({
     Name = "Auto Sell Bubble",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoSell or false,
     Callback = function(v)
         sellEnabled = v
+        autoSettings.autoSell = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
             local returnCFrame = root and root.CFrame or nil
@@ -437,8 +480,11 @@ AutoTab:CreateToggle({
 -- XL Index
 AutoTab:CreateToggle({
     Name = "Auto Claim XL Index",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoXLIndex or false,
     Callback = function(v)
+        autoSettings.autoXLIndex = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             task.spawn(function()
                 local XLIndexTasks = require(ReplicatedStorage.Shared.Data.XLIndexTasks)
@@ -513,9 +559,12 @@ AutoTab:CreateToggle({
 
 AutoTab:CreateToggle({
     Name = "Auto Use Golden Orb",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoGoldenOrb or false,
     Callback = function(v)
         orbEnabled = v
+        autoSettings.autoGoldenOrb = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             orbThread = task.spawn(function()
                 while orbEnabled do
@@ -531,9 +580,12 @@ AutoTab:CreateToggle({
 
 AutoTab:CreateToggle({
     Name = "Auto Collect Pickup (Re equip a pet)",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoPickup or false,
     Callback = function(v)
         pickupEnabled = v
+        autoSettings.autoPickup = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             constants.DefaultPickupRadius = math.huge
         else
@@ -544,9 +596,12 @@ AutoTab:CreateToggle({
 
 AutoTab:CreateToggle({
     Name = "Auto Playtime",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoPlaytime or false,
     Callback = function(v)
         playtimeRunning = v
+        autoSettings.autoPlaytime = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             playtimeThread = task.spawn(function()
                 while playtimeRunning do
@@ -571,6 +626,9 @@ AutoTab:CreateDropdown({
     Options = boxList,
     Callback = function(v)
         selectedBox = v[1] or v
+        autoSettings.selectedBox = selectedBox
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
     end
 })
 
@@ -589,9 +647,12 @@ local boxListLabel = AutoTab:CreateLabel("Boxes loaded. Click Rescan to refresh"
 
 AutoTab:CreateToggle({
     Name = "Auto Open Box (don't use near egg)",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoOpenBox or false,
     Callback = function(v)
         boxEnabled = v
+        autoSettings.autoOpenBox = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             boxThread = task.spawn(function()
                 local VIM = game:GetService("VirtualInputManager")
@@ -629,9 +690,12 @@ AutoTab:CreateLabel("After you turn it on make sure to go first person POV and t
 
 AutoTab:CreateToggle({
     Name = "Auto Fishing Quest",
-    CurrentValue = false,
+    CurrentValue = autoSettings.autoFishing or false,
     Callback = function(v)
         fishRunning = v
+        autoSettings.autoFishing = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             getgenv().ActivityStatus.current = "Starting Fishing quest..."
             getgenv().ActivityStatus.trigger = true
