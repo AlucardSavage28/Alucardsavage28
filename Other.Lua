@@ -17,16 +17,9 @@ local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 -- ======================================
--- LOAD SAVED SETTINGS
--- ======================================
-local settings = getgenv().HubSettings or {}
-if not settings.misc then settings.misc = {} end
-local miscSettings = settings.misc
-
--- ======================================
 -- STATS TRACKER
 -- ======================================
-local statsEnabled = miscSettings.statsEnabled or false
+local statsEnabled = false
 local screenGui = nil
 local frame = nil
 local hatchedLabel = nil
@@ -143,61 +136,102 @@ local function createStatsUI()
     frame.BorderSizePixel = 0
     frame.Parent = screenGui
     
-    local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 8); corner.Parent = frame
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
     
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -10, 0, 22); title.Position = UDim2.new(0, 5, 0, 5)
-    title.BackgroundTransparency = 1; title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.Text = "Stats Tracker"; title.Font = Enum.Font.GothamBold; title.TextSize = 14
-    title.TextXAlignment = Enum.TextXAlignment.Left; title.Parent = frame
+    title.Size = UDim2.new(1, -10, 0, 22)
+    title.Position = UDim2.new(0, 5, 0, 5)
+    title.BackgroundTransparency = 1
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Text = "Stats Tracker"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = frame
     
     hatchedLabel = Instance.new("TextLabel")
-    hatchedLabel.Size = UDim2.new(1, -10, 0, 18); hatchedLabel.Position = UDim2.new(0, 5, 0, 28)
-    hatchedLabel.BackgroundTransparency = 1; hatchedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    hatchedLabel.Text = "Hatched: 0"; hatchedLabel.Font = Enum.Font.Gotham; hatchedLabel.TextSize = 12
-    hatchedLabel.TextXAlignment = Enum.TextXAlignment.Left; hatchedLabel.Parent = frame
+    hatchedLabel.Size = UDim2.new(1, -10, 0, 18)
+    hatchedLabel.Position = UDim2.new(0, 5, 0, 28)
+    hatchedLabel.BackgroundTransparency = 1
+    hatchedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    hatchedLabel.Text = "Hatched: 0"
+    hatchedLabel.Font = Enum.Font.Gotham
+    hatchedLabel.TextSize = 12
+    hatchedLabel.TextXAlignment = Enum.TextXAlignment.Left
+    hatchedLabel.Parent = frame
     
     rateLabel = Instance.new("TextLabel")
-    rateLabel.Size = UDim2.new(1, -10, 0, 18); rateLabel.Position = UDim2.new(0, 5, 0, 47)
-    rateLabel.BackgroundTransparency = 1; rateLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    rateLabel.Text = "Rate: 0/min | 0/hr"; rateLabel.Font = Enum.Font.Gotham; rateLabel.TextSize = 12
-    rateLabel.TextXAlignment = Enum.TextXAlignment.Left; rateLabel.Parent = frame
+    rateLabel.Size = UDim2.new(1, -10, 0, 18)
+    rateLabel.Position = UDim2.new(0, 5, 0, 47)
+    rateLabel.BackgroundTransparency = 1
+    rateLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    rateLabel.Text = "Rate: 0/min | 0/hr"
+    rateLabel.Font = Enum.Font.Gotham
+    rateLabel.TextSize = 12
+    rateLabel.TextXAlignment = Enum.TextXAlignment.Left
+    rateLabel.Parent = frame
     
     timeLabel = Instance.new("TextLabel")
-    timeLabel.Size = UDim2.new(1, -10, 0, 18); timeLabel.Position = UDim2.new(0, 5, 0, 66)
-    timeLabel.BackgroundTransparency = 1; timeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    timeLabel.Text = "Time: 00:00:00"; timeLabel.Font = Enum.Font.Gotham; timeLabel.TextSize = 12
-    timeLabel.TextXAlignment = Enum.TextXAlignment.Left; timeLabel.Parent = frame
+    timeLabel.Size = UDim2.new(1, -10, 0, 18)
+    timeLabel.Position = UDim2.new(0, 5, 0, 66)
+    timeLabel.BackgroundTransparency = 1
+    timeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    timeLabel.Text = "Time: 00:00:00"
+    timeLabel.Font = Enum.Font.Gotham
+    timeLabel.TextSize = 12
+    timeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    timeLabel.Parent = frame
     
     bestHatchLabel = Instance.new("TextLabel")
-    bestHatchLabel.Size = UDim2.new(1, -10, 0, 36); bestHatchLabel.Position = UDim2.new(0, 5, 0, 88)
-    bestHatchLabel.BackgroundTransparency = 1; bestHatchLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-    bestHatchLabel.Text = "Best Hatch: None\nOdds: N/A"; bestHatchLabel.Font = Enum.Font.Gotham; bestHatchLabel.TextSize = 11
-    bestHatchLabel.TextXAlignment = Enum.TextXAlignment.Left; bestHatchLabel.RichText = true; bestHatchLabel.Parent = frame
+    bestHatchLabel.Size = UDim2.new(1, -10, 0, 36)
+    bestHatchLabel.Position = UDim2.new(0, 5, 0, 88)
+    bestHatchLabel.BackgroundTransparency = 1
+    bestHatchLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    bestHatchLabel.Text = "Best Hatch: None\nOdds: N/A"
+    bestHatchLabel.Font = Enum.Font.Gotham
+    bestHatchLabel.TextSize = 11
+    bestHatchLabel.TextXAlignment = Enum.TextXAlignment.Left
+    bestHatchLabel.RichText = true
+    bestHatchLabel.Parent = frame
     
-    local dragging, dragStart, startPos = false, nil, nil
-    title.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = frame.Position end end)
-    title.InputEnded:Connect(function() dragging = false end)
-    game:GetService("UserInputService").InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - dragStart; frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
     
-    task.spawn(function() while statsEnabled do updateStats(); task.wait(1) end end)
+    title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+    
+    title.InputEnded:Connect(function(input)
+        dragging = false
+    end)
+    
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    task.spawn(function()
+        while statsEnabled do
+            updateStats()
+            task.wait(1)
+        end
+    end)
 end
 
 local function destroyStatsUI()
-    if screenGui then screenGui:Destroy(); screenGui = nil end
-end
-
--- Auto-start stats tracker if was enabled
-if statsEnabled then
-    startTime = os.clock()
-    startHatches = getHatches()
-    bestHatchName = "None"
-    bestHatchChance = math.huge
-    bestHatchVariant = "Normal"
-    bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
-    seenPetIds = {}
-    bestHatchReady = false
-    createStatsUI()
+    if screenGui then
+        screenGui:Destroy()
+        screenGui = nil
+    end
 end
 
 -- ======================================
@@ -211,7 +245,7 @@ local SHOP_ITEMS = {
     ["traveling-merchant"] = {1, 2, 3},
 }
 
-local selectedShop = miscSettings.selectedShop or "shadow-shop"
+local selectedShop = "shadow-shop"
 local shopRunning = false
 local shopThread = nil
 local buyAllRunning = false
@@ -219,24 +253,50 @@ local buyAllThread = nil
 
 local function buyShop(shopName)
     local items = SHOP_ITEMS[shopName]
-    if items then for _, itemNum in ipairs(items) do pcall(function() RE:FireServer("BuyShopItem", shopName, itemNum, true) end) end end
+    if items then
+        for _, itemNum in ipairs(items) do
+            pcall(function() RE:FireServer("BuyShopItem", shopName, itemNum, true) end)
+        end
+    end
 end
 
 -- ======================================
 -- EFFECTS
 -- ======================================
-local function safeSet(obj, prop, value) pcall(function() obj[prop] = value end) end
+local function safeSet(obj, prop, value)
+    pcall(function() obj[prop] = value end)
+end
 
 local function fpsJMX()
-    setfpscap(120); Lighting.GlobalShadows = false; Lighting.ShadowSoftness = 0; Lighting.FogEnd = 9e9
-    sethiddenproperty(Lighting, "Technology", "Compatibility"); settings().Rendering.QualityLevel = 1
-    if workspace.CurrentCamera then workspace.CurrentCamera:ClearAllChildren() end
+    setfpscap(120)
+    Lighting.GlobalShadows = false
+    Lighting.ShadowSoftness = 0
+    Lighting.FogEnd = 9e9
+    sethiddenproperty(Lighting, "Technology", "Compatibility")
+    settings().Rendering.QualityLevel = 1
+    if workspace.CurrentCamera then
+        workspace.CurrentCamera:ClearAllChildren()
+    end
     for _, v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and not v:IsA("MeshPart") then v.Material = Enum.Material.Plastic; v.Reflectance = 0; v.CastShadow = false end
-        if v:IsA("MeshPart") then v.MeshId = ""; v.TextureID = "" end
-        if v:IsA("SpecialMesh") then v.MeshId = ""; v.TextureId = "" end
-        if v:IsA("ParticleEmitter") or v:IsA("Explosion") then v.Enabled = false end
-        if v:IsA("Decal") then v.Texture = "" end
+        if v:IsA("BasePart") and not v:IsA("MeshPart") then
+            v.Material = Enum.Material.Plastic
+            v.Reflectance = 0
+            v.CastShadow = false
+        end
+        if v:IsA("MeshPart") then
+            v.MeshId = ""
+            v.TextureID = ""
+        end
+        if v:IsA("SpecialMesh") then
+            v.MeshId = ""
+            v.TextureId = ""
+        end
+        if v:IsA("ParticleEmitter") or v:IsA("Explosion") then
+            v.Enabled = false
+        end
+        if v:IsA("Decal") then
+            v.Texture = ""
+        end
     end
     print("[FPS] JMX FPS Boost applied!")
 end
@@ -244,11 +304,26 @@ end
 local function fps1_DisableParticles()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("BasePart") then safeSet(v, "Material", Enum.Material.SmoothPlastic); count = count + 1 end
-        if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then safeSet(v, "Enabled", false); count = count + 1 end
-        if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then safeSet(v, "Enabled", false); count = count + 1 end
-        if v:IsA("Decal") or v:IsA("Texture") then safeSet(v, "Transparency", 1); count = count + 1 end
-        if v:IsA("Sky") then safeSet(v, "Parent", nil); count = count + 1 end
+        if v:IsA("BasePart") then
+            safeSet(v, "Material", Enum.Material.SmoothPlastic)
+            count = count + 1
+        end
+        if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            safeSet(v, "Enabled", false)
+            count = count + 1
+        end
+        if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
+            safeSet(v, "Enabled", false)
+            count = count + 1
+        end
+        if v:IsA("Decal") or v:IsA("Texture") then
+            safeSet(v, "Transparency", 1)
+            count = count + 1
+        end
+        if v:IsA("Sky") then
+            safeSet(v, "Parent", nil)
+            count = count + 1
+        end
         if count % 500 == 0 then task.wait(0.01) end
     end
     print("[FPS] Disabled " .. count .. " effects")
@@ -257,8 +332,20 @@ end
 local function fps2_HidePets()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") then if v.Enabled then v.Enabled = false; count = count + 1 end end
-        if v:IsA("Model") and v.Parent and v.Parent.Name == "Pets" then for _, part in ipairs(v:GetDescendants()) do if part:IsA("BasePart") and part.Transparency < 1 then part.Transparency = 1; count = count + 1 end end end
+        if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") then
+            if v.Enabled then
+                v.Enabled = false
+                count = count + 1
+            end
+        end
+        if v:IsA("Model") and v.Parent and v.Parent.Name == "Pets" then
+            for _, part in ipairs(v:GetDescendants()) do
+                if part:IsA("BasePart") and part.Transparency < 1 then
+                    part.Transparency = 1
+                    count = count + 1
+                end
+            end
+        end
         if count % 500 == 0 then task.wait(0.01) end
     end
     print("[FPS] Disabled " .. count .. " pet effects")
@@ -267,19 +354,36 @@ end
 local function fps3_RemoveTextures()
     local count = 0
     for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("Decal") or v:IsA("Texture") then v.Texture = ""; count = count + 1 end
-        if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") or v:IsA("Sparkles") then if v.Enabled then v.Enabled = false; count = count + 1 end end
-        if v:IsA("BasePart") and v.Material ~= Enum.Material.SmoothPlastic then v.Material = Enum.Material.SmoothPlastic; count = count + 1 end
-        if v:IsA("BasePart") and v.CastShadow then v.CastShadow = false; count = count + 1 end
+        if v:IsA("Decal") or v:IsA("Texture") then
+            v.Texture = ""
+            count = count + 1
+        end
+        if v:IsA("ParticleEmitter") or v:IsA("Beam") or v:IsA("Trail") or v:IsA("Sparkles") then
+            if v.Enabled then
+                v.Enabled = false
+                count = count + 1
+            end
+        end
+        if v:IsA("BasePart") and v.Material ~= Enum.Material.SmoothPlastic then
+            v.Material = Enum.Material.SmoothPlastic
+            count = count + 1
+        end
+        if v:IsA("BasePart") and v.CastShadow then
+            v.CastShadow = false
+            count = count + 1
+        end
         if count % 1000 == 0 then task.wait(0.01) end
     end
-    Lighting.GlobalShadows = false; Lighting.Outlines = false
+    Lighting.GlobalShadows = false
+    Lighting.Outlines = false
     print("[FPS] Disabled " .. count .. " effects")
 end
 
 local function fullBright()
-    safeSet(Lighting, "Brightness", 5); safeSet(Lighting, "Ambient", Color3.fromRGB(255, 255, 255))
-    safeSet(Lighting, "OutdoorAmbient", Color3.fromRGB(255, 255, 255)); safeSet(Lighting, "FogEnd", math.huge)
+    safeSet(Lighting, "Brightness", 5)
+    safeSet(Lighting, "Ambient", Color3.fromRGB(255, 255, 255))
+    safeSet(Lighting, "OutdoorAmbient", Color3.fromRGB(255, 255, 255))
+    safeSet(Lighting, "FogEnd", math.huge)
 end
 
 -- ======================================
@@ -289,12 +393,9 @@ OtherTab:CreateSection("Stats Tracker")
 
 OtherTab:CreateToggle({
     Name = "Show Stats UI",
-    CurrentValue = statsEnabled,
+    CurrentValue = false,
     Callback = function(v)
         statsEnabled = v
-        miscSettings.statsEnabled = v
-        getgenv().HubSettings.misc = miscSettings
-        saveHubSettings()
         if v then
             startTime = os.clock()
             startHatches = getHatches()
@@ -319,22 +420,21 @@ OtherTab:CreateDropdown({
     CurrentOption = {selectedShop},
     Callback = function(v)
         selectedShop = v[1]
-        miscSettings.selectedShop = v[1]
-        getgenv().HubSettings.misc = miscSettings
-        saveHubSettings()
     end
 })
 
 OtherTab:CreateToggle({
     Name = "Auto Buy Selected Shop",
-    CurrentValue = miscSettings.autoBuyShop or false,
+    CurrentValue = false,
     Callback = function(v)
         shopRunning = v
-        miscSettings.autoBuyShop = v
-        getgenv().HubSettings.misc = miscSettings
-        saveHubSettings()
         if v then
-            shopThread = task.spawn(function() while shopRunning do buyShop(selectedShop); task.wait(1) end end)
+            shopThread = task.spawn(function()
+                while shopRunning do
+                    buyShop(selectedShop)
+                    task.wait(1)
+                end
+            end)
         else
             if shopThread then task.cancel(shopThread) end
         end
@@ -343,14 +443,18 @@ OtherTab:CreateToggle({
 
 OtherTab:CreateToggle({
     Name = "Auto Buy All Shop",
-    CurrentValue = miscSettings.autoBuyAllShop or false,
+    CurrentValue = false,
     Callback = function(v)
         buyAllRunning = v
-        miscSettings.autoBuyAllShop = v
-        getgenv().HubSettings.misc = miscSettings
-        saveHubSettings()
         if v then
-            buyAllThread = task.spawn(function() while buyAllRunning do for shopName, _ in pairs(SHOP_ITEMS) do buyShop(shopName) end task.wait(1) end end)
+            buyAllThread = task.spawn(function()
+                while buyAllRunning do
+                    for shopName, _ in pairs(SHOP_ITEMS) do
+                        buyShop(shopName)
+                    end
+                    task.wait(1)
+                end
+            end)
         else
             if buyAllThread then task.cancel(buyAllThread) end
         end
@@ -375,10 +479,39 @@ OtherTab:CreateButton({
 
 OtherTab:CreateSection("Effects")
 
-OtherTab:CreateButton({Name = "JMX FPS Boost (Aggressive)", Callback = function() fpsJMX() end})
-OtherTab:CreateButton({Name = "Disable Particles & Materials", Callback = function() fps1_DisableParticles() end})
-OtherTab:CreateButton({Name = "Hide Pets & Effects", Callback = function() fps2_HidePets() end})
-OtherTab:CreateButton({Name = "Remove Shadows & Textures", Callback = function() fps3_RemoveTextures() end})
-OtherTab:CreateButton({Name = "Click for Brightness", Callback = function() fullBright() end})
+OtherTab:CreateButton({
+    Name = "JMX FPS Boost (Aggressive)",
+    Callback = function()
+        fpsJMX()
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Disable Particles & Materials",
+    Callback = function()
+        fps1_DisableParticles()
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Hide Pets & Effects",
+    Callback = function()
+        fps2_HidePets()
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Remove Shadows & Textures",
+    Callback = function()
+        fps3_RemoveTextures()
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Click for Brightness",
+    Callback = function()
+        fullBright()
+    end
+})
 
 print("[Misc] Loaded!")
