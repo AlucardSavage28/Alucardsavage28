@@ -69,7 +69,9 @@ end
 
 local function teleportTo(pos)
     local root = getRoot()
-    if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0)) end
+    if root then
+        root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+    end
 end
 
 -- ======================================
@@ -77,27 +79,154 @@ end
 -- ======================================
 TeleportTab:CreateSection("Auto Unlock")
 
-TeleportTab:CreateToggle({Name = "Auto Unlock All Islands", CurrentValue = false, Callback = function(v) unlockRunning = v if v then unlockThread = task.spawn(function() while unlockRunning do for _, pos in pairs(OVERWORLD) do if not unlockRunning then break end teleportTo(pos); task.wait(1.5) end for _, pos in pairs(MINIGAME) do if not unlockRunning then break end teleportTo(pos); task.wait(1.5) end for _, pos in pairs(SEVENSEAS) do if not unlockRunning then break end teleportTo(pos); task.wait(1.5) end task.wait(2) end end) else if unlockThread then task.cancel(unlockThread) end end end})
+TeleportTab:CreateToggle({
+    Name = "Auto Unlock All Islands",
+    CurrentValue = false,
+    Callback = function(v)
+        unlockRunning = v
+        if v then
+            unlockThread = task.spawn(function()
+                while unlockRunning do
+                    for _, pos in pairs(OVERWORLD) do
+                        if not unlockRunning then break end
+                        teleportTo(pos)
+                        task.wait(1.5)
+                    end
+                    for _, pos in pairs(MINIGAME) do
+                        if not unlockRunning then break end
+                        teleportTo(pos)
+                        task.wait(1.5)
+                    end
+                    for _, pos in pairs(SEVENSEAS) do
+                        if not unlockRunning then break end
+                        teleportTo(pos)
+                        task.wait(1.5)
+                    end
+                    task.wait(2)
+                end
+            end)
+        else
+            if unlockThread then task.cancel(unlockThread) end
+        end
+    end
+})
 
-TeleportTab:CreateButton({Name = "Teleport to Shadow Realm (Unlock)", Callback = function() teleportTo(SHADOW_REALM) end})
+TeleportTab:CreateButton({
+    Name = "Teleport to Shadow Realm (Unlock)",
+    Callback = function()
+        teleportTo(SHADOW_REALM)
+    end
+})
 
 -- ======================================
 -- UI - TELEPORT
 -- ======================================
 TeleportTab:CreateSection("Teleport")
 
-local overworldOptions = {} for name, _ in pairs(OVERWORLD) do table.insert(overworldOptions, name) end table.sort(overworldOptions)
-TeleportTab:CreateDropdown({Name = "The Overworld", Options = overworldOptions, CurrentOption = {overworldSelected}, Callback = function(v) overworldSelected = v[1] end})
-TeleportTab:CreateToggle({Name = "Auto Teleport Overworld", CurrentValue = false, Callback = function(v) overworldRunning = v if v then overworldThread = task.spawn(function() while overworldRunning do teleportTo(OVERWORLD[overworldSelected]); task.wait(1.5) end end) else if overworldThread then task.cancel(overworldThread) end end end})
+local overworldOptions = {}
+for name, _ in pairs(OVERWORLD) do
+    table.insert(overworldOptions, name)
+end
+table.sort(overworldOptions)
 
-local minigameOptions = {} for name, _ in pairs(MINIGAME) do table.insert(minigameOptions, name) end table.sort(minigameOptions)
-TeleportTab:CreateDropdown({Name = "Minigame Paradise", Options = minigameOptions, CurrentOption = {minigameSelected}, Callback = function(v) minigameSelected = v[1] end})
-TeleportTab:CreateToggle({Name = "Auto Teleport Minigame Paradise", CurrentValue = false, Callback = function(v) minigameRunning = v if v then minigameThread = task.spawn(function() while minigameRunning do teleportTo(MINIGAME[minigameSelected]); task.wait(1.5) end end) else if minigameThread then task.cancel(minigameThread) end end end})
+TeleportTab:CreateDropdown({
+    Name = "The Overworld",
+    Options = overworldOptions,
+    CurrentOption = {overworldSelected},
+    Callback = function(v)
+        overworldSelected = v[1]
+    end
+})
 
-local sevenseasOptions = {} for name, _ in pairs(SEVENSEAS) do table.insert(sevenseasOptions, name) end table.sort(sevenseasOptions)
-TeleportTab:CreateDropdown({Name = "Seven Seas", Options = sevenseasOptions, CurrentOption = {sevenseasSelected}, Callback = function(v) sevenseasSelected = v[1] end})
-TeleportTab:CreateToggle({Name = "Auto Teleport Seven Seas", CurrentValue = false, Callback = function(v) sevenseasRunning = v if v then sevenseasThread = task.spawn(function() while sevenseasRunning do teleportTo(SEVENSEAS[sevenseasSelected]); task.wait(1.5) end end) else if sevenseasThread then task.cancel(sevenseasThread) end end end})
+TeleportTab:CreateToggle({
+    Name = "Auto Teleport Overworld",
+    CurrentValue = false,
+    Callback = function(v)
+        overworldRunning = v
+        if v then
+            overworldThread = task.spawn(function()
+                while overworldRunning do
+                    teleportTo(OVERWORLD[overworldSelected])
+                    task.wait(1.5)
+                end
+            end)
+        else
+            if overworldThread then task.cancel(overworldThread) end
+        end
+    end
+})
 
-TeleportTab:CreateButton({Name = "Teleport to Shadow Realm", Callback = function() teleportTo(SHADOW_REALM) end})
+local minigameOptions = {}
+for name, _ in pairs(MINIGAME) do
+    table.insert(minigameOptions, name)
+end
+table.sort(minigameOptions)
+
+TeleportTab:CreateDropdown({
+    Name = "Minigame Paradise",
+    Options = minigameOptions,
+    CurrentOption = {minigameSelected},
+    Callback = function(v)
+        minigameSelected = v[1]
+    end
+})
+
+TeleportTab:CreateToggle({
+    Name = "Auto Teleport Minigame Paradise",
+    CurrentValue = false,
+    Callback = function(v)
+        minigameRunning = v
+        if v then
+            minigameThread = task.spawn(function()
+                while minigameRunning do
+                    teleportTo(MINIGAME[minigameSelected])
+                    task.wait(1.5)
+                end
+            end)
+        else
+            if minigameThread then task.cancel(minigameThread) end
+        end
+    end
+})
+
+local sevenseasOptions = {}
+for name, _ in pairs(SEVENSEAS) do
+    table.insert(sevenseasOptions, name)
+end
+table.sort(sevenseasOptions)
+
+TeleportTab:CreateDropdown({
+    Name = "Seven Seas",
+    Options = sevenseasOptions,
+    CurrentOption = {sevenseasSelected},
+    Callback = function(v)
+        sevenseasSelected = v[1]
+    end
+})
+
+TeleportTab:CreateToggle({
+    Name = "Auto Teleport Seven Seas",
+    CurrentValue = false,
+    Callback = function(v)
+        sevenseasRunning = v
+        if v then
+            sevenseasThread = task.spawn(function()
+                while sevenseasRunning do
+                    teleportTo(SEVENSEAS[sevenseasSelected])
+                    task.wait(1.5)
+                end
+            end)
+        else
+            if sevenseasThread then task.cancel(sevenseasThread) end
+        end
+    end
+})
+
+TeleportTab:CreateButton({
+    Name = "Teleport to Shadow Realm",
+    Callback = function()
+        teleportTo(SHADOW_REALM)
+    end
+})
 
 print("[Teleport] Loaded!")
