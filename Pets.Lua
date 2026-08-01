@@ -89,7 +89,7 @@ local function fusionLoop()
             end
             
             pcall(function()
-                NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+                NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
             end)
             task.wait(1.5)
         end
@@ -146,12 +146,10 @@ PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
     CurrentValue = false,
     Callback = function(V)
-        print("[REBIRTH] Callback fired! V = " .. tostring(V))
         fuseAllActive = V
         if V then
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
-                print("[REBIRTH] Thread started!")
                 local lastPrint = ""
                 while fuseAllActive do
                     task.wait(5)
@@ -177,8 +175,6 @@ PetTab:CreateToggle({
                         end
                     end
                     
-                    print("[REBIRTH] Normal:" .. #groups.Normal .. " Shiny:" .. #groups.Shiny .. " Mythic:" .. #groups.Mythic .. " SM:" .. #groups.ShinyMythic)
-                    
                     local selectedGroup = nil
                     if #groups.Normal >= 5 then selectedGroup = groups.Normal
                     elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny
@@ -200,25 +196,31 @@ PetTab:CreateToggle({
                         end
                         
                         local text = table.concat(usedWithVariant, ", ")
+                        
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                         
-                        print("[REBIRTH] Fusing: " .. text)
-                        local ok, err = pcall(function()
-                            NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+                        pcall(function()
+                            NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
                         end)
-                        print("[REBIRTH] Remote: " .. tostring(ok) .. " | " .. tostring(err))
                         
                         getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
                         getgenv().ActivityStatus.trigger = true
                         
-                        if text ~= lastPrint then lastPrint = text end
+                        if text ~= lastPrint then
+                            print("[Rebirth] " .. text)
+                            lastPrint = text
+                        end
+                        
                         task.wait(1.5)
                     end
                 end
             end)
         else
             fuseAllActive = false
-            if fuseAllThread then task.cancel(fuseAllThread); fuseAllThread = nil end
+            if fuseAllThread then
+                task.cancel(fuseAllThread)
+                fuseAllThread = nil
+            end
         end
     end,
 })
