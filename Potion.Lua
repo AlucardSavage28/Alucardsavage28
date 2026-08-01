@@ -52,11 +52,7 @@ local eventThread = nil
 
 local function getEventPotions()
     local events = {}
-    local normalSpecial = {
-        Lucky = true, Speed = true, Mythic = true, Coins = true, Tickets = true,
-        ["Infinity Elixir"] = true, ["Ultra Infinity Elixir"] = true,
-        ["Egg Elixir"] = true, ["Star Elixir"] = true, ["Secret Elixir"] = true
-    }
+    local normalSpecial = {Lucky=true, Speed=true, Mythic=true, Coins=true, Tickets=true, ["Infinity Elixir"]=true, ["Ultra Infinity Elixir"]=true, ["Egg Elixir"]=true, ["Star Elixir"]=true, ["Secret Elixir"]=true}
     local data = LocalData:Get()
     if data and data.Potions then
         for _, potion in pairs(data.Potions) do
@@ -132,6 +128,8 @@ PotionTab:CreateToggle({
                     end
                     
                     if actualAmount > 0 then
+                        getgenv().ActivityStatus.current = "Using " .. selectedNormal .. " x" .. actualAmount
+                        getgenv().ActivityStatus.trigger = true
                         pcall(function() RE:FireServer("UsePotion", potionName, level, actualAmount) end)
                     end
                     task.wait(0.5)
@@ -190,6 +188,8 @@ PotionTab:CreateToggle({
                     end
                     
                     if actualAmount > 0 then
+                        getgenv().ActivityStatus.current = "Using " .. selectedSpecial .. " x" .. actualAmount
+                        getgenv().ActivityStatus.trigger = true
                         pcall(function() RE:FireServer("UsePotion", selectedSpecial, 1, actualAmount) end)
                     end
                     task.wait(0.5)
@@ -233,9 +233,6 @@ if #eventPotions > 0 then
             eventPotions = getEventPotions()
             selectedEvent = eventPotions[1] or ""
             print("[Potions] Found " .. #eventPotions .. " event potions")
-            for _, name in ipairs(eventPotions) do
-                print("  - " .. name)
-            end
         end
     })
 
@@ -263,6 +260,8 @@ if #eventPotions > 0 then
                         end
                         
                         if actualAmount > 0 then
+                            getgenv().ActivityStatus.current = "Using " .. selectedEvent .. " x" .. actualAmount
+                            getgenv().ActivityStatus.trigger = true
                             pcall(function() RE:FireServer("UsePotion", selectedEvent, potionLevel, actualAmount) end)
                         end
                         task.wait(0.5)
