@@ -16,29 +16,53 @@ local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 -- SETTINGS
 -- ======================================
 local targetPlayer = ""
-local sendRunning = false; local sendThread = nil
-local acceptRunning = false; local acceptThread = nil
-local confirmRunning = false; local confirmThread = nil
-local movePetRunning = false; local movePetThread = nil
+local sendRunning = false
+local sendThread = nil
+local acceptRunning = false
+local acceptThread = nil
+local confirmRunning = false
+local confirmThread = nil
+local movePetRunning = false
+local movePetThread = nil
+
+-- ======================================
+-- FUNCTIONS
+-- ======================================
+local function getPetName(petId)
+    local data = LocalData:Get()
+    if data and data.Pets then
+        for _, pet in pairs(data.Pets) do
+            if pet.Id == petId then return pet.Name end
+        end
+    end
+    return "Unknown"
+end
 
 -- ======================================
 -- UI
 -- ======================================
 TradeTab:CreateSection("Trade")
+
 TradeTab:CreateLabel("Only 1 player can be input, and send/accept trade only can with the player name you input")
-TradeTab:CreateInput({Name = "Target Player Name", PlaceholderText = "PlayerName123", CurrentValue = "", RemoveTextAfterFocusLost = false, Callback = function(v) targetPlayer = v end})
+
+TradeTab:CreateInput({
+    Name = "Target Player Name", PlaceholderText = "PlayerName123", CurrentValue = "", RemoveTextAfterFocusLost = false,
+    Callback = function(v) targetPlayer = v end
+})
 
 TradeTab:CreateToggle({
     Name = "Send Trade", CurrentValue = false,
     Callback = function(v)
         sendRunning = v
         if v then
-            getgenv().ActivityStatus.current = "Sending trade to " .. targetPlayer
             sendThread = task.spawn(function()
                 while sendRunning do
                     if targetPlayer ~= "" then
                         local target = Players:FindFirstChild(targetPlayer)
-                        if target then pcall(function() Remote:FireServer("TradeRequest", target) end) end
+                        if target then
+                            getgenv().ActivityStatus.current = "Sending trade to " .. targetPlayer
+                            pcall(function() Remote:FireServer("TradeRequest", target) end)
+                        end
                     end
                     task.wait(0.5)
                 end
@@ -51,7 +75,18 @@ TradeTab:CreateToggle({
     Name = "Accept Trade", CurrentValue = false,
     Callback = function(v)
         acceptRunning = v
-        if v then acceptThread = task.spawn(function() while acceptRunning do if targetPlayer ~= "" then local target = Players:FindFirstChild(targetPlayer) if target then pcall(function() Remote:FireServer("TradeAcceptRequest", target) end) end end task.wait(1) end end)
+        if v then
+            acceptThread = task.spawn(function()
+                while acceptRunning do
+                    if targetPlayer ~= "" then
+                        local target = Players:FindFirstChild(targetPlayer)
+                        if target then
+                            pcall(function() Remote:FireServer("TradeAcceptRequest", target) end)
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
         else if acceptThread then task.cancel(acceptThread) end end
     end
 })
@@ -60,12 +95,22 @@ TradeTab:CreateToggle({
     Name = "Accept And Confirm", CurrentValue = false,
     Callback = function(v)
         confirmRunning = v
-        if v then confirmThread = task.spawn(function() while confirmRunning do while movePetRunning do task.wait(0.5) end pcall(function() Remote:FireServer("TradeAccept") end) task.wait(0.3) pcall(function() Remote:FireServer("TradeConfirm") end) task.wait(0.3) end end)
+        if v then
+            confirmThread = task.spawn(function()
+                while confirmRunning do
+                    while movePetRunning do task.wait(0.5) end
+                    pcall(function() Remote:FireServer("TradeAccept") end)
+                    task.wait(0.3)
+                    pcall(function() Remote:FireServer("TradeConfirm") end)
+                    task.wait(0.3)
+                end
+            end)
         else if confirmThread then task.cancel(confirmThread) end end
     end
 })
 
 TradeTab:CreateSection("Auto Move Pet")
+
 TradeTab:CreateLabel("This Will add all your pet in inventory to the trade")
 
 TradeTab:CreateToggle({
@@ -77,9 +122,26 @@ TradeTab:CreateToggle({
                 while movePetRunning do
                     pcall(function() Remote:FireServer("TradeAccept") end)
                     task.wait(1)
-                    local data = LocalData:Get(); local added = 0; local petNames = {}
-                    if data and data.Pets then for _, pet in pairs(data.Pets) do if not pet.Locked and added < 12 then pcall(function() Remote:FireServer("TradeAddPet", pet.Id .. ":0") end) table.insert(petNames, pet.Name) added = added + 1 task.wait(0.15) end if added >= 12 then break end end end
-                    if #petNames > 0 then getgenv().ActivityStatus.current = "Auto moving pets to trade: " .. table.concat(petNames, ", ") end
+                    
+                    local data = LocalData:Get()
+                    local added = 0
+                    local tradedNames = {}
+                    if data and data.Pets then
+                        for _, pet in pairs(data.Pets) do
+                            if not pet.Locked and added < 12 then
+                                pcall(function() Remote:FireServer("TradeAddPet", pet.Id .. ":0") end)
+                                table.insert(tradedNames, pet.Name)
+                                added = added + 1
+                                task.wait(0.15)
+                            end
+                            if added >= 12 then break end
+                        end
+                    end
+                    
+                    if #tradedNames > 0 then
+                        getgenv().ActivityStatus.current = "Auto moving pets to trade: " .. table.concat(tradedNames, ", ")
+                    end
+                    
                     task.wait(0.5)
                     pcall(function() Remote:FireServer("TradeConfirm") end)
                     task.wait(3)
