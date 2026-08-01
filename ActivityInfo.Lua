@@ -11,9 +11,6 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-local config = getgenv().config or {}
-local ACTIVITY_WEBHOOK_URL = config.ACTIVITY_WEBHOOK_URL or ""
-
 local request = http_request or request or (syn and syn.request)
 
 if not request then
@@ -22,19 +19,10 @@ if not request then
     return
 end
 
-if ACTIVITY_WEBHOOK_URL == "" then
-    ActivityTab:CreateSection("Webhook Not Configured")
-    ActivityTab:CreateLabel("Please set ACTIVITY_WEBHOOK_URL in your config!")
-    ActivityTab:CreateLabel("Add this BEFORE the loadstring:")
-    ActivityTab:CreateLabel([[getgenv().config = {
-    ACTIVITY_WEBHOOK_URL = "Put your activity webhook URL here!",
-}]])
-    return
-end
-
 -- ======================================
 -- SETTINGS
 -- ======================================
+local activityWebhookURL = ""
 local activityEnabled = false
 local lastSent = ""
 
@@ -51,14 +39,14 @@ end
 -- ======================================
 local function sendActivity(msg)
     if not activityEnabled then return end
-    if not ACTIVITY_WEBHOOK_URL or ACTIVITY_WEBHOOK_URL == "" then return end
+    if activityWebhookURL == "" then return end
     if msg == lastSent then return end
     
     lastSent = msg
     
     pcall(function()
         request({
-            Url = ACTIVITY_WEBHOOK_URL,
+            Url = activityWebhookURL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
@@ -91,8 +79,17 @@ end)
 ActivityTab:CreateSection("Activity Webhook")
 
 ActivityTab:CreateLabel("Sends webhook when your character is actively doing something")
-ActivityTab:CreateLabel("Uses ACTIVITY_WEBHOOK_URL from config")
 ActivityTab:CreateLabel("Only sends when the action is actually being performed, not on toggle")
+
+ActivityTab:CreateInput({
+    Name = "Activity Webhook URL",
+    CurrentValue = "",
+    PlaceholderText = "https://discord.com/api/webhooks/...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        activityWebhookURL = v
+    end
+})
 
 ActivityTab:CreateToggle({
     Name = "Turn On/Turn Off",
