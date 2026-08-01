@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
+local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 
 local RemoteContainer = ReplicatedStorage.Shared.Framework.Network.Remote
 local RemoteFunction = RemoteContainer.RemoteFunction
@@ -17,9 +18,8 @@ local RemoteEvent = RemoteContainer.RemoteEvent
 -- ======================================
 local TARGET_ENCHANTS = {
     { Id = "ultra-roller" },
-    { Id = "secret-hunter" }
+    { Id = "high-roller" }
 }
-local REROLL_CURRENCY = "Shadow Crystal"
 local COOLDOWN = 0.5
 local enchantRunning = false
 local enchantThread = nil
@@ -48,6 +48,21 @@ local function findPetById(petId)
     return nil
 end
 
+local function isPetEnchantable(pet)
+    if not pet then return false end
+    -- Super Legendary can't be enchanted
+    if pet.Super then return false end
+    -- Check rarity
+    local info = Pets[pet.Name]
+    if info and info.Rarity then
+        local rarity = info.Rarity
+        if rarity:find("Secret") or rarity:find("Celestial") or rarity:find("Infinity") or rarity:find("Void") or rarity:find("Legendary") then
+            return true
+        end
+    end
+    return false
+end
+
 local function getEquippedPets()
     local pets = {}
     local data = LocalData:Get()
@@ -57,33 +72,18 @@ local function getEquippedPets()
         if team and team.Pets then
             for _, equippedId in ipairs(team.Pets) do
                 local pet = findPetById(equippedId)
-                if pet then table.insert(pets, pet) end
+                if pet and isPetEnchantable(pet) then
+                    table.insert(pets, pet)
+                end
             end
         end
     end
     return pets
 end
 
-local function getFoundTargetEnchant(pet)
-    local enchants = pet.Enchants or {}
-    for i, currentEnchant in ipairs(enchants) do
-        for _, targetEnchant in ipairs(TARGET_ENCHANTS) do
-            if currentEnchant.Id == targetEnchant.Id then
-                return targetEnchant, i
-            end
-        end
-    end
-    return nil, nil
-end
-
 local function isSecretOnly(enchantId)
     local data = EnchantsData[enchantId]
     return data and data.IsSecretOnly
-end
-
-local function getCurrencyForEnchant(enchantId)
-    if isSecretOnly(enchantId) then return "Shadow Crystal" end
-    return "Gems"
 end
 
 local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
@@ -95,16 +95,22 @@ local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
         
         local currentEnchant = (pet.Enchants or {})[targetSlot]
         if currentEnchant and currentEnchant.Id == targetEnchantId then
-            print("[Enchant] Slot " .. targetSlot .. " done: " .. ENCHANT_DISPLAY[targetEnchantId])
+            print("[Enchant] Slot " .. targetSlot .. " already has " .. ENCHANT_DISPLAY[targetEnchantId])
             return true
         end
         
+        -- Check if target is already on the OTHER slot (would cause endless loop)
+        local otherSlot = (targetSlot == 1) and 2 or 1
+        local otherEnchant = (pet.Enchants or {})[otherSlot]
+        if otherEnchant and otherEnchant.Id == targetEnchantId then
+            print("[Enchant] WARNING: " .. ENCHANT_DISPLAY[targetEnchantId] .. " is on Slot " .. otherSlot .. ", cannot roll on Slot " .. targetSlot)
+            return false
+        end
+        
         if targetIsSecret then
-            -- Lock the OTHER slot, reroll this one with crystal
             local lockSlot = (targetSlot == 1) and 2 or 1
             RemoteEvent:FireServer("UseShadowCrystal", petId, lockSlot)
         else
-            -- Use gems on single slot
             RemoteEvent:FireServer("RerollEnchant", petId, targetSlot)
         end
         task.wait(COOLDOWN)
@@ -112,60 +118,13 @@ local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
     return false
 end
 
-local function enchantBothSlots(petId)
-    -- Keep rerolling both until any target found
-    while enchantRunning do
-        local pet = findPetById(petId)
-        if not pet then return end
-        
-        local foundTarget, foundSlot = getFoundTargetEnchant(pet)
-        if foundTarget then
-            local neededTarget = nil
-            for _, target in ipairs(TARGET_ENCHANTS) do
-                if target.Id ~= foundTarget.Id then neededTarget = target; break end
-            end
-            if not neededTarget then return end
-            
-            local rerollSlot = (foundSlot == 1) and 2 or 1
-            local neededIsSecret = isSecretOnly(neededTarget.Id)
-            
-            while enchantRunning do
-                local currentPet = findPetById(petId)
-                if not currentPet then return end
-                
-                local enchantInSlot = (currentPet.Enchants or {})[rerollSlot]
-                if enchantInSlot and enchantInSlot.Id == neededTarget.Id then
-                    print("[Enchant] Done! " .. ENCHANT_DISPLAY[foundTarget.Id] .. " + " .. ENCHANT_DISPLAY[neededTarget.Id])
-                    return
-                end
-                
-                if neededIsSecret then
-                    RemoteEvent:FireServer("UseShadowCrystal", petId, foundSlot)
-                else
-                    RemoteEvent:FireServer("RerollEnchant", petId, rerollSlot)
-                end
-                task.wait(COOLDOWN)
-            end
-            return
-        end
-        
-        -- No target found, reroll both with appropriate currency
-        local useCrystal = isSecretOnly(TARGET_ENCHANTS[1].Id) or isSecretOnly(TARGET_ENCHANTS[2].Id)
-        if useCrystal then
-            RemoteEvent:FireServer("UseShadowCrystal", petId, nil)
-        else
-            RemoteFunction:InvokeServer("RerollEnchants", petId, "Gems")
-        end
-        task.wait(COOLDOWN)
-    end
-end
-
 -- ======================================
 -- UI
 -- ======================================
 EnchantTab:CreateSection("Manual Enchant")
 
-EnchantTab:CreateLabel("Smart currency: Script auto-detects if enchant needs Shadow Crystal or Gems")
+EnchantTab:CreateLabel("Smart currency: Auto-detects Shadow Crystal or Gems")
+EnchantTab:CreateLabel("NOTE: Make sure to check your Pets Enchant. If Secret Hunter is in Slot 1 but some pets already have it on Slot 2, it will roll endlessly!")
 
 EnchantTab:CreateDropdown({
     Name = "Slot 1 Enchant",
@@ -179,7 +138,7 @@ EnchantTab:CreateDropdown({
 EnchantTab:CreateDropdown({
     Name = "Slot 2 Enchant",
     Options = ALL_ENCHANTS,
-    CurrentOption = {"secret-hunter"},
+    CurrentOption = {"high-roller"},
     Callback = function(v)
         TARGET_ENCHANTS[2].Id = v[1]
     end
@@ -193,10 +152,10 @@ EnchantTab:CreateToggle({
         if v then
             enchantThread = task.spawn(function()
                 local pets = getEquippedPets()
-                print("[Enchant] Found " .. #pets .. " equipped pets")
+                print("[Enchant] Found " .. #pets .. " enchantable pets (skipped Super Legendary)")
                 
                 -- PASS 1: Enchant Slot 1 on ALL pets
-                print("[Enchant] === PASS 1: Slot 1 ===")
+                print("[Enchant] === PASS 1: Slot 1 (" .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. ") ===")
                 for i, pet in ipairs(pets) do
                     if not enchantRunning then break end
                     print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
@@ -206,7 +165,7 @@ EnchantTab:CreateToggle({
                 
                 -- PASS 2: Enchant Slot 2 on ALL pets
                 if enchantRunning then
-                    print("[Enchant] === PASS 2: Slot 2 ===")
+                    print("[Enchant] === PASS 2: Slot 2 (" .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id] .. ") ===")
                     for i, pet in ipairs(pets) do
                         if not enchantRunning then break end
                         print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
