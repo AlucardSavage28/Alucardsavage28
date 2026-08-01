@@ -158,16 +158,28 @@ AutoTab:CreateToggle({
     Callback = function(v)
         presentEnabled = v
         if v then
+            local wasCollecting = false
             presentThread = task.spawn(function()
                 while presentEnabled do
+                    if getgenv().questActive then
+                        task.wait(0.5)
+                        continue
+                    end
+                    
                     local count = collectAllPresents()
                     if count > 0 then
-                        getgenv().ActivityStatus.current = "Collecting Presents (" .. count .. " found)"
-                        getgenv().ActivityStatus.trigger = true
+                        if not wasCollecting then
+                            getgenv().ActivityStatus.current = "Collecting Presents (" .. count .. " found)"
+                            getgenv().ActivityStatus.trigger = true
+                            wasCollecting = true
+                        end
                         print("[Auto] Collected " .. count .. " presents!")
                     else
-                        getgenv().ActivityStatus.current = "Done collecting presents"
-                        getgenv().ActivityStatus.trigger = true
+                        if wasCollecting then
+                            getgenv().ActivityStatus.current = "Done collecting presents"
+                            getgenv().ActivityStatus.trigger = true
+                            wasCollecting = false
+                        end
                     end
                     task.wait(0.5)
                 end
