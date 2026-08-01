@@ -20,8 +20,10 @@ local selectedEvent = "Luck Event"
 
 local runeRunning = false
 local runeThread = nil
-local fragRunning = false
-local fragThread = nil
+local greenBlueRunning = false
+local greenBlueThread = nil
+local purpleRainbowRunning = false
+local purpleRainbowThread = nil
 local crystalRunning = false
 local crystalThread = nil
 local sunburstRunning = false
@@ -163,22 +165,39 @@ EventTab:CreateToggle({
 })
 
 EventTab:CreateToggle({
-    Name = "Auto Buy All Fragment",
+    Name = "Auto Buy Green And Blue Fragment",
     CurrentValue = false,
     Callback = function(v)
-        fragRunning = v
+        greenBlueRunning = v
         if v then
-            fragThread = task.spawn(function()
-                while fragRunning do
+            greenBlueThread = task.spawn(function()
+                while greenBlueRunning do
                     pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 7, false) end)
                     pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 8, false) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if greenBlueThread then task.cancel(greenBlueThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Purple And Rainbow Fragment",
+    CurrentValue = false,
+    Callback = function(v)
+        purpleRainbowRunning = v
+        if v then
+            purpleRainbowThread = task.spawn(function()
+                while purpleRainbowRunning do
                     pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 9, false) end)
                     pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 10, false) end)
                     task.wait(1)
                 end
             end)
         else
-            if fragThread then task.cancel(fragThread) end
+            if purpleRainbowThread then task.cancel(purpleRainbowThread) end
         end
     end
 })
