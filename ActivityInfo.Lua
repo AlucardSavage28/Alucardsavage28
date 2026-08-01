@@ -12,7 +12,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local config = getgenv().config or {}
-local ACTIVITY_WEBHOOK_URL = config.HATCH_WEBHOOK_URL or ""
+local ACTIVITY_WEBHOOK_URL = config.ACTIVITY_WEBHOOK_URL or ""
 
 local request = http_request or request or (syn and syn.request)
 
@@ -24,7 +24,11 @@ end
 
 if ACTIVITY_WEBHOOK_URL == "" then
     ActivityTab:CreateSection("Webhook Not Configured")
-    ActivityTab:CreateLabel("Please set HATCH_WEBHOOK_URL in your config!")
+    ActivityTab:CreateLabel("Please set ACTIVITY_WEBHOOK_URL in your config!")
+    ActivityTab:CreateLabel("Add this BEFORE the loadstring:")
+    ActivityTab:CreateLabel([[getgenv().config = {
+    ACTIVITY_WEBHOOK_URL = "Put your activity webhook URL here!",
+}]])
     return
 end
 
@@ -33,7 +37,6 @@ end
 -- ======================================
 local activityEnabled = false
 local lastSent = ""
-local fishingCount = 0
 
 -- Initialize global activity tracker
 if not getgenv().ActivityStatus then
@@ -88,7 +91,7 @@ end)
 ActivityTab:CreateSection("Activity Webhook")
 
 ActivityTab:CreateLabel("Sends webhook when your character is actively doing something")
-ActivityTab:CreateLabel("Uses your Hatch Webhook URL from config")
+ActivityTab:CreateLabel("Uses ACTIVITY_WEBHOOK_URL from config")
 ActivityTab:CreateLabel("Only sends when the action is actually being performed, not on toggle")
 
 ActivityTab:CreateToggle({
