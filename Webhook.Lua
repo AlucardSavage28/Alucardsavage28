@@ -184,10 +184,8 @@ local function getBuffTime(buffName)
                             local label = button:FindFirstChild("Label")
                             if label and label.Text ~= "" then
                                 local text = label.Text
-                                -- For Lucky: skip MM:SS format (Lucky Eggs), keep long duration (Lucky Potion)
                                 if buffName == "Lucky" then
                                     if text:find("^%d+:%d+$") then
-                                        -- Skip short buffs like "4:52"
                                     else
                                         return text
                                     end
@@ -266,12 +264,7 @@ local function sendToWebhook(queue, url)
     while #queue > 0 do
         local p = table.remove(queue, 1)
         pcall(function()
-            request({
-                Url = url,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(p)
-            })
+            request({Url = url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(p)})
         end)
         task.wait(1)
     end
