@@ -231,3 +231,5 @@ EnchantTab:CreateButton({Name = "Determination + Bubbler V", Callback = function
 EnchantTab:CreateSection("Currency Enchanter")
 EnchantTab:CreateButton({Name = "Team Up V + Looter V", Callback = function() RunEnchant({"Team Up V","Looter V"}, {"Team Up V","Looter V"}, "Gems", "Gems") end})
 EnchantTab:CreateButton({Name = "Determination + Looter V", Callback = function() RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems") end})
+
+print("[Enchant] Loaded!")
