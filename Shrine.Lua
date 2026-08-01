@@ -231,7 +231,7 @@ ShrineTab:CreateToggle({
                     pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
                     task.wait(1)
                     
-                    getgenv().ActivityStatus.current = "Perm Shrine - Rerolling for " .. permTargetBuff .. " buff"
+                    getgenv().ActivityStatus.current = "Rerolling buff for " .. permEgg
                     getgenv().ActivityStatus.trigger = true
                     
                     local info = getPermShrineInfo()
@@ -242,6 +242,8 @@ ShrineTab:CreateToggle({
                     end
                     
                     if permRunning then
+                        getgenv().ActivityStatus.current = "Rerolling " .. info.buff .. " for " .. permEgg .. " done!"
+                        getgenv().ActivityStatus.trigger = true
                         print("[Shrine] Perm buff set to " .. info.buff)
                         task.wait(43200)
                     end
