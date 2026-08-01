@@ -9,14 +9,22 @@ local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 
-local NetworkRemote = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Framework"):WaitForChild("Network"):WaitForChild("Remote"):WaitForChild("RemoteFunction")
+local NetworkRemote = ReplicatedStorage:WaitForChild("Shared")
+    :WaitForChild("Framework")
+    :WaitForChild("Network")
+    :WaitForChild("Remote")
+    :WaitForChild("RemoteFunction")
 
 -- ======================================
 -- SETTINGS
 -- ======================================
-local fuserActive = false; local loopThread = nil
-local targetPetNamesString = ""; local selectedVariant = "Normal"
-local fuseAllActive = false; local fuseAllThread = nil
+local fuserActive = false
+local loopThread = nil
+local targetPetNamesString = ""
+local selectedVariant = "Normal"
+
+local fuseAllActive = false
+local fuseAllThread = nil
 
 -- ======================================
 -- FUNCTIONS
@@ -39,18 +47,38 @@ local function fusionLoop()
     while fuserActive do
         task.wait(2.5)
         if targetPetNamesString == "" then continue end
+        
         local targetNames = {}
-        for chunk in string.gmatch(targetPetNamesString, "[^,]+") do local clean = string.lower(string.gsub(chunk, "^%s*(.-)%s*$", "%1")) if clean ~= "" then table.insert(targetNames, clean) end end
+        for chunk in string.gmatch(targetPetNamesString, "[^,]+") do
+            local clean = string.lower(string.gsub(chunk, "^%s*(.-)%s*$", "%1"))
+            if clean ~= "" then table.insert(targetNames, clean) end
+        end
+        
         local data = LocalData:Get()
         if not data or not data.Pets then continue end
+        
         local matching = {}
-        for _, pet in pairs(data.Pets) do if not pet.Locked then if isCorrectVariant(pet) then local name = string.lower(pet.Name) for _, t in ipairs(targetNames) do if name:find(t) then table.insert(matching, pet); break end end end end end
+        for _, pet in pairs(data.Pets) do
+            if not pet.Locked and isCorrectVariant(pet) then
+                local name = string.lower(pet.Name)
+                for _, t in ipairs(targetNames) do
+                    if name:find(t) then table.insert(matching, pet); break end
+                end
+            end
+        end
+        
         if #matching >= 5 then
             table.sort(matching, function(a, b) return getVariantPriority(a) < getVariantPriority(b) end)
-            local payload = {}; local usedNames = {}
-            for i = 1, 5 do table.insert(payload, tostring(matching[i].Id)) local variant = "Normal" if matching[i].Shiny and matching[i].Mythic then variant = "Shiny Mythic" elseif matching[i].Shiny then variant = "Shiny" elseif matching[i].Mythic then variant = "Mythic" end table.insert(usedNames, variant .. " " .. matching[i].Name) end
+            
+            local payload = {}
+            local names = {}
+            for i = 1, 5 do
+                table.insert(payload, tostring(matching[i].Id))
+                table.insert(names, matching[i].Name)
+            end
+            
+            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. table.concat(names, ", ")
             pcall(function() NetworkRemote:InvokeServer("UseRebirthMachine", payload) end)
-            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. table.concat(usedNames, ", ")
             task.wait(1.5)
         end
     end
@@ -60,13 +88,25 @@ end
 -- UI
 -- ======================================
 PetTab:CreateSection("Rebirth Machine")
+
 PetTab:CreateInput({Name = "Pet Names (comma)", PlaceholderText = "doggy, cat, ufo", CurrentValue = "", Callback = function(V) targetPetNamesString = V end})
 PetTab:CreateDropdown({Name = "Variant", Options = {"Normal","Shiny","Mythic","Shiny Mythic"}, CurrentOption = {"Normal"}, Callback = function(V) selectedVariant = V[1] end})
-PetTab:CreateToggle({Name = "Auto Rebirth Machine", CurrentValue = false, Callback = function(V) fuserActive = V if V then loopThread = task.spawn(fusionLoop) else fuserActive = false if loopThread then task.cancel(loopThread); loopThread = nil end end end})
+
+PetTab:CreateToggle({
+    Name = "Auto Rebirth Machine", CurrentValue = false,
+    Callback = function(V)
+        fuserActive = V
+        if V then loopThread = task.spawn(fusionLoop)
+        else fuserActive = false if loopThread then task.cancel(loopThread); loopThread = nil end end
+    end
+})
 
 PetTab:CreateSection("Rebirth Machine (All Unlocked)")
+
 PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
+
 local trackerLabel = PetTab:CreateLabel("Last Used: None")
+
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)", CurrentValue = false,
     Callback = function(V)
@@ -77,8 +117,10 @@ PetTab:CreateToggle({
                 local lastPrint = ""
                 while fuseAllActive do
                     task.wait(5)
+                    
                     local data = LocalData:Get()
                     if not data or not data.Pets then continue end
+                    
                     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
                     for _, pet in pairs(data.Pets) do
                         if not pet.Locked then
@@ -91,13 +133,16 @@ PetTab:CreateToggle({
                             end
                         end
                     end
+                    
                     local selectedGroup = nil
                     if #groups.Normal >= 5 then selectedGroup = groups.Normal
                     elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny
                     elseif #groups.Mythic >= 5 then selectedGroup = groups.Mythic
                     elseif #groups.ShinyMythic >= 5 then selectedGroup = groups.ShinyMythic end
+                    
                     if selectedGroup then
-                        local payload = {}; local usedWithVariant = {}
+                        local payload = {}
+                        local usedWithVariant = {}
                         for i = 1, 5 do
                             local pet = selectedGroup[i]
                             table.insert(payload, tostring(pet.Id))
@@ -107,15 +152,21 @@ PetTab:CreateToggle({
                             elseif pet.Mythic then variant = "Mythic" end
                             table.insert(usedWithVariant, variant .. " " .. pet.Name)
                         end
-                        pcall(function() NetworkRemote:InvokeServer("UseRebirthMachine", payload) end)
+                        
                         local text = table.concat(usedWithVariant, ", ")
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
-                        getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                        if text ~= lastPrint then print("[Rebirth] " .. text) lastPrint = text end
+                        
+                        getgenv().ActivityStatus.current = "Rebirth Machine (All): " .. text
+                        pcall(function() NetworkRemote:InvokeServer("UseRebirthMachine", payload) end)
+                        
+                        if text ~= lastPrint then print("[Rebirth] " .. text); lastPrint = text end
                         task.wait(1.5)
                     end
                 end
             end)
-        else fuseAllActive = false if fuseAllThread then task.cancel(fuseAllThread); fuseAllThread = nil end end
+        else
+            fuseAllActive = false
+            if fuseAllThread then task.cancel(fuseAllThread); fuseAllThread = nil end
+        end
     end
 })
