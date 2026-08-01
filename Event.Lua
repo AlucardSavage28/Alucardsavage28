@@ -264,4 +264,71 @@ EventTab:CreateToggle({
     end
 })
 
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if eventSettings.autoAddEvent then
+    eventRunning = true
+    eventThread = task.spawn(function()
+        while eventRunning do
+            pcall(function() RE:FireServer("PurchaseEventBoard", selectedEvent) end)
+            task.wait(900)
+        end
+    end)
+end
+
+if eventSettings.autoBuyRune then
+    runeRunning = true
+    runeThread = task.spawn(function()
+        while runeRunning do
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 4, false) end)
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 5, false) end)
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 6, false) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoBuyGreenBlue then
+    greenBlueRunning = true
+    greenBlueThread = task.spawn(function()
+        while greenBlueRunning do
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 7, false) end)
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 8, false) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoBuyPurpleRainbow then
+    purpleRainbowRunning = true
+    purpleRainbowThread = task.spawn(function()
+        while purpleRainbowRunning do
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 9, false) end)
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 10, false) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoBuyPowerCrystal then
+    crystalRunning = true
+    crystalThread = task.spawn(function()
+        while crystalRunning do
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 13, false) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoBuySunburst then
+    sunburstRunning = true
+    sunburstThread = task.spawn(function()
+        while sunburstRunning do
+            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 14, false) end)
+            task.wait(1)
+        end
+    end)
+end
+
 print("[Event] Loaded!")
