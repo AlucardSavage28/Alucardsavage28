@@ -51,7 +51,7 @@ local claimAllThread = nil
 -- ======================================
 -- FUNCTIONS
 -- ======================================
-local function summonAndOpen(riftKey, world)
+local function summonAndOpen(riftKey, world, chestName)
     pcall(function()
         RemoteFunction:InvokeServer("SummonRift", {
             ["Time"] = 5,
@@ -61,8 +61,15 @@ local function summonAndOpen(riftKey, world)
         })
     end)
     task.wait(3)
+    
+    getgenv().ActivityStatus.current = "Teleporting to " .. chestName
+    getgenv().ActivityStatus.trigger = true
+    
     pcall(function() Remote:FireServer("TeleportToRift", riftKey) end)
     task.wait(0.5)
+    
+    getgenv().ActivityStatus.current = "Opening " .. chestName
+    getgenv().ActivityStatus.trigger = true
     
     while true do
         local riftFolder = workspace:FindFirstChild("Rendered")
@@ -149,6 +156,8 @@ RiftTab:CreateToggle({
         if v then
             seasonThread = task.spawn(function()
                 while seasonRunning do
+                    getgenv().ActivityStatus.current = "Opening Season Chest"
+                    getgenv().ActivityStatus.trigger = true
                     pcall(function() Remote:FireServer("UnlockEventChest", "Season Chest", false) end)
                     task.wait(1)
                 end
@@ -167,6 +176,8 @@ RiftTab:CreateToggle({
         if v then
             giantThread = task.spawn(function()
                 while giantRunning do
+                    getgenv().ActivityStatus.current = "Opening Giant Chest"
+                    getgenv().ActivityStatus.trigger = true
                     pcall(function() Remote:FireServer("ClaimChest", "Giant Chest") end)
                     task.wait(1)
                 end
@@ -185,6 +196,8 @@ RiftTab:CreateToggle({
         if v then
             voidThread = task.spawn(function()
                 while voidRunning do
+                    getgenv().ActivityStatus.current = "Opening Void Chest"
+                    getgenv().ActivityStatus.trigger = true
                     pcall(function() Remote:FireServer("ClaimChest", "Void Chest") end)
                     task.wait(1)
                 end
@@ -203,6 +216,8 @@ RiftTab:CreateToggle({
         if v then
             ticketThread = task.spawn(function()
                 while ticketRunning do
+                    getgenv().ActivityStatus.current = "Opening Ticket Chest"
+                    getgenv().ActivityStatus.trigger = true
                     pcall(function() Remote:FireServer("ClaimChest", "Ticket Chest") end)
                     task.wait(1)
                 end
@@ -221,6 +236,8 @@ RiftTab:CreateToggle({
         if v then
             claimAllThread = task.spawn(function()
                 while claimAllRunning do
+                    getgenv().ActivityStatus.current = "Opening all World Chests"
+                    getgenv().ActivityStatus.trigger = true
                     pcall(function() Remote:FireServer("UnlockEventChest", "Season Chest", false) end)
                     pcall(function() Remote:FireServer("ClaimChest", "Giant Chest") end)
                     pcall(function() Remote:FireServer("ClaimChest", "Void Chest") end)
@@ -247,7 +264,7 @@ RiftTab:CreateToggle({
         if v then
             goldenThread = task.spawn(function()
                 while goldenRunning do
-                    summonAndOpen("golden-chest", "The Overworld")
+                    summonAndOpen("golden-chest", "The Overworld", "Golden Chest")
                     task.wait(1860)
                 end
             end)
@@ -265,7 +282,7 @@ RiftTab:CreateToggle({
         if v then
             royalThread = task.spawn(function()
                 while royalRunning do
-                    summonAndOpen("royal-chest", "The Overworld")
+                    summonAndOpen("royal-chest", "The Overworld", "Royal Chest")
                     task.wait(1860)
                 end
             end)
@@ -283,7 +300,7 @@ RiftTab:CreateToggle({
         if v then
             superThread = task.spawn(function()
                 while superRunning do
-                    summonAndOpen("super-chest", "The Overworld")
+                    summonAndOpen("super-chest", "The Overworld", "Super Chest")
                     task.wait(1860)
                 end
             end)
@@ -301,7 +318,7 @@ RiftTab:CreateToggle({
         if v then
             diceThread = task.spawn(function()
                 while diceRunning do
-                    summonAndOpen("dice-rift", "Minigame Paradise")
+                    summonAndOpen("dice-rift", "Minigame Paradise", "Dice Chest")
                     task.wait(1860)
                 end
             end)
