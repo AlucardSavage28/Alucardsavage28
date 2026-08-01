@@ -24,12 +24,13 @@ end
 -- ======================================
 local settings = getgenv().HubSettings or {}
 if not settings.activity then settings.activity = {} end
+local activitySettings = settings.activity
 
 -- ======================================
 -- SETTINGS
 -- ======================================
-local activityWebhookURL = settings.activity.webhookURL or ""
-local activityEnabled = settings.activity.enabled or false
+local activityWebhookURL = activitySettings.webhookURL or ""
+local activityEnabled = activitySettings.enabled or false
 local lastSent = ""
 
 -- Initialize global activity tracker
@@ -94,8 +95,8 @@ ActivityTab:CreateInput({
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         activityWebhookURL = v
-        settings.activity.webhookURL = v
-        getgenv().HubSettings.activity = settings.activity
+        activitySettings.webhookURL = v
+        getgenv().HubSettings.activity = activitySettings
         saveHubSettings()
     end
 })
@@ -106,8 +107,8 @@ ActivityTab:CreateToggle({
     Callback = function(v)
         activityEnabled = v
         lastSent = ""
-        settings.activity.enabled = v
-        getgenv().HubSettings.activity = settings.activity
+        activitySettings.enabled = v
+        getgenv().HubSettings.activity = activitySettings
         saveHubSettings()
     end
 })
