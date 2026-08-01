@@ -120,13 +120,10 @@ end
 local function collectAllPresents()
     local rendered = workspace:FindFirstChild("Rendered")
     if not rendered then return 0 end
-    
     local presentRain = rendered:FindFirstChild("PresentRain")
     if not presentRain then return 0 end
-    
     local root = getRoot()
     local previousPos = root and root.Position or nil
-    
     local collected = 0
     for _, model in ipairs(presentRain:GetChildren()) do
         if model:IsA("Model") then
@@ -143,14 +140,10 @@ local function collectAllPresents()
             end
         end
     end
-    
     if previousPos then
         local root = getRoot()
-        if root then
-            root.CFrame = CFrame.new(previousPos)
-        end
+        if root then root.CFrame = CFrame.new(previousPos) end
     end
-    
     return collected
 end
 
@@ -215,6 +208,8 @@ AutoTab:CreateToggle({
         rune1Running = v
         if v then
             rune1Thread = task.spawn(function()
+                getgenv().ActivityStatus.current = "Using " .. rune1Type .. " Rune " .. rune1Amount
+                getgenv().ActivityStatus.trigger = true
                 pcall(function() RE:FireServer("UseRune", rune1Type, tonumber(rune1Tier), rune1Amount) end)
                 rune1Running = false
             end)
@@ -254,6 +249,8 @@ AutoTab:CreateToggle({
         rune2Running = v
         if v then
             rune2Thread = task.spawn(function()
+                getgenv().ActivityStatus.current = "Using " .. rune2Type .. " Rune " .. rune2Amount
+                getgenv().ActivityStatus.trigger = true
                 pcall(function() RE:FireServer("UseRune", rune2Type, tonumber(rune2Tier), rune2Amount) end)
                 rune2Running = false
             end)
@@ -293,6 +290,8 @@ AutoTab:CreateToggle({
         rune3Running = v
         if v then
             rune3Thread = task.spawn(function()
+                getgenv().ActivityStatus.current = "Using " .. rune3Type .. " Rune " .. rune3Amount
+                getgenv().ActivityStatus.trigger = true
                 pcall(function() RE:FireServer("UseRune", rune3Type, tonumber(rune3Tier), rune3Amount) end)
                 rune3Running = false
             end)
@@ -405,6 +404,8 @@ AutoTab:CreateToggle({
         dailyRunning = v
         if v then
             dailyThread = task.spawn(function()
+                getgenv().ActivityStatus.current = "Signed in for your Daily Streak!"
+                getgenv().ActivityStatus.trigger = true
                 pcall(function() RE:FireServer("DailyRewardsForfeitStreak") end)
                 task.wait(0.5)
                 pcall(function() RE:FireServer("DailyRewardClaimStars") end)
@@ -441,6 +442,8 @@ AutoTab:CreateToggle({
                         local afterCount = afterClaimed and #afterClaimed or 0
                         
                         if afterCount > beforeCount then
+                            getgenv().ActivityStatus.current = "Claimed XL Index Reward! (" .. afterCount .. "/" .. totalTasks .. ")"
+                            getgenv().ActivityStatus.trigger = true
                             print("[XL Index] Claimed! " .. afterCount .. "/" .. totalTasks)
                             task.wait(5)
                         else
@@ -562,9 +565,6 @@ AutoTab:CreateButton({
         local text = "Found " .. #boxList .. " boxes"
         pcall(function() boxListLabel:SetText(text) end)
         print("[Auto] Box Rescan: " .. text)
-        for _, name in ipairs(boxList) do
-            print("  - " .. name)
-        end
     end
 })
 
@@ -583,6 +583,8 @@ AutoTab:CreateToggle({
                     local amount = data and data.Powerups and data.Powerups[selectedBox] or 0
                     if amount > 0 then
                         local openAmount = math.min(amount, 25)
+                        getgenv().ActivityStatus.current = "Opening " .. selectedBox .. " x" .. openAmount
+                        getgenv().ActivityStatus.trigger = true
                         pcall(function() fire("UseGift", selectedBox, openAmount) end)
                         for i = 1, openAmount do
                             if not boxEnabled then break end
@@ -614,6 +616,9 @@ AutoTab:CreateToggle({
     Callback = function(v)
         fishRunning = v
         if v then
+            getgenv().ActivityStatus.current = "Starting Fishing quest..."
+            getgenv().ActivityStatus.trigger = true
+            
             getgenv().RdotAfishingConfig = {
                 Mode = "Quest",
                 Zone = "Fisher's Island",
@@ -635,6 +640,9 @@ AutoTab:CreateToggle({
                 end
             end
         else
+            getgenv().ActivityStatus.current = "Done Fishing Quest"
+            getgenv().ActivityStatus.trigger = true
+            
             getgenv().RdotAfishingConfig = {
                 Mode = "Off",
                 Zone = "Fisher's Island",
