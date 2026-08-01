@@ -26,7 +26,7 @@ local miscSettings = settings.misc
 -- ======================================
 -- STATS TRACKER
 -- ======================================
-local statsEnabled = false
+local statsEnabled = miscSettings.statsEnabled or false
 local screenGui = nil
 local frame = nil
 local hatchedLabel = nil
@@ -183,7 +183,22 @@ local function createStatsUI()
     task.spawn(function() while statsEnabled do updateStats(); task.wait(1) end end)
 end
 
-local function destroyStatsUI() if screenGui then screenGui:Destroy(); screenGui = nil end end
+local function destroyStatsUI()
+    if screenGui then screenGui:Destroy(); screenGui = nil end
+end
+
+-- Auto-start stats tracker if was enabled
+if statsEnabled then
+    startTime = os.clock()
+    startHatches = getHatches()
+    bestHatchName = "None"
+    bestHatchChance = math.huge
+    bestHatchVariant = "Normal"
+    bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
+    seenPetIds = {}
+    bestHatchReady = false
+    createStatsUI()
+end
 
 -- ======================================
 -- AUTO BUY SHOP
@@ -271,16 +286,95 @@ end
 -- UI
 -- ======================================
 OtherTab:CreateSection("Stats Tracker")
-OtherTab:CreateToggle({Name = "Show Stats UI", CurrentValue = false, Callback = function(v) statsEnabled = v if v then startTime = os.clock(); startHatches = getHatches(); bestHatchName = "None"; bestHatchChance = math.huge; bestHatchVariant = "Normal"; bestHatchDisplay = "Best Hatch: None\nOdds: N/A"; seenPetIds = {}; bestHatchReady = false; createStatsUI() else destroyStatsUI() end end})
+
+OtherTab:CreateToggle({
+    Name = "Show Stats UI",
+    CurrentValue = statsEnabled,
+    Callback = function(v)
+        statsEnabled = v
+        miscSettings.statsEnabled = v
+        getgenv().HubSettings.misc = miscSettings
+        saveHubSettings()
+        if v then
+            startTime = os.clock()
+            startHatches = getHatches()
+            bestHatchName = "None"
+            bestHatchChance = math.huge
+            bestHatchVariant = "Normal"
+            bestHatchDisplay = "Best Hatch: None\nOdds: N/A"
+            seenPetIds = {}
+            bestHatchReady = false
+            createStatsUI()
+        else
+            destroyStatsUI()
+        end
+    end
+})
 
 OtherTab:CreateSection("Auto Buy Shop")
-OtherTab:CreateDropdown({Name = "Select Shop", Options = {"shadow-shop", "alien-shop", "shard-shop", "dice-shop", "traveling-merchant"}, CurrentOption = {selectedShop}, Callback = function(v) selectedShop = v[1]; miscSettings.selectedShop = v[1]; getgenv().HubSettings.misc = miscSettings; saveHubSettings() end})
-OtherTab:CreateToggle({Name = "Auto Buy Selected Shop", CurrentValue = miscSettings.autoBuyShop or false, Callback = function(v) shopRunning = v; miscSettings.autoBuyShop = v; getgenv().HubSettings.misc = miscSettings; saveHubSettings(); if v then shopThread = task.spawn(function() while shopRunning do buyShop(selectedShop); task.wait(1) end end) else if shopThread then task.cancel(shopThread) end end end})
-OtherTab:CreateToggle({Name = "Auto Buy All Shop", CurrentValue = miscSettings.autoBuyAll or false, Callback = function(v) buyAllRunning = v; miscSettings.autoBuyAll = v; getgenv().HubSettings.misc = miscSettings; saveHubSettings(); if v then buyAllThread = task.spawn(function() while buyAllRunning do for shopName, _ in pairs(SHOP_ITEMS) do buyShop(shopName) end task.wait(1) end end) else if buyAllThread then task.cancel(buyAllThread) end end end})
-OtherTab:CreateButton({Name = "Reroll Shadow Shop Stock", Callback = function() pcall(function() RE:FireServer("ShopFreeReroll", "shadow-shop") end) print("[Shop] Shadow Shop rerolled!") end})
-OtherTab:CreateButton({Name = "Reroll Traveling Merchant Stock", Callback = function() pcall(function() RE:FireServer("ShopFreeReroll", "traveling-merchant") end) print("[Shop] Traveling Merchant rerolled!") end})
+
+OtherTab:CreateDropdown({
+    Name = "Select Shop",
+    Options = {"shadow-shop", "alien-shop", "shard-shop", "dice-shop", "traveling-merchant"},
+    CurrentOption = {selectedShop},
+    Callback = function(v)
+        selectedShop = v[1]
+        miscSettings.selectedShop = v[1]
+        getgenv().HubSettings.misc = miscSettings
+        saveHubSettings()
+    end
+})
+
+OtherTab:CreateToggle({
+    Name = "Auto Buy Selected Shop",
+    CurrentValue = miscSettings.autoBuyShop or false,
+    Callback = function(v)
+        shopRunning = v
+        miscSettings.autoBuyShop = v
+        getgenv().HubSettings.misc = miscSettings
+        saveHubSettings()
+        if v then
+            shopThread = task.spawn(function() while shopRunning do buyShop(selectedShop); task.wait(1) end end)
+        else
+            if shopThread then task.cancel(shopThread) end
+        end
+    end
+})
+
+OtherTab:CreateToggle({
+    Name = "Auto Buy All Shop",
+    CurrentValue = miscSettings.autoBuyAllShop or false,
+    Callback = function(v)
+        buyAllRunning = v
+        miscSettings.autoBuyAllShop = v
+        getgenv().HubSettings.misc = miscSettings
+        saveHubSettings()
+        if v then
+            buyAllThread = task.spawn(function() while buyAllRunning do for shopName, _ in pairs(SHOP_ITEMS) do buyShop(shopName) end task.wait(1) end end)
+        else
+            if buyAllThread then task.cancel(buyAllThread) end
+        end
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Reroll Shadow Shop Stock",
+    Callback = function()
+        pcall(function() RE:FireServer("ShopFreeReroll", "shadow-shop") end)
+        print("[Shop] Shadow Shop rerolled!")
+    end
+})
+
+OtherTab:CreateButton({
+    Name = "Reroll Traveling Merchant Stock",
+    Callback = function()
+        pcall(function() RE:FireServer("ShopFreeReroll", "traveling-merchant") end)
+        print("[Shop] Traveling Merchant rerolled!")
+    end
+})
 
 OtherTab:CreateSection("Effects")
+
 OtherTab:CreateButton({Name = "JMX FPS Boost (Aggressive)", Callback = function() fpsJMX() end})
 OtherTab:CreateButton({Name = "Disable Particles & Materials", Callback = function() fps1_DisableParticles() end})
 OtherTab:CreateButton({Name = "Hide Pets & Effects", Callback = function() fps2_HidePets() end})
