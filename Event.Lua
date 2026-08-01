@@ -102,6 +102,8 @@ EventTab:CreateToggle({
         if v then
             eventThread = task.spawn(function()
                 while eventRunning do
+                    getgenv().ActivityStatus.current = "Adding Event: " .. selectedEvent
+                    getgenv().ActivityStatus.trigger = true
                     pcall(function() RE:FireServer("PurchaseEventBoard", selectedEvent) end)
                     task.wait(900)
                 end
