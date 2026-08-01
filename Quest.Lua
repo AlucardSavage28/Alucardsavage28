@@ -58,7 +58,6 @@ local EGG_LOCATIONS = {
 }
 
 local originalRadius = constants.DefaultPickupRadius
-
 local PEARL_CRATES = {"Wooden Crate", "Steel Crate", "Golden Crate", "Classic Crate", "Galaxy Crate"}
 
 -- ======================================
@@ -80,6 +79,7 @@ local function getRoot() local char = player.Character if char then return char:
 local function teleportTo(pos) local root = getRoot() if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0)) end end
 local function savePosition() local root = getRoot() return root and root.Position or nil end
 local function restorePosition(pos) if pos then local root = getRoot() if root then root.CFrame = CFrame.new(pos) end end end
+
 local function getSellPosition()
     local overworld = workspace.Worlds["The Overworld"]
     if overworld then local sell = overworld:FindFirstChild("Sell") if sell then local ring = sell:FindFirstChild("Ring") if ring then return ring.Position end end end end
