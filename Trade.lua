@@ -53,8 +53,6 @@ TradeTab:CreateToggle({
                     if targetPlayer ~= "" then
                         local target = Players:FindFirstChild(targetPlayer)
                         if target then
-                            getgenv().ActivityStatus.current = "Sending trade to " .. targetPlayer
-                            getgenv().ActivityStatus.trigger = true
                             pcall(function()
                                 Remote:FireServer("TradeRequest", target)
                             end)
