@@ -87,18 +87,24 @@ TeleportTab:CreateToggle({
         if v then
             unlockThread = task.spawn(function()
                 while unlockRunning do
-                    for _, pos in pairs(OVERWORLD) do
+                    for name, pos in pairs(OVERWORLD) do
                         if not unlockRunning then break end
+                        getgenv().ActivityStatus.current = "Teleported to " .. name .. " (Overworld)"
+                        getgenv().ActivityStatus.trigger = true
                         teleportTo(pos)
                         task.wait(1.5)
                     end
-                    for _, pos in pairs(MINIGAME) do
+                    for name, pos in pairs(MINIGAME) do
                         if not unlockRunning then break end
+                        getgenv().ActivityStatus.current = "Teleported to " .. name .. " (Minigame Paradise)"
+                        getgenv().ActivityStatus.trigger = true
                         teleportTo(pos)
                         task.wait(1.5)
                     end
-                    for _, pos in pairs(SEVENSEAS) do
+                    for name, pos in pairs(SEVENSEAS) do
                         if not unlockRunning then break end
+                        getgenv().ActivityStatus.current = "Teleported to " .. name .. " (Seven Seas)"
+                        getgenv().ActivityStatus.trigger = true
                         teleportTo(pos)
                         task.wait(1.5)
                     end
@@ -114,6 +120,8 @@ TeleportTab:CreateToggle({
 TeleportTab:CreateButton({
     Name = "Teleport to Shadow Realm (Unlock)",
     Callback = function()
+        getgenv().ActivityStatus.current = "Teleported to Shadow Realm"
+        getgenv().ActivityStatus.trigger = true
         teleportTo(SHADOW_REALM)
     end
 })
@@ -123,6 +131,7 @@ TeleportTab:CreateButton({
 -- ======================================
 TeleportTab:CreateSection("Teleport")
 
+-- The Overworld
 local overworldOptions = {}
 for name, _ in pairs(OVERWORLD) do
     table.insert(overworldOptions, name)
@@ -146,6 +155,8 @@ TeleportTab:CreateToggle({
         if v then
             overworldThread = task.spawn(function()
                 while overworldRunning do
+                    getgenv().ActivityStatus.current = "Teleported to " .. overworldSelected .. " (Overworld)"
+                    getgenv().ActivityStatus.trigger = true
                     teleportTo(OVERWORLD[overworldSelected])
                     task.wait(1.5)
                 end
@@ -156,6 +167,7 @@ TeleportTab:CreateToggle({
     end
 })
 
+-- Minigame Paradise
 local minigameOptions = {}
 for name, _ in pairs(MINIGAME) do
     table.insert(minigameOptions, name)
@@ -179,6 +191,8 @@ TeleportTab:CreateToggle({
         if v then
             minigameThread = task.spawn(function()
                 while minigameRunning do
+                    getgenv().ActivityStatus.current = "Teleported to " .. minigameSelected .. " (Minigame Paradise)"
+                    getgenv().ActivityStatus.trigger = true
                     teleportTo(MINIGAME[minigameSelected])
                     task.wait(1.5)
                 end
@@ -189,6 +203,7 @@ TeleportTab:CreateToggle({
     end
 })
 
+-- Seven Seas
 local sevenseasOptions = {}
 for name, _ in pairs(SEVENSEAS) do
     table.insert(sevenseasOptions, name)
@@ -212,6 +227,8 @@ TeleportTab:CreateToggle({
         if v then
             sevenseasThread = task.spawn(function()
                 while sevenseasRunning do
+                    getgenv().ActivityStatus.current = "Teleported to " .. sevenseasSelected .. " (Seven Seas)"
+                    getgenv().ActivityStatus.trigger = true
                     teleportTo(SEVENSEAS[sevenseasSelected])
                     task.wait(1.5)
                 end
@@ -222,9 +239,12 @@ TeleportTab:CreateToggle({
     end
 })
 
+-- Shadow Realm
 TeleportTab:CreateButton({
     Name = "Teleport to Shadow Realm",
     Callback = function()
+        getgenv().ActivityStatus.current = "Teleported to Shadow Realm"
+        getgenv().ActivityStatus.trigger = true
         teleportTo(SHADOW_REALM)
     end
 })
