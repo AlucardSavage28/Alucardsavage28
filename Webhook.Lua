@@ -594,7 +594,7 @@ WebhookTab:CreateInput({
 WebhookTab:CreateInput({
     Name = "Discord User ID",
     CurrentValue = DISCORD_USER_ID,
-    PlaceholderText = "735361388515688490",
+    PlaceholderText = "Discord_User_ID",
     RemoveTextAfterFocusLost = false,
     Callback = function(v)
         DISCORD_USER_ID = v
