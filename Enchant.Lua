@@ -17,11 +17,18 @@ local RemoteFunction = RemoteContainer.RemoteFunction
 local RemoteEvent = RemoteContainer.RemoteEvent
 
 -- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.enchant then settings.enchant = {} end
+local enchantSettings = settings.enchant
+
+-- ======================================
 -- SETTINGS
 -- ======================================
 local TARGET_ENCHANTS = {
-    { Id = "ultra-roller" },
-    { Id = "high-roller" }
+    { Id = enchantSettings.slot1 or "ultra-roller" },
+    { Id = enchantSettings.slot2 or "secret-hunter" }
 }
 local COOLDOWN = 0.5
 local enchantRunning = false
@@ -128,18 +135,24 @@ EnchantTab:CreateLabel("NOTE: Make sure to check your Pets Enchant. If Secret Hu
 EnchantTab:CreateDropdown({
     Name = "Slot 1 Enchant",
     Options = ALL_ENCHANTS,
-    CurrentOption = {"ultra-roller"},
+    CurrentOption = {TARGET_ENCHANTS[1].Id},
     Callback = function(v)
         TARGET_ENCHANTS[1].Id = v[1]
+        enchantSettings.slot1 = v[1]
+        getgenv().HubSettings.enchant = enchantSettings
+        saveHubSettings()
     end
 })
 
 EnchantTab:CreateDropdown({
     Name = "Slot 2 Enchant",
     Options = ALL_ENCHANTS,
-    CurrentOption = {"high-roller"},
+    CurrentOption = {TARGET_ENCHANTS[2].Id},
     Callback = function(v)
         TARGET_ENCHANTS[2].Id = v[1]
+        enchantSettings.slot2 = v[1]
+        getgenv().HubSettings.enchant = enchantSettings
+        saveHubSettings()
     end
 })
 
