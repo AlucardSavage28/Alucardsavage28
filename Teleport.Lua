@@ -131,7 +131,6 @@ TeleportTab:CreateButton({
 -- ======================================
 TeleportTab:CreateSection("Teleport")
 
--- The Overworld
 local overworldOptions = {}
 for name, _ in pairs(OVERWORLD) do
     table.insert(overworldOptions, name)
@@ -167,7 +166,6 @@ TeleportTab:CreateToggle({
     end
 })
 
--- Minigame Paradise
 local minigameOptions = {}
 for name, _ in pairs(MINIGAME) do
     table.insert(minigameOptions, name)
@@ -203,7 +201,6 @@ TeleportTab:CreateToggle({
     end
 })
 
--- Seven Seas
 local sevenseasOptions = {}
 for name, _ in pairs(SEVENSEAS) do
     table.insert(sevenseasOptions, name)
@@ -239,7 +236,6 @@ TeleportTab:CreateToggle({
     end
 })
 
--- Shadow Realm
 TeleportTab:CreateButton({
     Name = "Teleport to Shadow Realm",
     Callback = function()
