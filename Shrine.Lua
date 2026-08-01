@@ -315,4 +315,70 @@ ShrineTab:CreateToggle({
     end
 })
 
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if shrineSettings.autoBubble then
+    bubbleEnabled = true
+    getgenv().ActivityStatus.current = "Bubble Shrine Activated"
+    getgenv().ActivityStatus.trigger = true
+    bubble()
+    bubbleThread = task.spawn(function()
+        while bubbleEnabled do
+            task.wait(60)
+            if isBuffExpired("ShrineBlessing") then
+                getgenv().ActivityStatus.current = "Bubble Shrine Activated"
+                getgenv().ActivityStatus.trigger = true
+                bubble()
+            end
+        end
+    end)
+end
+
+if shrineSettings.autoDreamer then
+    dreamerEnabled = true
+    getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
+    getgenv().ActivityStatus.trigger = true
+    dreamer()
+    dreamerThread = task.spawn(function()
+        while dreamerEnabled do
+            task.wait(60)
+            if isBuffExpired("DreamerBlessing") then
+                getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
+                getgenv().ActivityStatus.trigger = true
+                dreamer()
+            end
+        end
+    end)
+end
+
+if shrineSettings.autoPerm then
+    permRunning = true
+    permThread = task.spawn(function()
+        while permRunning do
+            pcall(function() RemoteFunc:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
+            task.wait(1)
+            pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
+            task.wait(1)
+            
+            getgenv().ActivityStatus.current = "Rerolling buff for " .. permEgg
+            getgenv().ActivityStatus.trigger = true
+            
+            local info = getPermShrineInfo()
+            while permRunning and not info.buff:lower():find(permTargetBuff:lower()) do
+                pcall(function() RemoteEvent:FireServer("RerollPermanentShrine") end)
+                task.wait(2)
+                info = getPermShrineInfo()
+            end
+            
+            if permRunning then
+                getgenv().ActivityStatus.current = "Rerolling " .. info.buff .. " for " .. permEgg .. " done!"
+                getgenv().ActivityStatus.trigger = true
+                print("[Shrine] Perm buff set to " .. info.buff)
+                task.wait(43200)
+            end
+        end
+    end)
+end
+
 print("[Shrine] Loaded!")
