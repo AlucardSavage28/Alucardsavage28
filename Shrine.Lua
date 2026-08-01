@@ -11,17 +11,9 @@ local Remote
 local RemoteEvent
 local RemoteFunc
 
-pcall(function()
-    Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
-end)
-
-pcall(function()
-    RemoteEvent = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
-end)
-
-pcall(function()
-    RemoteFunc = require(ReplicatedStorage.Shared.Framework.Network.Remote)
-end)
+pcall(function() Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote) end)
+pcall(function() RemoteEvent = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent end)
+pcall(function() RemoteFunc = require(ReplicatedStorage.Shared.Framework.Network.Remote) end)
 
 -- ======================================
 -- SETTINGS
@@ -34,13 +26,7 @@ local bubbleThread = nil
 local dreamerThread = nil
 local permThread = nil
 
-local BUBBLE = {
-    Level = 1,
-    Type = "Potion",
-    Name = "Lucky",
-    Amount = 500
-}
-
+local BUBBLE = {Level = 1, Type = "Potion", Name = "Lucky", Amount = 500}
 local DREAMER_AMOUNT = 15
 local permEgg = "Common Egg"
 local permTargetBuff = "Luck"
@@ -50,7 +36,6 @@ local PERM_EGGS = {
     "Common Egg", "Cyber Egg", "Nightmare Egg", "Neon Egg", "Atlantis Egg",
     "Lava Egg", "Icy Egg", "Rainbow Egg", "Mining Egg", "Vine Egg", "Classic Egg"
 }
-
 local PERM_BUFFS = {"Luck", "Secret", "Infinity", "Mythic", "Shiny"}
 
 -- ======================================
@@ -68,9 +53,7 @@ local function getBuffTime(buffName)
                         local button = buff:FindFirstChild("Button")
                         if button then
                             local label = button:FindFirstChild("Label")
-                            if label and label.Text ~= "" then
-                                return label.Text
-                            end
+                            if label and label.Text ~= "" then return label.Text end
                         end
                     end
                 end
@@ -109,15 +92,11 @@ end
 -- SHRINE FUNCTIONS
 -- ======================================
 local function bubble()
-    pcall(function()
-        Remote:InvokeServer("DonateToShrine", BUBBLE)
-    end)
+    pcall(function() Remote:InvokeServer("DonateToShrine", BUBBLE) end)
 end
 
 local function dreamer()
-    pcall(function()
-        Remote:InvokeServer("DonateToDreamerShrine", DREAMER_AMOUNT)
-    end)
+    pcall(function() Remote:InvokeServer("DonateToDreamerShrine", DREAMER_AMOUNT) end)
 end
 
 -- ======================================
@@ -129,9 +108,7 @@ ShrineTab:CreateDropdown({
     Name = "Potion Type",
     CurrentOption = "Lucky",
     Options = {"Lucky", "Speed", "Coin", "Mythic"},
-    Callback = function(v)
-        BUBBLE.Name = v
-    end
+    Callback = function(v) BUBBLE.Name = v end
 })
 
 ShrineTab:CreateInput({
@@ -139,10 +116,7 @@ ShrineTab:CreateInput({
     CurrentValue = tostring(BUBBLE.Amount),
     PlaceholderText = "500",
     RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        local n = tonumber(v)
-        if n then BUBBLE.Amount = n end
-    end
+    Callback = function(v) local n = tonumber(v) if n then BUBBLE.Amount = n end end
 })
 
 ShrineTab:CreateToggle({
@@ -151,12 +125,15 @@ ShrineTab:CreateToggle({
     Callback = function(v)
         bubbleEnabled = v
         if v then
+            getgenv().ActivityStatus.current = "Bubble Shrine Activated"
+            getgenv().ActivityStatus.trigger = true
             bubble()
             bubbleThread = task.spawn(function()
                 while bubbleEnabled do
                     task.wait(60)
                     if isBuffExpired("ShrineBlessing") then
-                        print("[Shrine] Bubble buff expired, refreshing...")
+                        getgenv().ActivityStatus.current = "Bubble Shrine Activated"
+                        getgenv().ActivityStatus.trigger = true
                         bubble()
                     end
                 end
@@ -177,10 +154,7 @@ ShrineTab:CreateInput({
     CurrentValue = tostring(DREAMER_AMOUNT),
     PlaceholderText = "15",
     RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        local n = tonumber(v)
-        if n then DREAMER_AMOUNT = n end
-    end
+    Callback = function(v) local n = tonumber(v) if n then DREAMER_AMOUNT = n end end
 })
 
 ShrineTab:CreateToggle({
@@ -189,12 +163,15 @@ ShrineTab:CreateToggle({
     Callback = function(v)
         dreamerEnabled = v
         if v then
+            getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
+            getgenv().ActivityStatus.trigger = true
             dreamer()
             dreamerThread = task.spawn(function()
                 while dreamerEnabled do
                     task.wait(60)
                     if isBuffExpired("DreamerBlessing") then
-                        print("[Shrine] Dreamer buff expired, refreshing...")
+                        getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
+                        getgenv().ActivityStatus.trigger = true
                         dreamer()
                     end
                 end
@@ -211,7 +188,6 @@ ShrineTab:CreateToggle({
 ShrineTab:CreateSection("Perm Shrine")
 
 local permInfoLabel = ShrineTab:CreateLabel("Buff: Unknown | Time: Unknown")
-
 task.spawn(function()
     while true do
         task.wait(30)
@@ -224,18 +200,14 @@ ShrineTab:CreateDropdown({
     Name = "Egg",
     Options = PERM_EGGS,
     CurrentOption = {"Common Egg"},
-    Callback = function(v)
-        permEgg = v
-    end
+    Callback = function(v) permEgg = v end
 })
 
 ShrineTab:CreateDropdown({
     Name = "Target Buff",
     Options = PERM_BUFFS,
     CurrentOption = {"Luck"},
-    Callback = function(v)
-        permTargetBuff = v
-    end
+    Callback = function(v) permTargetBuff = v end
 })
 
 ShrineTab:CreateInput({
@@ -243,10 +215,7 @@ ShrineTab:CreateInput({
     CurrentValue = tostring(permAmount),
     PlaceholderText = "400",
     RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        local n = tonumber(v)
-        if n then permAmount = n end
-    end
+    Callback = function(v) local n = tonumber(v) if n then permAmount = n end end
 })
 
 ShrineTab:CreateToggle({
@@ -257,20 +226,17 @@ ShrineTab:CreateToggle({
         if v then
             permThread = task.spawn(function()
                 while permRunning do
-                    pcall(function()
-                        RemoteFunc:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount)
-                    end)
+                    pcall(function() RemoteFunc:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
                     task.wait(1)
-                    pcall(function()
-                        RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg)
-                    end)
+                    pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
                     task.wait(1)
+                    
+                    getgenv().ActivityStatus.current = "Perm Shrine - Rerolling for " .. permTargetBuff .. " buff"
+                    getgenv().ActivityStatus.trigger = true
                     
                     local info = getPermShrineInfo()
                     while permRunning and not info.buff:lower():find(permTargetBuff:lower()) do
-                        pcall(function()
-                            RemoteEvent:FireServer("RerollPermanentShrine")
-                        end)
+                        pcall(function() RemoteEvent:FireServer("RerollPermanentShrine") end)
                         task.wait(2)
                         info = getPermShrineInfo()
                     end
