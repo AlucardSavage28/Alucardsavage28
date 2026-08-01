@@ -738,4 +738,173 @@ AutoTab:CreateToggle({
     end
 })
 
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if autoSettings.presentRain then
+    presentEnabled = true
+    local wasCollecting = false
+    presentThread = task.spawn(function()
+        while presentEnabled do
+            if getgenv().questActive then
+                task.wait(0.5)
+                continue
+            end
+            local count = collectAllPresents()
+            if count > 0 then
+                if not wasCollecting then
+                    getgenv().ActivityStatus.current = "Collecting Presents (" .. count .. " found)"
+                    getgenv().ActivityStatus.trigger = true
+                    wasCollecting = true
+                end
+                print("[Auto] Collected " .. count .. " presents!")
+            else
+                if wasCollecting then
+                    getgenv().ActivityStatus.current = "Done collecting presents"
+                    getgenv().ActivityStatus.trigger = true
+                    wasCollecting = false
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+if autoSettings.autoBubble then
+    bubbleEnabled = true
+    bubbleThread = task.spawn(function()
+        while bubbleEnabled do
+            pcall(function() fire("BlowBubble") end)
+            task.wait(0.01)
+        end
+    end)
+end
+
+if autoSettings.autoSell then
+    sellEnabled = true
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local returnCFrame = root and root.CFrame or nil
+    sellThread = task.spawn(function()
+        local needsSell = false
+        while sellEnabled do
+            local bubbles = getBubbles()
+            if bubbles >= BUBBLE_CAP then needsSell = true
+            elseif bubbles < 100000000 then needsSell = false end
+            if needsSell and bubbles >= BUBBLE_CAP then
+                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if root then root.CFrame = CFrame.new(SELL_POS) end
+                task.wait(0.2)
+                for i = 1, 3 do
+                    local before = getBubbles()
+                    pcall(function() fire("SellBubble") end)
+                    task.wait(0.3)
+                    local after = getBubbles()
+                    if after < before then break end
+                end
+                if returnCFrame and root then
+                    root.CFrame = returnCFrame
+                    root.Velocity = Vector3.zero
+                    root.RotVelocity = Vector3.zero
+                end
+                task.wait(3)
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+if autoSettings.autoGoldenOrb then
+    orbEnabled = true
+    orbThread = task.spawn(function()
+        while orbEnabled do
+            pcall(function() fire("UseGoldenOrb") end)
+            task.wait(1)
+        end
+    end)
+end
+
+if autoSettings.autoPickup then
+    pickupEnabled = true
+    constants.DefaultPickupRadius = math.huge
+end
+
+if autoSettings.autoFragment then
+    fragRunning = true
+    fragThread = task.spawn(function()
+        while fragRunning do
+            pcall(function() RE:FireServer("UseFragment", "Green", 1) end)
+            pcall(function() RE:FireServer("UseFragment", "Blue", 1) end)
+            pcall(function() RE:FireServer("UseFragment", "Purple", 1) end)
+            pcall(function() RE:FireServer("UseFragment", "Rainbow", 1) end)
+            task.wait(2)
+        end
+    end)
+end
+
+if autoSettings.autoOpenBox then
+    boxEnabled = true
+    boxThread = task.spawn(function()
+        local VIM = game:GetService("VirtualInputManager")
+        while boxEnabled do
+            local data = LocalData:Get()
+            local amount = data and data.Powerups and data.Powerups[selectedBox] or 0
+            if amount > 0 then
+                local openAmount = math.min(amount, 25)
+                getgenv().ActivityStatus.current = "Opening " .. selectedBox .. " x" .. openAmount
+                getgenv().ActivityStatus.trigger = true
+                pcall(function() fire("UseGift", selectedBox, openAmount) end)
+                for i = 1, openAmount do
+                    if not boxEnabled then break end
+                    VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                end
+                task.wait(0.1)
+            else
+                task.wait(5)
+            end
+        end
+    end)
+end
+
+if autoSettings.autoPlaytime then
+    playtimeRunning = true
+    playtimeThread = task.spawn(function()
+        while playtimeRunning do
+            pcall(function() RE:FireServer("ClaimAllPlaytime") end)
+            task.wait(60)
+        end
+    end)
+end
+
+if autoSettings.autoXLIndex then
+    task.spawn(function()
+        local XLIndexTasks = require(ReplicatedStorage.Shared.Data.XLIndexTasks)
+        local totalTasks = 0
+        for _ in pairs(XLIndexTasks) do totalTasks = totalTasks + 1 end
+        while autoSettings.autoXLIndex do
+            local data = LocalData:Get()
+            local claimed = data and data.XLIndexClaimed
+            local beforeCount = claimed and #claimed or 0
+            if beforeCount < totalTasks then
+                pcall(function() RE:FireServer("ClaimXLIndexRewards") end)
+                task.wait(1)
+                local data2 = LocalData:Get()
+                local afterClaimed = data2 and data2.XLIndexClaimed
+                local afterCount = afterClaimed and #afterClaimed or 0
+                if afterCount > beforeCount then
+                    getgenv().ActivityStatus.current = "Claimed XL Index Reward! (" .. afterCount .. "/" .. totalTasks .. ")"
+                    getgenv().ActivityStatus.trigger = true
+                    print("[XL Index] Claimed! " .. afterCount .. "/" .. totalTasks)
+                    task.wait(5)
+                else
+                    task.wait(600)
+                end
+            else
+                print("[XL Index] All complete!")
+                break
+            end
+        end
+    end)
+end
+
 print("[Auto] Loaded!")
