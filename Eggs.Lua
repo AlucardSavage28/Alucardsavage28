@@ -513,6 +513,9 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
+                    task.wait(0.3)
+                    if getgenv().questActive then continue end
+                    
                     if not wasActive and not getgenv().questActive then
                         getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
                         getgenv().ActivityStatus.trigger = true
@@ -648,6 +651,9 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
+                    task.wait(0.3)
+                    if getgenv().questActive then continue end
+                    
                     refreshBountyLabels()
                     
                     if not wasActive and not getgenv().questActive then
@@ -742,6 +748,9 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
+                    task.wait(0.3)
+                    if getgenv().questActive then continue end
+                    
                     if not wasActive and not getgenv().questActive then
                         getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg
                         getgenv().ActivityStatus.trigger = true
@@ -771,6 +780,9 @@ if autoHatchEnabled then
                 task.wait(0.5)
             end
             
+            task.wait(0.3)
+            if getgenv().questActive then continue end
+            
             if not wasActive and not getgenv().questActive then
                 getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
                 getgenv().ActivityStatus.trigger = true
@@ -793,6 +805,9 @@ if bountyEnabled then
                 wasActive = false
                 task.wait(0.5)
             end
+            
+            task.wait(0.3)
+            if getgenv().questActive then continue end
             
             refreshBountyLabels()
             
