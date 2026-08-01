@@ -13,6 +13,16 @@ local player = Players.LocalPlayer
 local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteFunction
 local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 
+-- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.rift then settings.rift = {} end
+local riftSettings = settings.rift
+
+-- ======================================
+-- SETTINGS
+-- ======================================
 local WORLDS = {"The Overworld","Minigame Paradise"}
 
 local WORLD_EGGS = {
@@ -20,8 +30,8 @@ local WORLD_EGGS = {
     ["Minigame Paradise"] = {"Mining Egg","Cyber Egg","Neon Egg"},
 }
 
-local selectedEggWorld = "The Overworld"
-local selectedEgg = "Spikey Egg"
+local selectedEggWorld = riftSettings.eggWorld or "The Overworld"
+local selectedEgg = riftSettings.eggRift or "Spikey Egg"
 
 local eggLoop = false
 local eggThread = nil
@@ -100,6 +110,9 @@ RiftTab:CreateDropdown({
     Callback = function(v)
         selectedEggWorld = v[1]
         selectedEgg = WORLD_EGGS[selectedEggWorld][1]
+        riftSettings.eggWorld = v[1]
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
     end
 })
 
@@ -109,14 +122,20 @@ RiftTab:CreateDropdown({
     CurrentOption = {selectedEgg},
     Callback = function(v)
         selectedEgg = v[1]
+        riftSettings.eggRift = v[1]
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
     end
 })
 
 RiftTab:CreateToggle({
     Name = "Auto Egg Rift",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoEggRift or false,
     Callback = function(v)
         eggLoop = v
+        riftSettings.autoEggRift = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
 
         if v then
             eggThread = task.spawn(function()
@@ -150,9 +169,12 @@ RiftTab:CreateSection("Auto World Chest")
 
 RiftTab:CreateToggle({
     Name = "Auto Season Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoSeasonChest or false,
     Callback = function(v)
         seasonRunning = v
+        riftSettings.autoSeasonChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             seasonThread = task.spawn(function()
                 while seasonRunning do
@@ -170,9 +192,12 @@ RiftTab:CreateToggle({
 
 RiftTab:CreateToggle({
     Name = "Auto Giant Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoGiantChest or false,
     Callback = function(v)
         giantRunning = v
+        riftSettings.autoGiantChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             giantThread = task.spawn(function()
                 while giantRunning do
@@ -190,9 +215,12 @@ RiftTab:CreateToggle({
 
 RiftTab:CreateToggle({
     Name = "Auto Void Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoVoidChest or false,
     Callback = function(v)
         voidRunning = v
+        riftSettings.autoVoidChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             voidThread = task.spawn(function()
                 while voidRunning do
@@ -210,9 +238,12 @@ RiftTab:CreateToggle({
 
 RiftTab:CreateToggle({
     Name = "Auto Ticket Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoTicketChest or false,
     Callback = function(v)
         ticketRunning = v
+        riftSettings.autoTicketChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             ticketThread = task.spawn(function()
                 while ticketRunning do
@@ -230,9 +261,12 @@ RiftTab:CreateToggle({
 
 RiftTab:CreateToggle({
     Name = "Auto Claim All",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoClaimAllChest or false,
     Callback = function(v)
         claimAllRunning = v
+        riftSettings.autoClaimAllChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             claimAllThread = task.spawn(function()
                 while claimAllRunning do
@@ -258,9 +292,12 @@ RiftTab:CreateSection("Auto Chest Rift")
 
 RiftTab:CreateToggle({
     Name = "Auto Golden Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoGoldenChest or false,
     Callback = function(v)
         goldenRunning = v
+        riftSettings.autoGoldenChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             goldenThread = task.spawn(function()
                 while goldenRunning do
@@ -276,9 +313,12 @@ RiftTab:CreateToggle({
 
 RiftTab:CreateToggle({
     Name = "Auto Royal Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoRoyalChest or false,
     Callback = function(v)
         royalRunning = v
+        riftSettings.autoRoyalChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             royalThread = task.spawn(function()
                 while royalRunning do
@@ -294,9 +334,12 @@ RiftTab:CreateToggle({
 
 RiftTab:CreateToggle({
     Name = "Auto Super Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoSuperChest or false,
     Callback = function(v)
         superRunning = v
+        riftSettings.autoSuperChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             superThread = task.spawn(function()
                 while superRunning do
@@ -312,9 +355,12 @@ RiftTab:CreateToggle({
 
 RiftTab:CreateToggle({
     Name = "Auto Dice Chest",
-    CurrentValue = false,
+    CurrentValue = riftSettings.autoDiceChest or false,
     Callback = function(v)
         diceRunning = v
+        riftSettings.autoDiceChest = v
+        getgenv().HubSettings.rift = riftSettings
+        saveHubSettings()
         if v then
             diceThread = task.spawn(function()
                 while diceRunning do
