@@ -11,12 +11,10 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
-local config = getgenv().config or {}
-
 -- ======================================
 -- SETTINGS
 -- ======================================
-local selectedEvent = config.SELECTED_EVENT or "Luck Event"
+local selectedEvent = "Luck Event"
 local eventRunning = false
 local eventThread = nil
 
@@ -115,7 +113,7 @@ end)
 EventTab:CreateDropdown({
     Name = "Select Event",
     Options = EVENTS,
-    CurrentOption = {selectedEvent},
+    CurrentOption = {"Luck Event"},
     Callback = function(v)
         selectedEvent = v[1]
     end
@@ -123,7 +121,7 @@ EventTab:CreateDropdown({
 
 EventTab:CreateToggle({
     Name = "Auto Add Event",
-    CurrentValue = config.AUTO_ADD_EVENT or false,
+    CurrentValue = false,
     Callback = function(v)
         eventRunning = v
         if v then
@@ -146,7 +144,7 @@ EventTab:CreateSection("Crystal Shop")
 
 EventTab:CreateToggle({
     Name = "Auto Buy Hatching Rune",
-    CurrentValue = config.AUTO_BUY_RUNE or false,
+    CurrentValue = false,
     Callback = function(v)
         runeRunning = v
         if v then
@@ -166,7 +164,7 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Green And Blue Fragment",
-    CurrentValue = config.AUTO_BUY_GREEN_BLUE or false,
+    CurrentValue = false,
     Callback = function(v)
         greenBlueRunning = v
         if v then
@@ -185,7 +183,7 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Purple And Rainbow Fragment",
-    CurrentValue = config.AUTO_BUY_PURPLE_RAINBOW or false,
+    CurrentValue = false,
     Callback = function(v)
         purpleRainbowRunning = v
         if v then
@@ -204,7 +202,7 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Power Crystal",
-    CurrentValue = config.AUTO_BUY_POWER_CRYSTAL or false,
+    CurrentValue = false,
     Callback = function(v)
         crystalRunning = v
         if v then
@@ -222,7 +220,7 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Buy Sunburst",
-    CurrentValue = config.AUTO_BUY_SUNBURST or false,
+    CurrentValue = false,
     Callback = function(v)
         sunburstRunning = v
         if v then
