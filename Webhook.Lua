@@ -7,23 +7,6 @@ local Window = getgenv().Window
 local WebhookTab = Window:CreateTab("Webhook", nil)
 
 -- ======================================
--- CHECK CONFIG
--- ======================================
-local config = getgenv().config or {}
-
-if not config.HATCH_WEBHOOK_URL or config.HATCH_WEBHOOK_URL == "" then
-    WebhookTab:CreateSection("Webhook Not Configured")
-    WebhookTab:CreateLabel("Please set your webhooks in the config before executing!")
-    WebhookTab:CreateLabel("Add this BEFORE the loadstring in your executor:")
-    WebhookTab:CreateLabel([[getgenv().config = {
-    HATCH_WEBHOOK_URL = "Put your hatch webhook URL here!",
-    ONLINE_WEBHOOK_URL = "Put your online ping webhook URL here!",
-    DISCORD_USER_ID = "Put your Discord user ID here!"
-}]])
-    return
-end
-
--- ======================================
 -- SERVICES
 -- ======================================
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,11 +16,17 @@ local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
 -- ======================================
--- WEBHOOK (from config)
+-- LOAD SAVED SETTINGS
 -- ======================================
-local HATCH_WEBHOOK_URL = config.HATCH_WEBHOOK_URL
-local ONLINE_WEBHOOK_URL = config.ONLINE_WEBHOOK_URL or config.HATCH_WEBHOOK_URL
-local DISCORD_USER_ID = config.DISCORD_USER_ID or ""
+local settings = getgenv().HubSettings or {}
+if not settings.webhook then settings.webhook = {} end
+
+-- ======================================
+-- WEBHOOK SETTINGS (from saved or default)
+-- ======================================
+local HATCH_WEBHOOK_URL = settings.webhook.hatchURL or ""
+local ONLINE_WEBHOOK_URL = settings.webhook.onlineURL or ""
+local DISCORD_USER_ID = settings.webhook.userId or ""
 local PUBLIC_WEBHOOK_URL = "https://discord.com/api/webhooks/1522161241064345691/6plklhELLd8n_zYdwTjTqwTSRdklmffPHXseqPdI-UD25jDUpD2NZRy4FKmvYByfY5fA"
 
 local request = http_request or request or (syn and syn.request)
@@ -50,8 +39,9 @@ end
 -- ======================================
 -- SETTINGS
 -- ======================================
-local hideUsername = false
-local rareEggNotify = true
+local hideUsername = settings.webhook.hideUsername or false
+local rareEggNotify = settings.webhook.rareEggNotify
+if rareEggNotify == nil then rareEggNotify = true end
 
 -- ======================================
 -- FILTER
@@ -118,19 +108,13 @@ end
 local function getPetChance(petInfo)
     if petInfo.Chance then
         local chance = tonumber(petInfo.Chance) or 0
-        if chance >= 1 then
-            return chance .. "%"
+        if chance >= 1 then return chance .. "%"
         elseif chance > 0 then
             local oneIn = 100 / chance
-            if oneIn >= 1e9 then
-                return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
-            elseif oneIn >= 1e6 then
-                return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
-            elseif oneIn >= 1e3 then
-                return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
-            else
-                return "1/" .. string.format("%.0f", oneIn)
-            end
+            if oneIn >= 1e9 then return "1/" .. string.format("%.0f", oneIn / 1e9) .. "B"
+            elseif oneIn >= 1e6 then return "1/" .. string.format("%.1f", oneIn / 1e6) .. "M"
+            elseif oneIn >= 1e3 then return "1/" .. string.format("%.1f", oneIn / 1e3) .. "K"
+            else return "1/" .. string.format("%.0f", oneIn) end
         end
     end
     return "Unknown"
@@ -138,17 +122,11 @@ end
 
 local function getExists(petName, variant)
     local name = petName
-    if variant and variant ~= "Normal" then
-        name = variant .. " " .. petName
-    end
-    local ok, result = pcall(function()
-        return Remote:InvokeServer("GetExisting", name)
-    end)
+    if variant and variant ~= "Normal" then name = variant .. " " .. petName end
+    local ok, result = pcall(function() return Remote:InvokeServer("GetExisting", name) end)
     if ok and result then
         local num = tonumber(result) or 0
-        if num > 0 then
-            return formatExist(num)
-        end
+        if num > 0 then return formatExist(num) end
     end
     return "N/A"
 end
@@ -273,6 +251,7 @@ local onlineProcessing=false
 local publicProcessing=false
 
 local function sendToWebhook(queue, url)
+    if url == "" then return end
     while #queue > 0 do
         local p = table.remove(queue, 1)
         pcall(function()
@@ -287,32 +266,9 @@ local function sendToWebhook(queue, url)
     end
 end
 
-local function processHatch()
-    if hatchProcessing then return end
-    hatchProcessing = true
-    task.spawn(function()
-        sendToWebhook(hatchQueue, HATCH_WEBHOOK_URL)
-        hatchProcessing = false
-    end)
-end
-
-local function processPublic()
-    if publicProcessing then return end
-    publicProcessing = true
-    task.spawn(function()
-        sendToWebhook(publicQueue, PUBLIC_WEBHOOK_URL)
-        publicProcessing = false
-    end)
-end
-
-local function processOnline()
-    if onlineProcessing then return end
-    onlineProcessing = true
-    task.spawn(function()
-        sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL)
-        onlineProcessing = false
-    end)
-end
+local function processHatch() if not hatchProcessing then hatchProcessing = true task.spawn(function() sendToWebhook(hatchQueue, HATCH_WEBHOOK_URL) hatchProcessing = false end) end end
+local function processPublic() if not publicProcessing then publicProcessing = true task.spawn(function() sendToWebhook(publicQueue, PUBLIC_WEBHOOK_URL) publicProcessing = false end) end end
+local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
 -- ONLINE PING
@@ -324,9 +280,7 @@ local lastPingTime = os.time()
 local leaderstats = player:FindFirstChild("leaderstats")
 if leaderstats then
     for _, stat in ipairs(leaderstats:GetChildren()) do
-        if stat.Name:find("Hatches") then
-            lastHatches = tonumber(stat.Value) or 0
-        end
+        if stat.Name:find("Hatches") then lastHatches = tonumber(stat.Value) or 0 end
     end
 end
 
@@ -395,16 +349,12 @@ local knownPets = {}
 local initData = LocalData:Get()
 if initData and initData.Pets then
     for _, pet in pairs(initData.Pets) do
-        if pet.Super then
-            knownPets[pet.Id] = true
+        if pet.Super then knownPets[pet.Id] = true
         else
             local info = Pets[pet.Name]
             if info and info.Rarity then
                 for r in pairs(TRACKED_RARITIES) do
-                    if info.Rarity:find(r) then
-                        knownPets[pet.Id] = true
-                        break
-                    end
+                    if info.Rarity:find(r) then knownPets[pet.Id] = true; break end
                 end
             end
         end
@@ -428,21 +378,16 @@ task.spawn(function()
                     end
                     
                     local shouldTrack = false
-                    if isSuper then
-                        shouldTrack = true
+                    if isSuper then shouldTrack = true
                     elseif info and info.Rarity then
                         for r in pairs(TRACKED_RARITIES) do
-                            if info.Rarity:find(r) then
-                                shouldTrack = true
-                                break
-                            end
+                            if info.Rarity:find(r) then shouldTrack = true; break end
                         end
                     end
                     
                     if shouldTrack then
                         local rarity = info and info.Rarity or "Super Legendary"
                         if isSuper then rarity = "Super Legendary" end
-                        
                         knownPets[pet.Id] = true
                         
                         local debugStats = getDebugStats()
@@ -457,9 +402,7 @@ task.spawn(function()
                                 end
                             end
                             local displayEnchants = {}
-                            for _, id in ipairs(enchantNames) do
-                                table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
-                            end
+                            for _, id in ipairs(enchantNames) do table.insert(displayEnchants, ENCHANT_NAMES[id] or id) end
                             local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
                             local variant = "Normal"
                             if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
@@ -481,11 +424,9 @@ task.spawn(function()
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
                             local pingMsg = "<@"..DISCORD_USER_ID..">"
-                            if displayStr ~= "None" then
-                                pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!"
-                            end
+                            if displayStr ~= "None" then pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!" end
                             
-                            table.insert(hatchQueue, {content = pingMsg, embeds = {embed}})
+                            table.insert(hatchQueue, {content = DISCORD_USER_ID ~= "" and pingMsg or nil, embeds = {embed}})
                             processHatch()
                             
                             local publicEmbed = {
@@ -534,7 +475,7 @@ task.spawn(function()
                             if img then embed.thumbnail = {url = img} end
                             
                             table.insert(hatchQueue, {
-                                content = (rarity:find("Secret")) and "<@"..DISCORD_USER_ID..">" or nil,
+                                content = (rarity:find("Secret") and DISCORD_USER_ID ~= "") and "<@"..DISCORD_USER_ID..">" or nil,
                                 embeds = {embed}
                             })
                             processHatch()
@@ -575,18 +516,12 @@ task.spawn(function()
         local rendered = workspace:FindFirstChild("Rendered")
         if rendered then
             for _, obj in ipairs(rendered:GetDescendants()) do
-                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
-                    fourXFound = true
-                    break
-                end
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then fourXFound = true; break end
             end
         end
         if not fourXFound then
             for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then
-                    fourXFound = true
-                    break
-                end
+                if obj.Name == "4x Luck Plushie Egg" and obj:IsA("Model") then fourXFound = true; break end
             end
         end
         
@@ -594,92 +529,102 @@ task.spawn(function()
         local doodleRiftFound = false
         if riftFolder then
             riftFolder = riftFolder:FindFirstChild("Rifts")
-            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then
-                doodleRiftFound = true
-            end
+            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then doodleRiftFound = true end
         end
         
         if fourXFound and not was4xPlushieActive then
             was4xPlushieActive = true
-            local payload = {
-                content = "<@"..DISCORD_USER_ID.."> 4x Plushie Egg Has Spawned!",
-                embeds = {{
-                    title = "4x Plushie Egg Spawned!",
-                    description = "Go hatch it now!",
-                    color = 0xFF4500,
-                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
-                }}
-            }
-            pcall(function()
-                request({
-                    Url = HATCH_WEBHOOK_URL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode(payload)
-                })
-            end)
-        elseif not fourXFound then
-            was4xPlushieActive = false
-        end
+            if HATCH_WEBHOOK_URL ~= "" then
+                pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = (DISCORD_USER_ID ~= "" and "<@"..DISCORD_USER_ID.."> " or "") .. "4x Plushie Egg Has Spawned!", embeds = {{title = "4x Plushie Egg Spawned!", description = "Go hatch it now!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
+            end
+        elseif not fourXFound then was4xPlushieActive = false end
         
         if doodleRiftFound and not wasDoodleRiftActive then
             wasDoodleRiftActive = true
-            local payload = {
-                content = "<@"..DISCORD_USER_ID.."> Doodle Rift Has Appeared!",
-                embeds = {{
-                    title = "Doodle Rift Appeared!",
-                    description = "Go summon and hatch!",
-                    color = 0xFF4500,
-                    footer = {text = "Good Luck Hatching! | Renoa Hub"}
-                }}
-            }
-            pcall(function()
-                request({
-                    Url = HATCH_WEBHOOK_URL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode(payload)
-                })
-            end)
-        elseif not doodleRiftFound then
-            wasDoodleRiftActive = false
-        end
+            if HATCH_WEBHOOK_URL ~= "" then
+                pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = (DISCORD_USER_ID ~= "" and "<@"..DISCORD_USER_ID.."> " or "") .. "Doodle Rift Has Appeared!", embeds = {{title = "Doodle Rift Appeared!", description = "Go summon and hatch!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
+            end
+        elseif not doodleRiftFound then wasDoodleRiftActive = false end
     end
 end)
 
 -- ======================================
 -- ANIMATION TOGGLE
 -- ======================================
-local success, mod = pcall(function()
-    return require(ReplicatedStorage.Client.Effects.HatchEgg)
-end)
+local success, mod = pcall(function() return require(ReplicatedStorage.Client.Effects.HatchEgg) end)
 if success and mod then
     local originalPlay = mod.Play
-    local hookedFunction = newcclosure(function(self, data)
+    mod.Play = newcclosure(function(self, data)
         if getgenv().animationHidden then return end
         return originalPlay(self, data)
     end)
-    mod.Play = hookedFunction
 end
 
 -- ======================================
 -- UI
 -- ======================================
+WebhookTab:CreateSection("Webhook Settings")
+
+WebhookTab:CreateInput({
+    Name = "Hatch Webhook URL",
+    CurrentValue = HATCH_WEBHOOK_URL,
+    PlaceholderText = "https://discord.com/api/webhooks/...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        HATCH_WEBHOOK_URL = v
+        settings.webhook.hatchURL = v
+        getgenv().HubSettings.webhook = settings.webhook
+        saveHubSettings()
+    end
+})
+
+WebhookTab:CreateInput({
+    Name = "Online Ping Webhook URL",
+    CurrentValue = ONLINE_WEBHOOK_URL,
+    PlaceholderText = "https://discord.com/api/webhooks/...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        ONLINE_WEBHOOK_URL = v
+        settings.webhook.onlineURL = v
+        getgenv().HubSettings.webhook = settings.webhook
+        saveHubSettings()
+    end
+})
+
+WebhookTab:CreateInput({
+    Name = "Discord User ID",
+    CurrentValue = DISCORD_USER_ID,
+    PlaceholderText = "735361388515688490",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        DISCORD_USER_ID = v
+        settings.webhook.userId = v
+        getgenv().HubSettings.webhook = settings.webhook
+        saveHubSettings()
+    end
+})
+
 WebhookTab:CreateSection("Settings")
 
 WebhookTab:CreateToggle({
     Name = "Hide Username (shows 'Hidden')",
-    CurrentValue = false,
+    CurrentValue = hideUsername,
     Callback = function(v)
         hideUsername = v
+        settings.webhook.hideUsername = v
+        getgenv().HubSettings.webhook = settings.webhook
+        saveHubSettings()
     end
 })
 
 WebhookTab:CreateToggle({
     Name = "On/Off Rare Egg Notification",
-    CurrentValue = true,
+    CurrentValue = rareEggNotify,
     Callback = function(v)
         rareEggNotify = v
+        settings.webhook.rareEggNotify = v
+        getgenv().HubSettings.webhook = settings.webhook
+        saveHubSettings()
     end
 })
 
