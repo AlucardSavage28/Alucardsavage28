@@ -544,4 +544,61 @@ QuestTab:CreateToggle({
     end
 })
 
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if questSettings.autoSeason then
+    seasonRunning = true
+    seasonThread = task.spawn(questLoop("challenge"))
+end
+
+if questSettings.autoClaimSeason then
+    claimRunning = true
+    claimThread = task.spawn(function()
+        while claimRunning do
+            pcall(function() Remote:FireServer("ClaimSeason") end)
+            task.wait(5)
+        end
+    end)
+end
+
+if questSettings.autoGlobal then
+    globalRunning = true
+    globalThread = task.spawn(function()
+        while globalRunning do
+            local quests = getActiveQuests("global")
+            if #quests == 0 then
+                pcall(function() Remote:FireServer("ClaimGlobalIncentiveQuest") end)
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+                task.wait(60)
+            else
+                local questToDo = nil
+                for _, q in ipairs(quests) do
+                    local curr = q.currency or ""
+                    if q.type == "Collect" and curr:lower():find("pearl") then
+                        questToDo = q
+                        break
+                    elseif q.type == "Hatch" and not q.egg and not q.rarity then
+                    else
+                        questToDo = q
+                        break
+                    end
+                end
+                if questToDo then
+                    getgenv().ActivityStatus.current = "Doing Global Incentive..."
+                    getgenv().ActivityStatus.trigger = true
+                    completeQuest(questToDo)
+                    getgenv().ActivityStatus.current = "Global Incentive done!"
+                    getgenv().ActivityStatus.trigger = true
+                else
+                    getgenv().questActive = false
+                    getgenv().questEgg = nil
+                    task.wait(30)
+                end
+            end
+        end
+    end)
+end
+
 print("[Quest] Loaded!")
