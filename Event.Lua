@@ -105,19 +105,32 @@ local lastEventDisplay = ""
 -- CRYSTAL ALTAR FUNCTIONS
 -- ======================================
 local function getCrystalPets()
-    local pets = {}
+    local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
     local data = LocalData:Get()
     if data and data.Pets then
         for _, pet in pairs(data.Pets) do
             if not pet.Locked then
                 local info = Pets[pet.Name]
                 if info and info.Egg and info.Egg == "Crystal Ore Egg" then
-                    table.insert(pets, pet)
+                    if pet.Shiny and pet.Mythic then
+                        table.insert(groups.ShinyMythic, pet)
+                    elseif pet.Shiny then
+                        table.insert(groups.Shiny, pet)
+                    elseif pet.Mythic then
+                        table.insert(groups.Mythic, pet)
+                    else
+                        table.insert(groups.Normal, pet)
+                    end
                 end
             end
         end
     end
-    return pets
+    
+    if #groups.Normal >= 3 then return groups.Normal end
+    if #groups.Shiny >= 3 then return groups.Shiny end
+    if #groups.Mythic >= 3 then return groups.Mythic end
+    if #groups.ShinyMythic >= 3 then return groups.ShinyMythic end
+    return {}
 end
 
 -- ======================================
@@ -298,7 +311,7 @@ EventTab:CreateToggle({
 EventTab:CreateSection("Rebirth Machine (Crystal Altar)")
 
 EventTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
-EventTab:CreateLabel("Only uses 3 pets from Crystal Ore Egg")
+EventTab:CreateLabel("Only uses 3 pets from Crystal Ore Egg (same variant)")
 
 local crystalTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
@@ -324,15 +337,16 @@ EventTab:CreateToggle({
                         continue
                     end
                     
+                    local variantName = "Normal"
+                    if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
+                    elseif pets[1].Shiny then variantName = "Shiny"
+                    elseif pets[1].Mythic then variantName = "Mythic" end
+                    
                     local payload = {}
                     local usedNames = {}
                     for i = 1, 3 do
                         table.insert(payload, tostring(pets[i].Id))
-                        local variant = "Normal"
-                        if pets[i].Shiny and pets[i].Mythic then variant = "Shiny Mythic"
-                        elseif pets[i].Shiny then variant = "Shiny"
-                        elseif pets[i].Mythic then variant = "Mythic" end
-                        table.insert(usedNames, variant .. " " .. pets[i].Name)
+                        table.insert(usedNames, variantName .. " " .. pets[i].Name)
                     end
                     
                     local text = table.concat(usedNames, ", ")
@@ -443,15 +457,16 @@ if eventSettings.autoCrystalAltar then
                 continue
             end
             
+            local variantName = "Normal"
+            if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
+            elseif pets[1].Shiny then variantName = "Shiny"
+            elseif pets[1].Mythic then variantName = "Mythic" end
+            
             local payload = {}
             local usedNames = {}
             for i = 1, 3 do
                 table.insert(payload, tostring(pets[i].Id))
-                local variant = "Normal"
-                if pets[i].Shiny and pets[i].Mythic then variant = "Shiny Mythic"
-                elseif pets[i].Shiny then variant = "Shiny"
-                elseif pets[i].Mythic then variant = "Mythic" end
-                table.insert(usedNames, variant .. " " .. pets[i].Name)
+                table.insert(usedNames, variantName .. " " .. pets[i].Name)
             end
             
             local text = table.concat(usedNames, ", ")
