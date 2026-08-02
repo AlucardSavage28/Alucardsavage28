@@ -472,10 +472,6 @@ AutoTab:CreateToggle({
                 pcall(function() RE:FireServer("DailyRewardsForfeitStreak") end)
                 task.wait(0.5)
                 pcall(function() RE:FireServer("DailyRewardClaimStars") end)
-                dailyRunning = false
-                autoSettings.dailyStreak = false
-                getgenv().HubSettings.auto = autoSettings
-                saveHubSettings()
             end)
         else
             if dailyThread then task.cancel(dailyThread) end
