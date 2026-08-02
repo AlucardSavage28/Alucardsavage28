@@ -459,9 +459,12 @@ AutoTab:CreateToggle({
 
 AutoTab:CreateToggle({
     Name = "Daily Login Streak",
-    CurrentValue = false,
+    CurrentValue = autoSettings.dailyStreak or false,
     Callback = function(v)
         dailyRunning = v
+        autoSettings.dailyStreak = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
         if v then
             dailyThread = task.spawn(function()
                 getgenv().ActivityStatus.current = "Signed in for your Daily Streak!"
@@ -470,6 +473,9 @@ AutoTab:CreateToggle({
                 task.wait(0.5)
                 pcall(function() RE:FireServer("DailyRewardClaimStars") end)
                 dailyRunning = false
+                autoSettings.dailyStreak = false
+                getgenv().HubSettings.auto = autoSettings
+                saveHubSettings()
             end)
         else
             if dailyThread then task.cancel(dailyThread) end
