@@ -106,25 +106,38 @@ local lastEventDisplay = ""
 -- ======================================
 local function getCrystalPets()
     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
+    
+    -- Pets labeled "Secret" in game data but are actually Celestial/Infinity
+    -- Only REAL Secret pets should be used for Crystal Altar
+    local EXCLUDE_NAMES = {
+        ["Ruby Crystal Dragon"] = true,
+        ["Emerald Crystal Dragon"] = true,
+        ["Sapphire Crystal Dragon"] = true,
+        ["Crowned Jewel"] = true,
+        ["Crystal Dementor"] = true,
+        ["Crystal Koi"] = true,
+    }
+    
     local data = LocalData:Get()
     if data and data.Pets then
         for _, pet in pairs(data.Pets) do
             if not pet.Locked then
                 local info = Pets[pet.Name]
-                if info and info.Egg and info.Egg == "Crystal Ore Egg" then
-                    local chance = tonumber(info.Chance) or 0
-                    -- Exclude Legendary (high chance) and nil chance
-                    -- Legendary = 0.00001+, Secret/Celestial/Infinity = 5e-08 or lower
-                    if chance > 0 and chance <= 0.000005 then
-                        if pet.Shiny and pet.Mythic then
-                            table.insert(groups.ShinyMythic, pet)
-                        elseif pet.Shiny then
-                            table.insert(groups.Shiny, pet)
-                        elseif pet.Mythic then
-                            table.insert(groups.Mythic, pet)
-                        else
-                            table.insert(groups.Normal, pet)
-                        end
+                if info 
+                    and info.Egg 
+                    and info.Egg == "Crystal Ore Egg" 
+                    and info.Rarity 
+                    and info.Rarity:find("Secret")
+                    and not EXCLUDE_NAMES[pet.Name]
+                then
+                    if pet.Shiny and pet.Mythic then
+                        table.insert(groups.ShinyMythic, pet)
+                    elseif pet.Shiny then
+                        table.insert(groups.Shiny, pet)
+                    elseif pet.Mythic then
+                        table.insert(groups.Mythic, pet)
+                    else
+                        table.insert(groups.Normal, pet)
                     end
                 end
             end
@@ -316,7 +329,8 @@ EventTab:CreateToggle({
 EventTab:CreateSection("Rebirth Machine (Crystal Altar)")
 
 EventTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
-EventTab:CreateLabel("Only uses 3 pets from Crystal Ore Egg (Secret/Celestial/Infinity)")
+EventTab:CreateLabel("Only uses 3 Secret pets from Crystal Ore Egg (same variant)")
+EventTab:CreateLabel("Excluded: Ruby/Emerald/Sapphire Crystal Dragon, Crowned Jewel, Crystal Dementor, Crystal Koi")
 
 local crystalTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
