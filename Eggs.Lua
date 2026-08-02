@@ -680,7 +680,7 @@ EggsTab:CreateToggle({
                     end
                     
                     teleportToEgg(currentBountyEgg)
-                    pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
+                    pcall(function() Remote:InvokeServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
             end)
@@ -838,7 +838,7 @@ if bountyEnabled then
             end
             
             teleportToEgg(currentBountyEgg)
-            pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
+            pcall(function() Remote:InvokeServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
             task.wait(0.05)
         end
     end)
