@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (AUTO EVENT + CRYSTAL SHOP)
+-- EVENT TAB (AUTO EVENT + CRYSTAL SHOP + CRYSTAL ALTAR)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -9,7 +9,12 @@ local EventTab = Window:CreateTab("Event", nil)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
+local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
+
+local RemoteContainer = ReplicatedStorage.Shared.Framework.Network.Remote
+local RemoteFunction = RemoteContainer.RemoteFunction
 
 -- ======================================
 -- LOAD SAVED SETTINGS
@@ -35,6 +40,10 @@ local crystalRunning = false
 local crystalThread = nil
 local sunburstRunning = false
 local sunburstThread = nil
+
+-- Crystal Altar settings
+local crystalAltarRunning = false
+local crystalAltarThread = nil
 
 local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
@@ -91,6 +100,25 @@ local function getActiveEventDisplay()
 end
 
 local lastEventDisplay = ""
+
+-- ======================================
+-- CRYSTAL ALTAR FUNCTIONS
+-- ======================================
+local function getCrystalPets()
+    local pets = {}
+    local data = LocalData:Get()
+    if data and data.Pets then
+        for _, pet in pairs(data.Pets) do
+            if not pet.Locked then
+                local info = Pets[pet.Name]
+                if info and info.Egg and info.Egg == "Crystal Ore Egg" then
+                    table.insert(pets, pet)
+                end
+            end
+        end
+    end
+    return pets
+end
 
 -- ======================================
 -- UI - AUTO EVENT
@@ -265,6 +293,76 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
+-- UI - REBIRTH MACHINE (CRYSTAL ALTAR)
+-- ======================================
+EventTab:CreateSection("Rebirth Machine (Crystal Altar)")
+
+EventTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
+EventTab:CreateLabel("Only uses 3 pets from Crystal Ore Egg")
+
+local crystalTrackerLabel = EventTab:CreateLabel("Last Used: None")
+
+EventTab:CreateToggle({
+    Name = "Auto Crystal Altar",
+    CurrentValue = eventSettings.autoCrystalAltar or false,
+    Callback = function(v)
+        crystalAltarRunning = v
+        eventSettings.autoCrystalAltar = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            pcall(function() crystalTrackerLabel:SetText("Last Used: None") end)
+            crystalAltarThread = task.spawn(function()
+                local lastPrint = ""
+                local wasActive = false
+                while crystalAltarRunning do
+                    task.wait(3)
+                    
+                    local pets = getCrystalPets()
+                    if #pets < 3 then
+                        wasActive = false
+                        continue
+                    end
+                    
+                    local payload = {}
+                    local usedNames = {}
+                    for i = 1, 3 do
+                        table.insert(payload, tostring(pets[i].Id))
+                        local variant = "Normal"
+                        if pets[i].Shiny and pets[i].Mythic then variant = "Shiny Mythic"
+                        elseif pets[i].Shiny then variant = "Shiny"
+                        elseif pets[i].Mythic then variant = "Mythic" end
+                        table.insert(usedNames, variant .. " " .. pets[i].Name)
+                    end
+                    
+                    local text = table.concat(usedNames, ", ")
+                    pcall(function() crystalTrackerLabel:SetText("Last Used: " .. text) end)
+                    
+                    pcall(function()
+                        RemoteFunction:InvokeServer("UseRebirthMachine", "CrystalAltar", payload)
+                    end)
+                    
+                    if not wasActive then
+                        getgenv().ActivityStatus.current = "Crystal Altar used: " .. text
+                        getgenv().ActivityStatus.trigger = true
+                        wasActive = true
+                    end
+                    
+                    if text ~= lastPrint then
+                        print("[Crystal Altar] " .. text)
+                        lastPrint = text
+                    end
+                    
+                    task.wait(1.5)
+                end
+            end)
+        else
+            if crystalAltarThread then task.cancel(crystalAltarThread) end
+        end
+    end
+})
+
+-- ======================================
 -- AUTO-START SAVED TOGGLES
 -- ======================================
 if eventSettings.autoAddEvent then
@@ -327,6 +425,54 @@ if eventSettings.autoBuySunburst then
         while sunburstRunning do
             pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 14, false) end)
             task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoCrystalAltar then
+    crystalAltarRunning = true
+    crystalAltarThread = task.spawn(function()
+        local lastPrint = ""
+        local wasActive = false
+        while crystalAltarRunning do
+            task.wait(3)
+            
+            local pets = getCrystalPets()
+            if #pets < 3 then
+                wasActive = false
+                continue
+            end
+            
+            local payload = {}
+            local usedNames = {}
+            for i = 1, 3 do
+                table.insert(payload, tostring(pets[i].Id))
+                local variant = "Normal"
+                if pets[i].Shiny and pets[i].Mythic then variant = "Shiny Mythic"
+                elseif pets[i].Shiny then variant = "Shiny"
+                elseif pets[i].Mythic then variant = "Mythic" end
+                table.insert(usedNames, variant .. " " .. pets[i].Name)
+            end
+            
+            local text = table.concat(usedNames, ", ")
+            pcall(function() crystalTrackerLabel:SetText("Last Used: " .. text) end)
+            
+            pcall(function()
+                RemoteFunction:InvokeServer("UseRebirthMachine", "CrystalAltar", payload)
+            end)
+            
+            if not wasActive then
+                getgenv().ActivityStatus.current = "Crystal Altar used: " .. text
+                getgenv().ActivityStatus.trigger = true
+                wasActive = true
+            end
+            
+            if text ~= lastPrint then
+                print("[Crystal Altar] " .. text)
+                lastPrint = text
+            end
+            
+            task.wait(1.5)
         end
     end)
 end
