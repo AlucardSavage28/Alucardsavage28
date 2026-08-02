@@ -97,7 +97,7 @@ local currentBountyChance = "Unknown"
 local fourXEnabled = eggSettings.auto4x or false
 local doodleEnabled = eggSettings.autoDoodle or false
 local autoHatchEnabled = eggSettings.autoHatch or false
-local spamEEnabled = false
+local spamEEnabled = eggSettings.autoSpamE or false
 local hideAnimEnabled = eggSettings.hideAnim or false
 local inventoryEnabled = false
 local bountyEnabled = eggSettings.autoBounty or false
@@ -357,7 +357,6 @@ EggsTab:CreateToggle({
                         
                         local riftExists = true
                         while doodleEnabled and riftExists do
-                            -- Re-claim the flag every cycle
                             getgenv().questActive = true
                             getgenv().questEgg = "Doodle Egg"
                             
@@ -424,7 +423,6 @@ EggsTab:CreateToggle({
                             while fourXEnabled and eggFound do
                                 if isDoodleRiftExists() then break end
                                 
-                                -- Re-claim the flag every cycle
                                 getgenv().questActive = true
                                 getgenv().questEgg = eggName
                                 
@@ -544,9 +542,12 @@ EggsTab:CreateToggle({
 
 EggsTab:CreateToggle({
     Name = "Auto Spam E",
-    CurrentValue = false,
+    CurrentValue = spamEEnabled,
     Callback = function(v)
         spamEEnabled = v
+        eggSettings.autoSpamE = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
         if v then
             spamEThread = task.spawn(function()
                 while spamEEnabled do
@@ -939,6 +940,17 @@ if fourXEnabled then
             end
             
             task.wait(1)
+        end
+    end)
+end
+
+if spamEEnabled then
+    spamEThread = task.spawn(function()
+        while spamEEnabled do
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait(0.05)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            task.wait(0.1)
         end
     end)
 end
