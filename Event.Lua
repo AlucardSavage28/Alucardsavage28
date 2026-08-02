@@ -111,7 +111,7 @@ local function getCrystalPets()
         for _, pet in pairs(data.Pets) do
             if not pet.Locked then
                 local info = Pets[pet.Name]
-                if info and info.Egg and info.Egg == "Crystal Ore Egg" then
+                if info and info.Egg and info.Egg == "Crystal Ore Egg" and info.Rarity and info.Rarity == "Secret" then
                     if pet.Shiny and pet.Mythic then
                         table.insert(groups.ShinyMythic, pet)
                     elseif pet.Shiny then
@@ -311,7 +311,7 @@ EventTab:CreateToggle({
 EventTab:CreateSection("Rebirth Machine (Crystal Altar)")
 
 EventTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
-EventTab:CreateLabel("Only uses 3 pets from Crystal Ore Egg (same variant)")
+EventTab:CreateLabel("Only uses 3 Secret pets from Crystal Ore Egg (same variant)")
 
 local crystalTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
