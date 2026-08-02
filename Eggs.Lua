@@ -53,13 +53,20 @@ local EGG_LOCATIONS = {
 
 local EGG_WORLDS = {
     ["Common Egg"] = "The Overworld",
-    ["Classic Egg"] = "The Overworld", ["Vine Egg"] = "The Overworld",
-    ["Lava Egg"] = "The Overworld", ["Icy Egg"] = "The Overworld",
-    ["Iceshard Egg"] = "The Overworld", ["Spotted Egg"] = "The Overworld",
-    ["Atlantis Egg"] = "The Overworld", ["Mining Egg"] = "Minigame Paradise",
-    ["Neon Egg"] = "Minigame Paradise", ["Cyber Egg"] = "Minigame Paradise",
-    ["Rainbow Egg"] = "The Overworld", ["Nightmare Egg"] = "The Overworld",
-    ["Infinity Egg"] = "The Overworld", ["Secret Egg"] = "The Overworld",
+    ["Classic Egg"] = "The Overworld",
+    ["Vine Egg"] = "The Overworld",
+    ["Lava Egg"] = "The Overworld",
+    ["Icy Egg"] = "The Overworld",
+    ["Iceshard Egg"] = "The Overworld",
+    ["Spotted Egg"] = "The Overworld",
+    ["Atlantis Egg"] = "The Overworld",
+    ["Mining Egg"] = "Minigame Paradise",
+    ["Neon Egg"] = "Minigame Paradise",
+    ["Cyber Egg"] = "Minigame Paradise",
+    ["Rainbow Egg"] = "The Overworld",
+    ["Nightmare Egg"] = "The Overworld",
+    ["Infinity Egg"] = "The Overworld",
+    ["Secret Egg"] = "The Overworld",
     ["Showman Egg"] = "The Overworld",
 }
 
@@ -101,7 +108,7 @@ local spamEEnabled = eggSettings.autoSpamE or false
 local hideAnimEnabled = eggSettings.hideAnim or false
 local inventoryEnabled = false
 local bountyEnabled = eggSettings.autoBounty or false
-local riftEnabled = false
+local riftEnabled = eggSettings.autoRiftBounty or false
 local xlBountyRunning = false
 
 local fourXThread = nil
@@ -685,9 +692,12 @@ EggsTab:CreateToggle({
 
 EggsTab:CreateToggle({
     Name = "Auto Summon Rift for Bounty",
-    CurrentValue = false,
+    CurrentValue = riftEnabled,
     Callback = function(v)
         riftEnabled = v
+        eggSettings.autoRiftBounty = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
         if v then
             refreshBountyLabels()
             local world = EGG_WORLDS[currentBountyEgg] or "The Overworld"
@@ -830,6 +840,35 @@ if bountyEnabled then
             teleportToEgg(currentBountyEgg)
             pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
             task.wait(0.05)
+        end
+    end)
+end
+
+if riftEnabled then
+    refreshBountyLabels()
+    local world = EGG_WORLDS[currentBountyEgg] or "The Overworld"
+    pcall(function()
+        RemoteFunction:InvokeServer("SummonRift", {
+            Type = "Egg",
+            Name = currentBountyEgg,
+            Time = 5,
+            Luck = 5,
+            World = world
+        })
+    end)
+    riftThread = task.spawn(function()
+        while riftEnabled do
+            task.wait(1860)
+            refreshBountyLabels()
+            pcall(function()
+                RemoteFunction:InvokeServer("SummonRift", {
+                    Type = "Egg",
+                    Name = currentBountyEgg,
+                    Time = 5,
+                    Luck = 5,
+                    World = EGG_WORLDS[currentBountyEgg] or "The Overworld"
+                })
+            end)
         end
     end)
 end
