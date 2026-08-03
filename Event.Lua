@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (AUTO EVENT + CRYSTAL SHOP + CRYSTAL ALTAR)
+-- EVENT TAB (AUTO EVENT + CRYSTAL SHOP + DAILY REWARD SHOP + CRYSTAL ALTAR)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -44,6 +44,18 @@ local sunburstThread = nil
 -- Crystal Altar settings
 local crystalAltarRunning = false
 local crystalAltarThread = nil
+
+-- Daily Reward Shop settings
+local dailyShadowCrystalRunning = false
+local dailyShadowCrystalThread = nil
+local dailyEggElixirRunning = false
+local dailyEggElixirThread = nil
+local dailySecretElixirRunning = false
+local dailySecretElixirThread = nil
+local dailyGreenBlueRunning = false
+local dailyGreenBlueThread = nil
+local dailyPurpleRainbowRunning = false
+local dailyPurpleRainbowThread = nil
 
 local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
@@ -324,6 +336,118 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
+-- UI - DAILY REWARD SHOP
+-- ======================================
+EventTab:CreateSection("Daily Reward Shop")
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Shadow Crystal (24)",
+    CurrentValue = eventSettings.autoDailyShadowCrystal or false,
+    Callback = function(v)
+        dailyShadowCrystalRunning = v
+        eventSettings.autoDailyShadowCrystal = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            dailyShadowCrystalThread = task.spawn(function()
+                while dailyShadowCrystalRunning do
+                    pcall(function() RE:FireServer("DailyRewardsBuyItem", 24) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if dailyShadowCrystalThread then task.cancel(dailyShadowCrystalThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Egg Elixir (23)",
+    CurrentValue = eventSettings.autoDailyEggElixir or false,
+    Callback = function(v)
+        dailyEggElixirRunning = v
+        eventSettings.autoDailyEggElixir = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            dailyEggElixirThread = task.spawn(function()
+                while dailyEggElixirRunning do
+                    pcall(function() RE:FireServer("DailyRewardsBuyItem", 23) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if dailyEggElixirThread then task.cancel(dailyEggElixirThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Secret Elixir (22)",
+    CurrentValue = eventSettings.autoDailySecretElixir or false,
+    Callback = function(v)
+        dailySecretElixirRunning = v
+        eventSettings.autoDailySecretElixir = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            dailySecretElixirThread = task.spawn(function()
+                while dailySecretElixirRunning do
+                    pcall(function() RE:FireServer("DailyRewardsBuyItem", 22) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if dailySecretElixirThread then task.cancel(dailySecretElixirThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Green & Blue Fragment (25 & 26)",
+    CurrentValue = eventSettings.autoDailyGreenBlue or false,
+    Callback = function(v)
+        dailyGreenBlueRunning = v
+        eventSettings.autoDailyGreenBlue = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            dailyGreenBlueThread = task.spawn(function()
+                while dailyGreenBlueRunning do
+                    pcall(function() RE:FireServer("DailyRewardsBuyItem", 25) end)
+                    pcall(function() RE:FireServer("DailyRewardsBuyItem", 26) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if dailyGreenBlueThread then task.cancel(dailyGreenBlueThread) end
+        end
+    end
+})
+
+EventTab:CreateToggle({
+    Name = "Auto Buy Purple & Rainbow Fragment (27 & 28)",
+    CurrentValue = eventSettings.autoDailyPurpleRainbow or false,
+    Callback = function(v)
+        dailyPurpleRainbowRunning = v
+        eventSettings.autoDailyPurpleRainbow = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            dailyPurpleRainbowThread = task.spawn(function()
+                while dailyPurpleRainbowRunning do
+                    pcall(function() RE:FireServer("DailyRewardsBuyItem", 27) end)
+                    pcall(function() RE:FireServer("DailyRewardsBuyItem", 28) end)
+                    task.wait(1)
+                end
+            end)
+        else
+            if dailyPurpleRainbowThread then task.cancel(dailyPurpleRainbowThread) end
+        end
+    end
+})
+
+-- ======================================
 -- UI - REBIRTH MACHINE (CRYSTAL ALTAR)
 -- ======================================
 EventTab:CreateSection("Rebirth Machine (Crystal Altar)")
@@ -457,6 +581,58 @@ if eventSettings.autoBuySunburst then
     sunburstThread = task.spawn(function()
         while sunburstRunning do
             pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 14, false) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoDailyShadowCrystal then
+    dailyShadowCrystalRunning = true
+    dailyShadowCrystalThread = task.spawn(function()
+        while dailyShadowCrystalRunning do
+            pcall(function() RE:FireServer("DailyRewardsBuyItem", 24) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoDailyEggElixir then
+    dailyEggElixirRunning = true
+    dailyEggElixirThread = task.spawn(function()
+        while dailyEggElixirRunning do
+            pcall(function() RE:FireServer("DailyRewardsBuyItem", 23) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoDailySecretElixir then
+    dailySecretElixirRunning = true
+    dailySecretElixirThread = task.spawn(function()
+        while dailySecretElixirRunning do
+            pcall(function() RE:FireServer("DailyRewardsBuyItem", 22) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoDailyGreenBlue then
+    dailyGreenBlueRunning = true
+    dailyGreenBlueThread = task.spawn(function()
+        while dailyGreenBlueRunning do
+            pcall(function() RE:FireServer("DailyRewardsBuyItem", 25) end)
+            pcall(function() RE:FireServer("DailyRewardsBuyItem", 26) end)
+            task.wait(1)
+        end
+    end)
+end
+
+if eventSettings.autoDailyPurpleRainbow then
+    dailyPurpleRainbowRunning = true
+    dailyPurpleRainbowThread = task.spawn(function()
+        while dailyPurpleRainbowRunning do
+            pcall(function() RE:FireServer("DailyRewardsBuyItem", 27) end)
+            pcall(function() RE:FireServer("DailyRewardsBuyItem", 28) end)
             task.wait(1)
         end
     end)
