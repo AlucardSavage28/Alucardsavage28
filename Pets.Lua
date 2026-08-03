@@ -16,6 +16,13 @@ local NetworkRemote = ReplicatedStorage:WaitForChild("Shared")
     :WaitForChild("RemoteFunction")
 
 -- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.pets then settings.pets = {} end
+local petSettings = settings.pets
+
+-- ======================================
 -- SETTINGS
 -- ======================================
 local fuserActive = false
@@ -89,7 +96,7 @@ local function fusionLoop()
             end
             
             pcall(function()
-                NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
+                NetworkRemote:InvokeServer("UseRebirthMachine", payload)
             end)
             task.wait(1.5)
         end
@@ -151,11 +158,15 @@ PetTab:CreateToggle({
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
                 local lastPrint = ""
+                local wasActive = false
+                local wasNoGroup = false
                 while fuseAllActive do
                     task.wait(5)
                     
                     local data = LocalData:Get()
                     if not data or not data.Pets then
+                        wasActive = false
+                        wasNoGroup = false
                         continue
                     end
                     
@@ -185,6 +196,8 @@ PetTab:CreateToggle({
                     end
                     
                     if selectedGroup then
+                        wasNoGroup = false
+                        
                         local beforeCount = 0
                         for _, _ in pairs(data.Pets) do beforeCount = beforeCount + 1 end
                         
@@ -205,7 +218,7 @@ PetTab:CreateToggle({
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                         
                         pcall(function()
-                            NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
+                            NetworkRemote:InvokeServer("UseRebirthMachine", payload)
                         end)
                         
                         task.wait(1.5)
@@ -217,14 +230,27 @@ PetTab:CreateToggle({
                         end
                         
                         if afterCount < beforeCount then
-                            -- Send webhook EVERY TIME rebirth actually happens
-                            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                            getgenv().ActivityStatus.trigger = true
+                            if not wasActive then
+                                getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                                getgenv().ActivityStatus.trigger = true
+                                wasActive = true
+                            end
                             
                             if text ~= lastPrint then
                                 print("[Rebirth] " .. text)
                                 lastPrint = text
                             end
+                        else
+                            wasActive = false
+                        end
+                    else
+                        wasActive = false
+                        
+                        if not wasNoGroup then
+                            getgenv().ActivityStatus.current = "Cant Find 5 pet with same rarity for rebirth machine"
+                            getgenv().ActivityStatus.trigger = true
+                            wasNoGroup = true
+                            print("[Rebirth] Cant find 5 pets with same rarity for rebirth machine")
                         end
                     end
                 end
