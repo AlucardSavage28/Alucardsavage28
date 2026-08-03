@@ -30,7 +30,7 @@ local loopThread = nil
 local targetPetNamesString = ""
 local selectedVariant = "Normal"
 
-local fuseAllActive = false
+local fuseAllActive = petSettings.autoFuseAll or false
 local fuseAllThread = nil
 
 -- ======================================
@@ -151,9 +151,12 @@ local trackerLabel = PetTab:CreateLabel("Last Used: None")
 
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
-    CurrentValue = false,
+    CurrentValue = fuseAllActive,
     Callback = function(V)
         fuseAllActive = V
+        petSettings.autoFuseAll = V
+        getgenv().HubSettings.pets = petSettings
+        saveHubSettings()
         if V then
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
@@ -264,5 +267,111 @@ PetTab:CreateToggle({
         end
     end,
 })
+
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+if fuseAllActive then
+    pcall(function() trackerLabel:SetText("Last Used: None") end)
+    fuseAllThread = task.spawn(function()
+        local lastPrint = ""
+        local wasActive = false
+        local wasNoGroup = false
+        while fuseAllActive do
+            task.wait(5)
+            
+            local data = LocalData:Get()
+            if not data or not data.Pets then
+                wasActive = false
+                wasNoGroup = false
+                continue
+            end
+            
+            local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
+            for _, pet in pairs(data.Pets) do
+                if not pet.Locked then
+                    local info = Pets[pet.Name]
+                    if info and info.Rarity and info.Rarity:find("Secret") then
+                        if pet.Shiny and pet.Mythic then
+                            table.insert(groups.ShinyMythic, pet)
+                        elseif pet.Shiny then
+                            table.insert(groups.Shiny, pet)
+                        elseif pet.Mythic then
+                            table.insert(groups.Mythic, pet)
+                        else
+                            table.insert(groups.Normal, pet)
+                        end
+                    end
+                end
+            end
+            
+            local selectedGroup = nil
+            if #groups.Normal >= 5 then selectedGroup = groups.Normal
+            elseif #groups.Shiny >= 5 then selectedGroup = groups.Shiny
+            elseif #groups.Mythic >= 5 then selectedGroup = groups.Mythic
+            elseif #groups.ShinyMythic >= 5 then selectedGroup = groups.ShinyMythic
+            end
+            
+            if selectedGroup then
+                wasNoGroup = false
+                
+                local beforeCount = 0
+                for _, _ in pairs(data.Pets) do beforeCount = beforeCount + 1 end
+                
+                local payload = {}
+                local usedWithVariant = {}
+                for i = 1, 5 do
+                    local pet = selectedGroup[i]
+                    table.insert(payload, tostring(pet.Id))
+                    local variant = "Normal"
+                    if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
+                    elseif pet.Shiny then variant = "Shiny"
+                    elseif pet.Mythic then variant = "Mythic" end
+                    table.insert(usedWithVariant, variant .. " " .. pet.Name)
+                end
+                
+                local text = table.concat(usedWithVariant, ", ")
+                
+                pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
+                
+                pcall(function()
+                    NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+                end)
+                
+                task.wait(1.5)
+                
+                local data2 = LocalData:Get()
+                local afterCount = 0
+                if data2 and data2.Pets then
+                    for _, _ in pairs(data2.Pets) do afterCount = afterCount + 1 end
+                end
+                
+                if afterCount < beforeCount then
+                    if not wasActive then
+                        getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                        getgenv().ActivityStatus.trigger = true
+                        wasActive = true
+                    end
+                    
+                    if text ~= lastPrint then
+                        print("[Rebirth] " .. text)
+                        lastPrint = text
+                    end
+                else
+                    wasActive = false
+                end
+            else
+                wasActive = false
+                
+                if not wasNoGroup then
+                    getgenv().ActivityStatus.current = "Cant Find 5 pet with same rarity for rebirth machine"
+                    getgenv().ActivityStatus.trigger = true
+                    wasNoGroup = true
+                    print("[Rebirth] Cant find 5 pets with same rarity for rebirth machine")
+                end
+            end
+        end
+    end)
+end
 
 print("[Pets] Loaded!")
