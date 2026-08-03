@@ -16,13 +16,6 @@ local NetworkRemote = ReplicatedStorage:WaitForChild("Shared")
     :WaitForChild("RemoteFunction")
 
 -- ======================================
--- LOAD SAVED SETTINGS
--- ======================================
-local settings = getgenv().HubSettings or {}
-if not settings.pets then settings.pets = {} end
-local petSettings = settings.pets
-
--- ======================================
 -- SETTINGS
 -- ======================================
 local fuserActive = false
@@ -30,7 +23,7 @@ local loopThread = nil
 local targetPetNamesString = ""
 local selectedVariant = "Normal"
 
-local fuseAllActive = petSettings.autoFuseAll or false
+local fuseAllActive = false
 local fuseAllThread = nil
 
 -- ======================================
@@ -96,7 +89,7 @@ local function fusionLoop()
             end
             
             pcall(function()
-                NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+                NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
             end)
             task.wait(1.5)
         end
@@ -151,25 +144,20 @@ local trackerLabel = PetTab:CreateLabel("Last Used: None")
 
 PetTab:CreateToggle({
     Name = "Auto Rebirth Machine (All Unlocked Pets)",
-    CurrentValue = fuseAllActive,
+    CurrentValue = false,
     Callback = function(V)
         fuseAllActive = V
-        petSettings.autoFuseAll = V
-        getgenv().HubSettings.pets = petSettings
-        saveHubSettings()
         if V then
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
                 local lastPrint = ""
                 local wasActive = false
-                local wasNoGroup = false
                 while fuseAllActive do
                     task.wait(5)
                     
                     local data = LocalData:Get()
                     if not data or not data.Pets then
                         wasActive = false
-                        wasNoGroup = false
                         continue
                     end
                     
@@ -199,11 +187,6 @@ PetTab:CreateToggle({
                     end
                     
                     if selectedGroup then
-                        wasNoGroup = false
-                        
-                        local beforeCount = 0
-                        for _, _ in pairs(data.Pets) do beforeCount = beforeCount + 1 end
-                        
                         local payload = {}
                         local usedWithVariant = {}
                         for i = 1, 5 do
@@ -221,40 +204,23 @@ PetTab:CreateToggle({
                         pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                         
                         pcall(function()
-                            NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+                            NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
                         end)
                         
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                            getgenv().ActivityStatus.trigger = true
+                            wasActive = true
+                        end
+                        
+                        if text ~= lastPrint then
+                            print("[Rebirth] " .. text)
+                            lastPrint = text
+                        end
+                        
                         task.wait(1.5)
-                        
-                        local data2 = LocalData:Get()
-                        local afterCount = 0
-                        if data2 and data2.Pets then
-                            for _, _ in pairs(data2.Pets) do afterCount = afterCount + 1 end
-                        end
-                        
-                        if afterCount < beforeCount then
-                            if not wasActive then
-                                getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                                getgenv().ActivityStatus.trigger = true
-                                wasActive = true
-                            end
-                            
-                            if text ~= lastPrint then
-                                print("[Rebirth] " .. text)
-                                lastPrint = text
-                            end
-                        else
-                            wasActive = false
-                        end
                     else
                         wasActive = false
-                        
-                        if not wasNoGroup then
-                            getgenv().ActivityStatus.current = "Cant Find 5 pet with same rarity for rebirth machine"
-                            getgenv().ActivityStatus.trigger = true
-                            wasNoGroup = true
-                            print("[Rebirth] Cant find 5 pets with same rarity for rebirth machine")
-                        end
                     end
                 end
             end)
@@ -272,18 +238,15 @@ PetTab:CreateToggle({
 -- AUTO-START SAVED TOGGLES
 -- ======================================
 if fuseAllActive then
-    pcall(function() trackerLabel:SetText("Last Used: None") end)
     fuseAllThread = task.spawn(function()
         local lastPrint = ""
         local wasActive = false
-        local wasNoGroup = false
         while fuseAllActive do
             task.wait(5)
             
             local data = LocalData:Get()
             if not data or not data.Pets then
                 wasActive = false
-                wasNoGroup = false
                 continue
             end
             
@@ -313,11 +276,6 @@ if fuseAllActive then
             end
             
             if selectedGroup then
-                wasNoGroup = false
-                
-                local beforeCount = 0
-                for _, _ in pairs(data.Pets) do beforeCount = beforeCount + 1 end
-                
                 local payload = {}
                 local usedWithVariant = {}
                 for i = 1, 5 do
@@ -335,40 +293,23 @@ if fuseAllActive then
                 pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
                 
                 pcall(function()
-                    NetworkRemote:InvokeServer("UseRebirthMachine", payload)
+                    NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
                 end)
                 
+                if not wasActive then
+                    getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                    getgenv().ActivityStatus.trigger = true
+                    wasActive = true
+                end
+                
+                if text ~= lastPrint then
+                    print("[Rebirth] " .. text)
+                    lastPrint = text
+                end
+                
                 task.wait(1.5)
-                
-                local data2 = LocalData:Get()
-                local afterCount = 0
-                if data2 and data2.Pets then
-                    for _, _ in pairs(data2.Pets) do afterCount = afterCount + 1 end
-                end
-                
-                if afterCount < beforeCount then
-                    if not wasActive then
-                        getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                        getgenv().ActivityStatus.trigger = true
-                        wasActive = true
-                    end
-                    
-                    if text ~= lastPrint then
-                        print("[Rebirth] " .. text)
-                        lastPrint = text
-                    end
-                else
-                    wasActive = false
-                end
             else
                 wasActive = false
-                
-                if not wasNoGroup then
-                    getgenv().ActivityStatus.current = "Cant Find 5 pet with same rarity for rebirth machine"
-                    getgenv().ActivityStatus.trigger = true
-                    wasNoGroup = true
-                    print("[Rebirth] Cant find 5 pets with same rarity for rebirth machine")
-                end
             end
         end
     end)
