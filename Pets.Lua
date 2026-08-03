@@ -151,13 +151,11 @@ PetTab:CreateToggle({
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
                 local lastPrint = ""
-                local wasActive = false
                 while fuseAllActive do
                     task.wait(5)
                     
                     local data = LocalData:Get()
                     if not data or not data.Pets then
-                        wasActive = false
                         continue
                     end
                     
@@ -207,11 +205,9 @@ PetTab:CreateToggle({
                             NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
                         end)
                         
-                        if not wasActive then
-                            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                            getgenv().ActivityStatus.trigger = true
-                            wasActive = true
-                        end
+                        -- Always send activity webhook for every rebirth
+                        getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                        getgenv().ActivityStatus.trigger = true
                         
                         if text ~= lastPrint then
                             print("[Rebirth] " .. text)
@@ -219,8 +215,6 @@ PetTab:CreateToggle({
                         end
                         
                         task.wait(1.5)
-                    else
-                        wasActive = false
                     end
                 end
             end)
@@ -240,13 +234,11 @@ PetTab:CreateToggle({
 if fuseAllActive then
     fuseAllThread = task.spawn(function()
         local lastPrint = ""
-        local wasActive = false
         while fuseAllActive do
             task.wait(5)
             
             local data = LocalData:Get()
             if not data or not data.Pets then
-                wasActive = false
                 continue
             end
             
@@ -296,11 +288,8 @@ if fuseAllActive then
                     NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
                 end)
                 
-                if not wasActive then
-                    getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                    getgenv().ActivityStatus.trigger = true
-                    wasActive = true
-                end
+                getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                getgenv().ActivityStatus.trigger = true
                 
                 if text ~= lastPrint then
                     print("[Rebirth] " .. text)
@@ -308,8 +297,6 @@ if fuseAllActive then
                 end
                 
                 task.wait(1.5)
-            else
-                wasActive = false
             end
         end
     end)
