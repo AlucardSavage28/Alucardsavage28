@@ -74,9 +74,11 @@ local fragThread = nil
 local playtimeRunning = false
 local playtimeThread = nil
 
--- Daily login
+-- Daily streak
 local dailyRunning = false
 local dailyThread = nil
+local forfeitRunning = false
+local forfeitThread = nil
 
 -- Fishing
 local fishRunning = false
@@ -458,7 +460,7 @@ AutoTab:CreateToggle({
 })
 
 AutoTab:CreateToggle({
-    Name = "Daily Login Streak",
+    Name = "Auto Daily Streak",
     CurrentValue = autoSettings.dailyStreak or false,
     Callback = function(v)
         dailyRunning = v
@@ -467,11 +469,58 @@ AutoTab:CreateToggle({
         saveHubSettings()
         if v then
             dailyThread = task.spawn(function()
-                getgenv().ActivityStatus.current = "Signed in for your Daily Streak!"
-                getgenv().ActivityStatus.trigger = true
-                pcall(function() RE:FireServer("DailyRewardsForfeitStreak") end)
+                -- Open Daily Rewards UI
+                local playerGui = player:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local screenGui = playerGui:FindFirstChild("ScreenGui")
+                    if screenGui then
+                        local hud = screenGui:FindFirstChild("HUD")
+                        if hud then
+                            local left = hud:FindFirstChild("Left")
+                            if left then
+                                local buttons = left:FindFirstChild("Buttons")
+                                if buttons then
+                                    local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                                    if dailyBtn then
+                                        local btn = dailyBtn:FindFirstChild("Button")
+                                        if btn then
+                                            firesignal(btn.Activated)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                
                 task.wait(0.5)
-                pcall(function() RE:FireServer("DailyRewardClaimStars") end)
+                
+                -- Click Claim button
+                if playerGui then
+                    local screenGui = playerGui:FindFirstChild("ScreenGui")
+                    if screenGui then
+                        local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                        if dailyRewards then
+                            local login = dailyRewards:FindFirstChild("Login")
+                            if login then
+                                local claim = login:FindFirstChild("Claim")
+                                if claim then
+                                    local claimBtn = claim:FindFirstChild("Button")
+                                    if claimBtn and claimBtn.Visible then
+                                        firesignal(claimBtn.Activated)
+                                        getgenv().ActivityStatus.current = "Signed in for your Daily Streak!"
+                                        getgenv().ActivityStatus.trigger = true
+                                        print("[Auto] Daily streak claimed!")
+                                    else
+                                        print("[Auto] Daily streak already claimed or button not visible")
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                dailyRunning = false
             end)
         else
             if dailyThread then task.cancel(dailyThread) end
@@ -479,7 +528,52 @@ AutoTab:CreateToggle({
     end
 })
 
--- XL Index
+AutoTab:CreateToggle({
+    Name = "Auto Forfeit Streak",
+    CurrentValue = autoSettings.autoForfeit or false,
+    Callback = function(v)
+        forfeitRunning = v
+        autoSettings.autoForfeit = v
+        getgenv().HubSettings.auto = autoSettings
+        saveHubSettings()
+        if v then
+            forfeitThread = task.spawn(function()
+                -- Check if player has an active streak by looking at the streak label
+                local playerGui = player:FindFirstChild("PlayerGui")
+                local hasStreak = false
+                if playerGui then
+                    local screenGui = playerGui:FindFirstChild("ScreenGui")
+                    if screenGui then
+                        local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                        if dailyRewards then
+                            local streak = dailyRewards:FindFirstChild("Streak")
+                            if streak then
+                                local label = streak:FindFirstChild("Label")
+                                if label and label.Text ~= "" and label.Text ~= "0" then
+                                    hasStreak = true
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                if hasStreak then
+                    pcall(function() RE:FireServer("DailyRewardsForfeitStreak") end)
+                    getgenv().ActivityStatus.current = "Forfeited Daily Streak!"
+                    getgenv().ActivityStatus.trigger = true
+                    print("[Auto] Daily streak forfeited!")
+                else
+                    print("[Auto] No active streak to forfeit")
+                end
+                
+                forfeitRunning = false
+            end)
+        else
+            if forfeitThread then task.cancel(forfeitThread) end
+        end
+    end
+})
+
 AutoTab:CreateToggle({
     Name = "Auto Claim XL Index",
     CurrentValue = autoSettings.autoXLIndex or false,
@@ -811,6 +905,88 @@ if autoSettings.autoSell then
                 task.wait(3)
             end
             task.wait(1)
+        end
+    end)
+end
+
+if autoSettings.dailyStreak then
+    dailyRunning = true
+    dailyThread = task.spawn(function()
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui then
+            local screenGui = playerGui:FindFirstChild("ScreenGui")
+            if screenGui then
+                local hud = screenGui:FindFirstChild("HUD")
+                if hud then
+                    local left = hud:FindFirstChild("Left")
+                    if left then
+                        local buttons = left:FindFirstChild("Buttons")
+                        if buttons then
+                            local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                            if dailyBtn then
+                                local btn = dailyBtn:FindFirstChild("Button")
+                                if btn then
+                                    firesignal(btn.Activated)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        task.wait(0.5)
+        
+        if playerGui then
+            local screenGui = playerGui:FindFirstChild("ScreenGui")
+            if screenGui then
+                local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                if dailyRewards then
+                    local login = dailyRewards:FindFirstChild("Login")
+                    if login then
+                        local claim = login:FindFirstChild("Claim")
+                        if claim then
+                            local claimBtn = claim:FindFirstChild("Button")
+                            if claimBtn and claimBtn.Visible then
+                                firesignal(claimBtn.Activated)
+                                getgenv().ActivityStatus.current = "Signed in for your Daily Streak!"
+                                getgenv().ActivityStatus.trigger = true
+                                print("[Auto] Daily streak claimed!")
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+if autoSettings.autoForfeit then
+    forfeitRunning = true
+    forfeitThread = task.spawn(function()
+        local playerGui = player:FindFirstChild("PlayerGui")
+        local hasStreak = false
+        if playerGui then
+            local screenGui = playerGui:FindFirstChild("ScreenGui")
+            if screenGui then
+                local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                if dailyRewards then
+                    local streak = dailyRewards:FindFirstChild("Streak")
+                    if streak then
+                        local label = streak:FindFirstChild("Label")
+                        if label and label.Text ~= "" and label.Text ~= "0" then
+                            hasStreak = true
+                        end
+                    end
+                end
+            end
+        end
+        
+        if hasStreak then
+            pcall(function() RE:FireServer("DailyRewardsForfeitStreak") end)
+            getgenv().ActivityStatus.current = "Forfeited Daily Streak!"
+            getgenv().ActivityStatus.trigger = true
+            print("[Auto] Daily streak forfeited!")
         end
     end)
 end
