@@ -151,13 +151,11 @@ PetTab:CreateToggle({
             pcall(function() trackerLabel:SetText("Last Used: None") end)
             fuseAllThread = task.spawn(function()
                 local lastPrint = ""
-                local wasActive = false
                 while fuseAllActive do
                     task.wait(5)
                     
                     local data = LocalData:Get()
                     if not data or not data.Pets then
-                        wasActive = false
                         continue
                     end
                     
@@ -219,21 +217,15 @@ PetTab:CreateToggle({
                         end
                         
                         if afterCount < beforeCount then
-                            if not wasActive then
-                                getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
-                                getgenv().ActivityStatus.trigger = true
-                                wasActive = true
-                            end
+                            -- Send webhook EVERY TIME rebirth actually happens
+                            getgenv().ActivityStatus.current = "Rebirth Machine used: " .. text
+                            getgenv().ActivityStatus.trigger = true
                             
                             if text ~= lastPrint then
                                 print("[Rebirth] " .. text)
                                 lastPrint = text
                             end
-                        else
-                            wasActive = false
                         end
-                    else
-                        wasActive = false
                     end
                 end
             end)
