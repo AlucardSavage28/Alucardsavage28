@@ -469,58 +469,119 @@ AutoTab:CreateToggle({
         saveHubSettings()
         if v then
             dailyThread = task.spawn(function()
-                -- Open Daily Rewards UI
-                local playerGui = player:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local screenGui = playerGui:FindFirstChild("ScreenGui")
-                    if screenGui then
-                        local hud = screenGui:FindFirstChild("HUD")
-                        if hud then
-                            local left = hud:FindFirstChild("Left")
-                            if left then
-                                local buttons = left:FindFirstChild("Buttons")
-                                if buttons then
-                                    local dailyBtn = buttons:FindFirstChild("DailyRewards")
-                                    if dailyBtn then
-                                        local btn = dailyBtn:FindFirstChild("Button")
-                                        if btn then
-                                            firesignal(btn.Activated)
+                while dailyRunning do
+                    local playerGui = player:FindFirstChild("PlayerGui")
+                    
+                    -- Open Daily Rewards UI
+                    if playerGui then
+                        local screenGui = playerGui:FindFirstChild("ScreenGui")
+                        if screenGui then
+                            local hud = screenGui:FindFirstChild("HUD")
+                            if hud then
+                                local left = hud:FindFirstChild("Left")
+                                if left then
+                                    local buttons = left:FindFirstChild("Buttons")
+                                    if buttons then
+                                        local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                                        if dailyBtn then
+                                            local btn = dailyBtn:FindFirstChild("Button")
+                                            if btn then
+                                                firesignal(btn.Activated)
+                                            end
                                         end
                                     end
                                 end
                             end
                         end
                     end
-                end
-                
-                task.wait(0.5)
-                
-                -- Click Claim button
-                if playerGui then
-                    local screenGui = playerGui:FindFirstChild("ScreenGui")
-                    if screenGui then
-                        local dailyRewards = screenGui:FindFirstChild("DailyRewards")
-                        if dailyRewards then
-                            local login = dailyRewards:FindFirstChild("Login")
-                            if login then
-                                local claim = login:FindFirstChild("Claim")
-                                if claim then
-                                    local claimBtn = claim:FindFirstChild("Button")
-                                    if claimBtn and claimBtn.Visible then
-                                        firesignal(claimBtn.Activated)
-                                        getgenv().ActivityStatus.current = "Signed in for your Daily Streak!"
-                                        getgenv().ActivityStatus.trigger = true
-                                        print("[Auto] Daily streak claimed!")
-                                    else
-                                        print("[Auto] Daily streak already claimed or button not visible")
+                    
+                    task.wait(0.5)
+                    
+                    -- Read streak count
+                    local streakText = "Unknown"
+                    if playerGui then
+                        local screenGui = playerGui:FindFirstChild("ScreenGui")
+                        if screenGui then
+                            local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                            if dailyRewards then
+                                local shop = dailyRewards:FindFirstChild("Shop")
+                                if shop then
+                                    local streak = shop:FindFirstChild("Streak")
+                                    if streak then
+                                        local label = streak:FindFirstChild("Label")
+                                        if label then
+                                            streakText = label.Text
+                                        end
                                     end
                                 end
                             end
                         end
                     end
+                    
+                    -- Click Claim button
+                    local claimed = false
+                    if playerGui then
+                        local screenGui = playerGui:FindFirstChild("ScreenGui")
+                        if screenGui then
+                            local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                            if dailyRewards then
+                                local login = dailyRewards:FindFirstChild("Login")
+                                if login then
+                                    local loginFrame = login:FindFirstChild("Frame")
+                                    if loginFrame then
+                                        local claim = loginFrame:FindFirstChild("Claim")
+                                        if claim then
+                                            local claimBtn = claim:FindFirstChild("Button")
+                                            if claimBtn and claimBtn.Visible then
+                                                firesignal(claimBtn.Activated)
+                                                claimed = true
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Fire remote
+                    pcall(function() RE:FireServer("DailyRewardClaimStars") end)
+                    claimed = true
+                    
+                    task.wait(0.3)
+                    
+                    -- Close Daily Rewards UI
+                    if playerGui then
+                        local screenGui = playerGui:FindFirstChild("ScreenGui")
+                        if screenGui then
+                            local hud = screenGui:FindFirstChild("HUD")
+                            if hud then
+                                local left = hud:FindFirstChild("Left")
+                                if left then
+                                    local buttons = left:FindFirstChild("Buttons")
+                                    if buttons then
+                                        local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                                        if dailyBtn then
+                                            local btn = dailyBtn:FindFirstChild("Button")
+                                            if btn then
+                                                firesignal(btn.Activated)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    if claimed then
+                        getgenv().ActivityStatus.current = "Signed in for your Daily Streak! (" .. streakText .. ")"
+                        getgenv().ActivityStatus.trigger = true
+                        print("[Auto] Daily streak claimed! (" .. streakText .. ")")
+                    else
+                        print("[Auto] Daily streak already claimed, waiting 24h...")
+                    end
+                    
+                    task.wait(86400)
                 end
-                
-                dailyRunning = false
             end)
         else
             if dailyThread then task.cancel(dailyThread) end
@@ -538,7 +599,6 @@ AutoTab:CreateToggle({
         saveHubSettings()
         if v then
             forfeitThread = task.spawn(function()
-                -- Check if player has an active streak by looking at the streak label
                 local playerGui = player:FindFirstChild("PlayerGui")
                 local hasStreak = false
                 if playerGui then
@@ -912,51 +972,117 @@ end
 if autoSettings.dailyStreak then
     dailyRunning = true
     dailyThread = task.spawn(function()
-        local playerGui = player:FindFirstChild("PlayerGui")
-        if playerGui then
-            local screenGui = playerGui:FindFirstChild("ScreenGui")
-            if screenGui then
-                local hud = screenGui:FindFirstChild("HUD")
-                if hud then
-                    local left = hud:FindFirstChild("Left")
-                    if left then
-                        local buttons = left:FindFirstChild("Buttons")
-                        if buttons then
-                            local dailyBtn = buttons:FindFirstChild("DailyRewards")
-                            if dailyBtn then
-                                local btn = dailyBtn:FindFirstChild("Button")
-                                if btn then
-                                    firesignal(btn.Activated)
+        while dailyRunning do
+            local playerGui = player:FindFirstChild("PlayerGui")
+            
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local hud = screenGui:FindFirstChild("HUD")
+                    if hud then
+                        local left = hud:FindFirstChild("Left")
+                        if left then
+                            local buttons = left:FindFirstChild("Buttons")
+                            if buttons then
+                                local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                                if dailyBtn then
+                                    local btn = dailyBtn:FindFirstChild("Button")
+                                    if btn then
+                                        firesignal(btn.Activated)
+                                    end
                                 end
                             end
                         end
                     end
                 end
             end
-        end
-        
-        task.wait(0.5)
-        
-        if playerGui then
-            local screenGui = playerGui:FindFirstChild("ScreenGui")
-            if screenGui then
-                local dailyRewards = screenGui:FindFirstChild("DailyRewards")
-                if dailyRewards then
-                    local login = dailyRewards:FindFirstChild("Login")
-                    if login then
-                        local claim = login:FindFirstChild("Claim")
-                        if claim then
-                            local claimBtn = claim:FindFirstChild("Button")
-                            if claimBtn and claimBtn.Visible then
-                                firesignal(claimBtn.Activated)
-                                getgenv().ActivityStatus.current = "Signed in for your Daily Streak!"
-                                getgenv().ActivityStatus.trigger = true
-                                print("[Auto] Daily streak claimed!")
+            
+            task.wait(0.5)
+            
+            -- Read streak count
+            local streakText = "Unknown"
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                    if dailyRewards then
+                        local shop = dailyRewards:FindFirstChild("Shop")
+                        if shop then
+                            local streak = shop:FindFirstChild("Streak")
+                            if streak then
+                                local label = streak:FindFirstChild("Label")
+                                if label then
+                                    streakText = label.Text
+                                end
                             end
                         end
                     end
                 end
             end
+            
+            -- Click Claim
+            local claimed = false
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                    if dailyRewards then
+                        local login = dailyRewards:FindFirstChild("Login")
+                        if login then
+                            local loginFrame = login:FindFirstChild("Frame")
+                            if loginFrame then
+                                local claim = loginFrame:FindFirstChild("Claim")
+                                if claim then
+                                    local claimBtn = claim:FindFirstChild("Button")
+                                    if claimBtn and claimBtn.Visible then
+                                        firesignal(claimBtn.Activated)
+                                        claimed = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Fire remote
+            pcall(function() RE:FireServer("DailyRewardClaimStars") end)
+            claimed = true
+            
+            task.wait(0.3)
+            
+            -- Close UI
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local hud = screenGui:FindFirstChild("HUD")
+                    if hud then
+                        local left = hud:FindFirstChild("Left")
+                        if left then
+                            local buttons = left:FindFirstChild("Buttons")
+                            if buttons then
+                                local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                                if dailyBtn then
+                                    local btn = dailyBtn:FindFirstChild("Button")
+                                    if btn then
+                                        firesignal(btn.Activated)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            if claimed then
+                getgenv().ActivityStatus.current = "Signed in for your Daily Streak! (" .. streakText .. ")"
+                getgenv().ActivityStatus.trigger = true
+                print("[Auto] Daily streak claimed! (" .. streakText .. ")")
+            else
+                print("[Auto] Daily streak already claimed, waiting 24h...")
+            end
+            
+            task.wait(86400)
         end
     end)
 end
