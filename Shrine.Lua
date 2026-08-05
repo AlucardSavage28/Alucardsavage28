@@ -7,13 +7,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-local Remote
-local RemoteEvent
-local RemoteFunc
-
-pcall(function() Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote) end)
-pcall(function() RemoteEvent = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent end)
-pcall(function() RemoteFunc = require(ReplicatedStorage.Shared.Framework.Network.Remote) end)
+local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
+local RemoteEvent = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
+local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteFunction
 
 -- ======================================
 -- LOAD SAVED SETTINGS
@@ -279,14 +275,14 @@ ShrineTab:CreateToggle({
     Name = "Auto Perm Shrine",
     CurrentValue = shrineSettings.autoPerm or false,
     Callback = function(v)
-        permRunning = v
+        permEnabled = v
         shrineSettings.autoPerm = v
         getgenv().HubSettings.shrine = shrineSettings
         saveHubSettings()
         if v then
             permThread = task.spawn(function()
-                while permRunning do
-                    pcall(function() RemoteFunc:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
+                while permEnabled do
+                    pcall(function() RemoteFunction:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
                     task.wait(1)
                     pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
                     task.wait(1)
@@ -295,13 +291,13 @@ ShrineTab:CreateToggle({
                     getgenv().ActivityStatus.trigger = true
                     
                     local info = getPermShrineInfo()
-                    while permRunning and not info.buff:lower():find(permTargetBuff:lower()) do
+                    while permEnabled and not info.buff:lower():find(permTargetBuff:lower()) do
                         pcall(function() RemoteEvent:FireServer("RerollPermanentShrine") end)
                         task.wait(2)
                         info = getPermShrineInfo()
                     end
                     
-                    if permRunning then
+                    if permEnabled then
                         getgenv().ActivityStatus.current = "Rerolling " .. info.buff .. " for " .. permEgg .. " done!"
                         getgenv().ActivityStatus.trigger = true
                         print("[Shrine] Perm buff set to " .. info.buff)
@@ -353,10 +349,10 @@ if shrineSettings.autoDreamer then
 end
 
 if shrineSettings.autoPerm then
-    permRunning = true
+    permEnabled = true
     permThread = task.spawn(function()
-        while permRunning do
-            pcall(function() RemoteFunc:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
+        while permEnabled do
+            pcall(function() RemoteFunction:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
             task.wait(1)
             pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
             task.wait(1)
@@ -365,13 +361,13 @@ if shrineSettings.autoPerm then
             getgenv().ActivityStatus.trigger = true
             
             local info = getPermShrineInfo()
-            while permRunning and not info.buff:lower():find(permTargetBuff:lower()) do
+            while permEnabled and not info.buff:lower():find(permTargetBuff:lower()) do
                 pcall(function() RemoteEvent:FireServer("RerollPermanentShrine") end)
                 task.wait(2)
                 info = getPermShrineInfo()
             end
             
-            if permRunning then
+            if permEnabled then
                 getgenv().ActivityStatus.current = "Rerolling " .. info.buff .. " for " .. permEgg .. " done!"
                 getgenv().ActivityStatus.trigger = true
                 print("[Shrine] Perm buff set to " .. info.buff)
