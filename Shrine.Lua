@@ -7,9 +7,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
-local RemoteEvent = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
-local RemoteFunction = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteFunction
+local Remote = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Framework"):WaitForChild("Network"):WaitForChild("Remote"))
+local RemoteEvent = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Framework"):WaitForChild("Network"):WaitForChild("Remote"):WaitForChild("RemoteEvent")
+local RemoteFunction = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Framework"):WaitForChild("Network"):WaitForChild("Remote"):WaitForChild("RemoteFunction")
 
 -- ======================================
 -- LOAD SAVED SETTINGS
