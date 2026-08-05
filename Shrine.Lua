@@ -23,11 +23,9 @@ local shrineSettings = settings.shrine
 -- ======================================
 local bubbleEnabled = false
 local dreamerEnabled = false
-local permEnabled = false
 
 local bubbleThread = nil
 local dreamerThread = nil
-local permThread = nil
 
 local BUBBLE = {
     Level = 1,
@@ -36,15 +34,6 @@ local BUBBLE = {
     Amount = shrineSettings.bubbleAmount or 500
 }
 local DREAMER_AMOUNT = shrineSettings.dreamerAmount or 15
-local permEgg = shrineSettings.permEgg or "Common Egg"
-local permTargetBuff = shrineSettings.permBuff or "Luck"
-local permAmount = shrineSettings.permAmount or 400
-
-local PERM_EGGS = {
-    "Common Egg", "Cyber Egg", "Nightmare Egg", "Neon Egg", "Atlantis Egg",
-    "Lava Egg", "Icy Egg", "Rainbow Egg", "Mining Egg", "Vine Egg", "Classic Egg"
-}
-local PERM_BUFFS = {"Luck", "Secret", "Infinity", "Mythic", "Shiny"}
 
 -- ======================================
 -- TIMER CHECK FUNCTIONS
@@ -76,24 +65,6 @@ local function isBuffExpired(buffName)
     if not time then return true end
     if time == "0:00:00" or time == "0s" then return true end
     return false
-end
-
-local function getPermShrineInfo()
-    local info = {buff = "Unknown", time = "Unknown"}
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local screenGui = playerGui:FindFirstChild("ScreenGui")
-        if screenGui then
-            local shrine = screenGui:FindFirstChild("PermanentShrine")
-            if shrine then
-                local buffName = shrine:FindFirstChild("Frame") and shrine.Frame:FindFirstChild("Content") and shrine.Frame.Content:FindFirstChild("Current") and shrine.Frame.Content.Current:FindFirstChild("Buff") and shrine.Frame.Content.Current.Buff:FindFirstChild("BuffName")
-                local remaining = shrine:FindFirstChild("Frame") and shrine.Frame:FindFirstChild("Content") and shrine.Frame.Content:FindFirstChild("Current") and shrine.Frame.Content.Current:FindFirstChild("Remaining")
-                if buffName then info.buff = buffName.Text end
-                if remaining then info.time = remaining.Text end
-            end
-        end
-    end
-    return info
 end
 
 -- ======================================
@@ -218,100 +189,6 @@ ShrineTab:CreateToggle({
 })
 
 -- ======================================
--- PERM SHRINE
--- ======================================
-ShrineTab:CreateSection("Perm Shrine")
-
-local permInfoLabel = ShrineTab:CreateLabel("Buff: Unknown | Time: Unknown")
-task.spawn(function()
-    while true do
-        task.wait(30)
-        local info = getPermShrineInfo()
-        pcall(function() permInfoLabel:SetText("Buff: " .. info.buff .. " | Time: " .. info.time) end)
-    end
-end)
-
-ShrineTab:CreateDropdown({
-    Name = "Egg",
-    Options = PERM_EGGS,
-    CurrentOption = {permEgg},
-    Callback = function(v)
-        permEgg = v
-        shrineSettings.permEgg = v
-        getgenv().HubSettings.shrine = shrineSettings
-        saveHubSettings()
-    end
-})
-
-ShrineTab:CreateDropdown({
-    Name = "Target Buff",
-    Options = PERM_BUFFS,
-    CurrentOption = {permTargetBuff},
-    Callback = function(v)
-        permTargetBuff = v
-        shrineSettings.permBuff = v
-        getgenv().HubSettings.shrine = shrineSettings
-        saveHubSettings()
-    end
-})
-
-ShrineTab:CreateInput({
-    Name = "Amount",
-    CurrentValue = tostring(permAmount),
-    PlaceholderText = "400",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        local n = tonumber(v)
-        if n then
-            permAmount = n
-            shrineSettings.permAmount = n
-            getgenv().HubSettings.shrine = shrineSettings
-            saveHubSettings()
-        end
-    end
-})
-
-ShrineTab:CreateToggle({
-    Name = "Auto Perm Shrine",
-    CurrentValue = shrineSettings.autoPerm or false,
-    Callback = function(v)
-        permEnabled = v
-        shrineSettings.autoPerm = v
-        getgenv().HubSettings.shrine = shrineSettings
-        saveHubSettings()
-        if v then
-            permThread = task.spawn(function()
-                while permEnabled do
-                    pcall(function() RemoteFunction:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
-                    task.wait(1)
-                    pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
-                    task.wait(1)
-                    
-                    getgenv().ActivityStatus.current = "Rerolling buff for " .. permEgg
-                    getgenv().ActivityStatus.trigger = true
-                    
-                    local info = getPermShrineInfo()
-                    while permEnabled and not info.buff:lower():find(permTargetBuff:lower()) do
-                        pcall(function() RemoteEvent:FireServer("RerollPermanentShrine") end)
-                        task.wait(2)
-                        info = getPermShrineInfo()
-                    end
-                    
-                    if permEnabled then
-                        getgenv().ActivityStatus.current = "Rerolling " .. info.buff .. " for " .. permEgg .. " done!"
-                        getgenv().ActivityStatus.trigger = true
-                        print("[Shrine] Perm buff set to " .. info.buff)
-                        task.wait(43200)
-                    end
-                end
-            end)
-        else
-            if permThread then task.cancel(permThread) end
-        end
-    end
-})
-
--- ======================================
 -- AUTO-START SAVED TOGGLES
 -- ======================================
 if shrineSettings.autoBubble then
@@ -343,35 +220,6 @@ if shrineSettings.autoDreamer then
                 getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
                 getgenv().ActivityStatus.trigger = true
                 dreamer()
-            end
-        end
-    end)
-end
-
-if shrineSettings.autoPerm then
-    permEnabled = true
-    permThread = task.spawn(function()
-        while permEnabled do
-            pcall(function() RemoteFunction:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
-            task.wait(1)
-            pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
-            task.wait(1)
-            
-            getgenv().ActivityStatus.current = "Rerolling buff for " .. permEgg
-            getgenv().ActivityStatus.trigger = true
-            
-            local info = getPermShrineInfo()
-            while permEnabled and not info.buff:lower():find(permTargetBuff:lower()) do
-                pcall(function() RemoteEvent:FireServer("RerollPermanentShrine") end)
-                task.wait(2)
-                info = getPermShrineInfo()
-            end
-            
-            if permEnabled then
-                getgenv().ActivityStatus.current = "Rerolling " .. info.buff .. " for " .. permEgg .. " done!"
-                getgenv().ActivityStatus.trigger = true
-                print("[Shrine] Perm buff set to " .. info.buff)
-                task.wait(43200)
             end
         end
     end)
