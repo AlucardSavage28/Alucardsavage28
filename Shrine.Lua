@@ -124,89 +124,14 @@ local function dreamer()
 end
 
 local function donatePermShrine()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local screenGui = playerGui:FindFirstChild("ScreenGui")
-        if screenGui then
-            local shrine = screenGui:FindFirstChild("PermanentShrine")
-            if shrine then
-                local items = shrine:FindFirstChild("Frame") and shrine.Frame:FindFirstChild("Content") and shrine.Frame.Content:FindFirstChild("Donate") and shrine.Frame.Content.Donate:FindFirstChild("Inventory") and shrine.Frame.Content.Donate.Inventory:FindFirstChild("Main") and shrine.Frame.Content.Donate.Inventory.Main:FindFirstChild("Items") and shrine.Frame.Content.Donate.Inventory.Main.Items:FindFirstChild("List")
-                if items then
-                    local luckyItem = items:FindFirstChild("Lucky/6")
-                    if luckyItem then
-                        local itemFrame = luckyItem:FindFirstChild("ItemFrame")
-                        if itemFrame then
-                            local btn = itemFrame:FindFirstChild("Button")
-                            if btn then
-                                firesignal(btn.Activated)
-                                task.wait(0.3)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
     pcall(function() RemoteFunction:InvokeServer("DonateToPermanentShrine", "Lucky", 6, permAmount) end)
 end
 
 local function choosePermEgg()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local screenGui = playerGui:FindFirstChild("ScreenGui")
-        if screenGui then
-            local shrine = screenGui:FindFirstChild("PermanentShrine")
-            if shrine then
-                local chooseBtn = shrine:FindFirstChild("Frame") and shrine.Frame:FindFirstChild("Content") and shrine.Frame.Content:FindFirstChild("Donate") and shrine.Frame.Content.Donate:FindFirstChild("Inventory") and shrine.Frame.Content.Donate.Inventory:FindFirstChild("Main") and shrine.Frame.Content.Donate.Inventory.Main:FindFirstChild("Overlay") and shrine.Frame.Content.Donate.Inventory.Main.Overlay:FindFirstChild("Choose")
-                if chooseBtn then
-                    local btn = chooseBtn:FindFirstChild("Button")
-                    if btn then
-                        firesignal(btn.Activated)
-                        task.wait(0.3)
-                    end
-                end
-                
-                local eggList = shrine:FindFirstChild("Frame") and shrine.Frame:FindFirstChild("Content") and shrine.Frame.Content:FindFirstChild("Donate") and shrine.Frame.Content.Donate:FindFirstChild("Eggs") and shrine.Frame.Content.Donate.Eggs:FindFirstChild("List")
-                if eggList then
-                    local targetEgg = eggList:FindFirstChild(permEgg)
-                    if targetEgg then
-                        local eggBtn = targetEgg:FindFirstChild("Button")
-                        if eggBtn then
-                            firesignal(eggBtn.Activated)
-                            task.wait(0.3)
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
     pcall(function() RemoteEvent:FireServer("ClaimPermanentShrineBuff", permEgg) end)
 end
 
 local function rerollPermShrine()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local screenGui = playerGui:FindFirstChild("ScreenGui")
-        if screenGui then
-            local shrine = screenGui:FindFirstChild("PermanentShrine")
-            if shrine then
-                local rerollHolder = shrine:FindFirstChild("Frame") and shrine.Frame:FindFirstChild("Content") and shrine.Frame.Content:FindFirstChild("Current") and shrine.Frame.Content.Current:FindFirstChild("RerollHolder")
-                if rerollHolder then
-                    local reroll = rerollHolder:FindFirstChild("Reroll")
-                    if reroll then
-                        local btn = reroll:FindFirstChild("Button")
-                        if btn and btn.Visible then
-                            firesignal(btn.Activated)
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
     pcall(function() RemoteEvent:FireServer("RerollPermanentShrine") end)
     return true
 end
@@ -322,7 +247,7 @@ ShrineTab:CreateToggle({
 })
 
 -- ======================================
--- PERM SHRINE (NO SAVE/LOAD - Manual only)
+-- PERM SHRINE (NO SAVE/LOAD - Manual only, Remote-only)
 -- ======================================
 ShrineTab:CreateSection("Perm Shrine")
 
@@ -397,13 +322,10 @@ ShrineTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         
                         while permEnabled and not currentBuff:lower():find(permTargetBuff:lower()) do
-                            if rerollPermShrine() then
-                                rerolls = rerolls + 1
-                                task.wait(2)
-                                currentBuff = getPermShrineBuff()
-                            else
-                                task.wait(2)
-                            end
+                            rerollPermShrine()
+                            rerolls = rerolls + 1
+                            task.wait(2)
+                            currentBuff = getPermShrineBuff()
                         end
                         
                         if permEnabled then
