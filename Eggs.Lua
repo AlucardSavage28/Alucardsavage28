@@ -524,11 +524,8 @@ EggsTab:CreateToggle({
                 while autoHatchEnabled do
                     while getgenv().questActive and autoHatchEnabled do
                         wasActive = false
-                        task.wait(0.5)
+                        task.wait(0.1)
                     end
-                    
-                    task.wait(4)
-                    if getgenv().questActive then continue end
                     
                     if not wasActive and not getgenv().questActive then
                         getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
@@ -537,8 +534,11 @@ EggsTab:CreateToggle({
                     end
                     
                     teleportToEgg(selectedEgg)
-                    pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
-                    task.wait(0.05)
+                    for i = 1, 5 do
+                        if not autoHatchEnabled then break end
+                        pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
+                        task.wait(0.3)
+                    end
                 end
             end)
         else
@@ -561,6 +561,21 @@ EggsTab:CreateToggle({
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
                     task.wait(0.05)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                    
+                    -- Smart egg selection
+                    local eggToHatch = nil
+                    if getgenv().questActive and getgenv().questEgg then
+                        eggToHatch = getgenv().questEgg
+                    elseif bountyEnabled then
+                        eggToHatch = currentBountyEgg
+                    else
+                        eggToHatch = selectedEgg
+                    end
+                    
+                    if eggToHatch then
+                        pcall(function() Remote:FireServer("HatchEgg", eggToHatch, HATCH_AMOUNT) end)
+                    end
+                    
                     task.wait(0.1)
                 end
             end)
@@ -665,11 +680,8 @@ EggsTab:CreateToggle({
                 while bountyEnabled do
                     while getgenv().questActive and bountyEnabled do
                         wasActive = false
-                        task.wait(0.5)
+                        task.wait(0.1)
                     end
-                    
-                    task.wait(4)
-                    if getgenv().questActive then continue end
                     
                     refreshBountyLabels()
                     
@@ -681,14 +693,11 @@ EggsTab:CreateToggle({
                     
                     teleportToEgg(currentBountyEgg)
                     task.wait(0.3)
-                    
-                    for i = 1, 3 do
+                    for i = 1, 5 do
                         if not bountyEnabled then break end
                         pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
-                        task.wait(0.5)
+                        task.wait(0.3)
                     end
-                    
-                    task.wait(0.05)
                 end
             end)
         else
@@ -772,11 +781,8 @@ EggsTab:CreateToggle({
                 while xlBountyRunning do
                     while getgenv().questActive and xlBountyRunning do
                         wasActive = false
-                        task.wait(0.5)
+                        task.wait(0.1)
                     end
-                    
-                    task.wait(4)
-                    if getgenv().questActive then continue end
                     
                     if not wasActive and not getgenv().questActive then
                         getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg
@@ -785,8 +791,11 @@ EggsTab:CreateToggle({
                     end
                     
                     teleportToEgg(selectedXLEgg)
-                    pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
-                    task.wait(0.05)
+                    for i = 1, 5 do
+                        if not xlBountyRunning then break end
+                        pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
+                        task.wait(0.3)
+                    end
                 end
             end)
         else
@@ -804,11 +813,8 @@ if autoHatchEnabled then
         while autoHatchEnabled do
             while getgenv().questActive and autoHatchEnabled do
                 wasActive = false
-                task.wait(0.5)
+                task.wait(0.1)
             end
-            
-            task.wait(4)
-            if getgenv().questActive then continue end
             
             if not wasActive and not getgenv().questActive then
                 getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
@@ -817,8 +823,11 @@ if autoHatchEnabled then
             end
             
             teleportToEgg(selectedEgg)
-            pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
-            task.wait(0.05)
+            for i = 1, 5 do
+                if not autoHatchEnabled then break end
+                pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
+                task.wait(0.3)
+            end
         end
     end)
 end
@@ -830,11 +839,8 @@ if bountyEnabled then
         while bountyEnabled do
             while getgenv().questActive and bountyEnabled do
                 wasActive = false
-                task.wait(0.5)
+                task.wait(0.1)
             end
-            
-            task.wait(4)
-            if getgenv().questActive then continue end
             
             refreshBountyLabels()
             
@@ -846,14 +852,11 @@ if bountyEnabled then
             
             teleportToEgg(currentBountyEgg)
             task.wait(0.3)
-            
-            for i = 1, 3 do
+            for i = 1, 5 do
                 if not bountyEnabled then break end
                 pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
-                task.wait(0.5)
+                task.wait(0.3)
             end
-            
-            task.wait(0.05)
         end
     end)
 end
@@ -1003,6 +1006,20 @@ if spamEEnabled then
             VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
             task.wait(0.05)
             VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            
+            local eggToHatch = nil
+            if getgenv().questActive and getgenv().questEgg then
+                eggToHatch = getgenv().questEgg
+            elseif bountyEnabled then
+                eggToHatch = currentBountyEgg
+            else
+                eggToHatch = selectedEgg
+            end
+            
+            if eggToHatch then
+                pcall(function() Remote:FireServer("HatchEgg", eggToHatch, HATCH_AMOUNT) end)
+            end
+            
             task.wait(0.1)
         end
     end)
