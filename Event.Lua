@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (AUTO EVENT + CRYSTAL SHOP + DAILY REWARD SHOP + CRYSTAL ALTAR)
+-- EVENT TAB (AUTO EVENT + EVENT SHOP 1 + DAILY REWARD SHOP + CRYSTAL ALTAR)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -30,17 +30,6 @@ local selectedEvent = eventSettings.selectedEvent or "Luck Event"
 local eventRunning = false
 local eventThread = nil
 
-local runeRunning = false
-local runeThread = nil
-local greenBlueRunning = false
-local greenBlueThread = nil
-local purpleRainbowRunning = false
-local purpleRainbowThread = nil
-local crystalRunning = false
-local crystalThread = nil
-local sunburstRunning = false
-local sunburstThread = nil
-
 -- Crystal Altar settings
 local crystalAltarRunning = false
 local crystalAltarThread = nil
@@ -56,6 +45,28 @@ local dailyGreenBlueRunning = false
 local dailyGreenBlueThread = nil
 local dailyPurpleRainbowRunning = false
 local dailyPurpleRainbowThread = nil
+
+-- Event Shop 1 settings
+local shop1Running = false
+local shop1Thread = nil
+local shop2Running = false
+local shop2Thread = nil
+local shop3Running = false
+local shop3Thread = nil
+local shop4Running = false
+local shop4Thread = nil
+local shop5Running = false
+local shop5Thread = nil
+local shop6Running = false
+local shop6Thread = nil
+local shop7Running = false
+local shop7Thread = nil
+local shop8Running = false
+local shop8Thread = nil
+local shop9Running = false
+local shop9Thread = nil
+local shop10Running = false
+local shop10Thread = nil
 
 local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
@@ -114,13 +125,49 @@ end
 local lastEventDisplay = ""
 
 -- ======================================
+-- EVENT SHOP STOCK CHECKER
+-- ======================================
+local function getStock(itemNum)
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local screenGui = playerGui:FindFirstChild("ScreenGui")
+        if screenGui then
+            local itemShop = screenGui:FindFirstChild("ItemShop")
+            if itemShop then
+                local frame = itemShop:FindFirstChild("Frame")
+                if frame then
+                    local main = frame:FindFirstChild("Main")
+                    if main then
+                        local scrollingFrame = main:FindFirstChild("ScrollingFrame")
+                        if scrollingFrame then
+                            local item = scrollingFrame:FindFirstChild("Item" .. itemNum)
+                            if item then
+                                local stockLabel = item:FindFirstChild("Stock")
+                                if stockLabel then
+                                    return stockLabel.Text
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return "Unknown"
+end
+
+local function isInStock(itemNum)
+    local stock = getStock(itemNum)
+    if stock == "Unknown" then return true end
+    return not stock:lower():find("out of stock")
+end
+
+-- ======================================
 -- CRYSTAL ALTAR FUNCTIONS
 -- ======================================
 local function getCrystalPets()
     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
     
-    -- Pets labeled "Secret" in game data but are actually Celestial/Infinity
-    -- Only REAL Secret pets should be used for Crystal Altar
     local EXCLUDE_NAMES = {
         ["Ruby Crystal Dragon"] = true,
         ["Emerald Crystal Dragon"] = true,
@@ -222,115 +269,286 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - CRYSTAL SHOP
+-- UI - EVENT SHOP 1
 -- ======================================
-EventTab:CreateSection("Crystal Shop")
+EventTab:CreateSection("Event Shop 1")
 
+-- Toggle #1: Superhero Egg (Item 1)
 EventTab:CreateToggle({
-    Name = "Auto Buy Hatching Rune",
-    CurrentValue = eventSettings.autoBuyRune or false,
+    Name = "Auto Buy Superhero Egg (1)",
+    CurrentValue = eventSettings.autoShop1 or false,
     Callback = function(v)
-        runeRunning = v
-        eventSettings.autoBuyRune = v
+        shop1Running = v
+        eventSettings.autoShop1 = v
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            runeThread = task.spawn(function()
-                while runeRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 4, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 5, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 6, false) end)
-                    task.wait(1)
+            shop1Thread = task.spawn(function()
+                while shop1Running do
+                    if isInStock(1) then
+                        pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 1, true) end)
+                        task.wait(0.1)
+                    else
+                        task.wait(10)
+                    end
                 end
             end)
         else
-            if runeThread then task.cancel(runeThread) end
+            if shop1Thread then task.cancel(shop1Thread) end
         end
     end
 })
 
+-- Toggle #2: Boost Crystal (Item 2)
 EventTab:CreateToggle({
-    Name = "Auto Buy Green And Blue Fragment",
-    CurrentValue = eventSettings.autoBuyGreenBlue or false,
+    Name = "Auto Buy Boost Crystal (2)",
+    CurrentValue = eventSettings.autoShop2 or false,
     Callback = function(v)
-        greenBlueRunning = v
-        eventSettings.autoBuyGreenBlue = v
+        shop2Running = v
+        eventSettings.autoShop2 = v
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            greenBlueThread = task.spawn(function()
-                while greenBlueRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 7, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 8, false) end)
-                    task.wait(1)
+            shop2Thread = task.spawn(function()
+                while shop2Running do
+                    if isInStock(2) then
+                        pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 2, true) end)
+                        task.wait(0.1)
+                    else
+                        task.wait(10)
+                    end
                 end
             end)
         else
-            if greenBlueThread then task.cancel(greenBlueThread) end
+            if shop2Thread then task.cancel(shop2Thread) end
         end
     end
 })
 
+-- Toggle #3: Shrine Ticket (Item 3)
 EventTab:CreateToggle({
-    Name = "Auto Buy Purple And Rainbow Fragment",
-    CurrentValue = eventSettings.autoBuyPurpleRainbow or false,
+    Name = "Auto Buy Shrine Ticket (3)",
+    CurrentValue = eventSettings.autoShop3 or false,
     Callback = function(v)
-        purpleRainbowRunning = v
-        eventSettings.autoBuyPurpleRainbow = v
+        shop3Running = v
+        eventSettings.autoShop3 = v
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            purpleRainbowThread = task.spawn(function()
-                while purpleRainbowRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 9, false) end)
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 10, false) end)
-                    task.wait(1)
+            shop3Thread = task.spawn(function()
+                while shop3Running do
+                    if isInStock(3) then
+                        pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 3, true) end)
+                        task.wait(0.1)
+                    else
+                        task.wait(10)
+                    end
                 end
             end)
         else
-            if purpleRainbowThread then task.cancel(purpleRainbowThread) end
+            if shop3Thread then task.cancel(shop3Thread) end
         end
     end
 })
 
+-- Toggle #4: Secret, Infinity & Egg Elixir (Items 4,5,6)
 EventTab:CreateToggle({
-    Name = "Auto Buy Power Crystal",
-    CurrentValue = eventSettings.autoBuyPowerCrystal or false,
+    Name = "Auto Buy Secret, Inf & Egg Elixir (4,5,6)",
+    CurrentValue = eventSettings.autoShop4 or false,
     Callback = function(v)
-        crystalRunning = v
-        eventSettings.autoBuyPowerCrystal = v
+        shop4Running = v
+        eventSettings.autoShop4 = v
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            crystalThread = task.spawn(function()
-                while crystalRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 13, false) end)
-                    task.wait(1)
+            shop4Thread = task.spawn(function()
+                while shop4Running do
+                    local anyBought = false
+                    for i = 4, 6 do
+                        if isInStock(i) then
+                            pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                            anyBought = true
+                            task.wait(0.1)
+                        end
+                    end
+                    if not anyBought then
+                        task.wait(10)
+                    end
                 end
             end)
         else
-            if crystalThread then task.cancel(crystalThread) end
+            if shop4Thread then task.cancel(shop4Thread) end
         end
     end
 })
 
+-- Toggle #5: Ultra Infinity Elixir (Item 7)
 EventTab:CreateToggle({
-    Name = "Auto Buy Sunburst",
-    CurrentValue = eventSettings.autoBuySunburst or false,
+    Name = "Auto Buy Ultra Inf Elixir (7)",
+    CurrentValue = eventSettings.autoShop5 or false,
     Callback = function(v)
-        sunburstRunning = v
-        eventSettings.autoBuySunburst = v
+        shop5Running = v
+        eventSettings.autoShop5 = v
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            sunburstThread = task.spawn(function()
-                while sunburstRunning do
-                    pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 14, false) end)
-                    task.wait(1)
+            shop5Thread = task.spawn(function()
+                while shop5Running do
+                    if isInStock(7) then
+                        pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 7, true) end)
+                        task.wait(0.1)
+                    else
+                        task.wait(10)
+                    end
                 end
             end)
         else
-            if sunburstThread then task.cancel(sunburstThread) end
+            if shop5Thread then task.cancel(shop5Thread) end
+        end
+    end
+})
+
+-- Toggle #6: Lucky, Mythic & Speed Infinity (Items 8,9,10)
+EventTab:CreateToggle({
+    Name = "Auto Buy Lucky, Mythic & Speed Inf (8,9,10)",
+    CurrentValue = eventSettings.autoShop6 or false,
+    Callback = function(v)
+        shop6Running = v
+        eventSettings.autoShop6 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            shop6Thread = task.spawn(function()
+                while shop6Running do
+                    local anyBought = false
+                    for i = 8, 10 do
+                        if isInStock(i) then
+                            pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                            anyBought = true
+                            task.wait(0.1)
+                        end
+                    end
+                    if not anyBought then
+                        task.wait(10)
+                    end
+                end
+            end)
+        else
+            if shop6Thread then task.cancel(shop6Thread) end
+        end
+    end
+})
+
+-- Toggle #7: Shop Pet (Item 11)
+EventTab:CreateToggle({
+    Name = "Auto Buy Shop Pet (11)",
+    CurrentValue = eventSettings.autoShop7 or false,
+    Callback = function(v)
+        shop7Running = v
+        eventSettings.autoShop7 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            shop7Thread = task.spawn(function()
+                while shop7Running do
+                    if isInStock(11) then
+                        pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 11, true) end)
+                        task.wait(0.1)
+                    else
+                        task.wait(10)
+                    end
+                end
+            end)
+        else
+            if shop7Thread then task.cancel(shop7Thread) end
+        end
+    end
+})
+
+-- Toggle #8: Shop Pet XL (Item 12)
+EventTab:CreateToggle({
+    Name = "Auto Buy Shop Pet XL (12)",
+    CurrentValue = eventSettings.autoShop8 or false,
+    Callback = function(v)
+        shop8Running = v
+        eventSettings.autoShop8 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            shop8Thread = task.spawn(function()
+                while shop8Running do
+                    if isInStock(12) then
+                        pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 12, true) end)
+                        task.wait(0.1)
+                    else
+                        task.wait(10)
+                    end
+                end
+            end)
+        else
+            if shop8Thread then task.cancel(shop8Thread) end
+        end
+    end
+})
+
+-- Toggle #9: Green & Blue Fragment (Items 13,14)
+EventTab:CreateToggle({
+    Name = "Auto Buy Green & Blue Frag (13,14)",
+    CurrentValue = eventSettings.autoShop9 or false,
+    Callback = function(v)
+        shop9Running = v
+        eventSettings.autoShop9 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            shop9Thread = task.spawn(function()
+                while shop9Running do
+                    local anyBought = false
+                    for i = 13, 14 do
+                        if isInStock(i) then
+                            pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                            anyBought = true
+                            task.wait(0.1)
+                        end
+                    end
+                    if not anyBought then
+                        task.wait(10)
+                    end
+                end
+            end)
+        else
+            if shop9Thread then task.cancel(shop9Thread) end
+        end
+    end
+})
+
+-- Toggle #10: Purple & Rainbow Fragment (Items 15,16)
+EventTab:CreateToggle({
+    Name = "Auto Buy Purple & Rainbow Frag (15,16)",
+    CurrentValue = eventSettings.autoShop10 or false,
+    Callback = function(v)
+        shop10Running = v
+        eventSettings.autoShop10 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            shop10Thread = task.spawn(function()
+                while shop10Running do
+                    local anyBought = false
+                    for i = 15, 16 do
+                        if isInStock(i) then
+                            pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                            anyBought = true
+                            task.wait(0.1)
+                        end
+                    end
+                    if not anyBought then
+                        task.wait(10)
+                    end
+                end
+            end)
+        else
+            if shop10Thread then task.cancel(shop10Thread) end
         end
     end
 })
@@ -532,56 +750,162 @@ if eventSettings.autoAddEvent then
     end)
 end
 
-if eventSettings.autoBuyRune then
-    runeRunning = true
-    runeThread = task.spawn(function()
-        while runeRunning do
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 4, false) end)
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 5, false) end)
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 6, false) end)
-            task.wait(1)
+if eventSettings.autoShop1 then
+    shop1Running = true
+    shop1Thread = task.spawn(function()
+        while shop1Running do
+            if isInStock(1) then
+                pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 1, true) end)
+                task.wait(0.1)
+            else
+                task.wait(10)
+            end
         end
     end)
 end
 
-if eventSettings.autoBuyGreenBlue then
-    greenBlueRunning = true
-    greenBlueThread = task.spawn(function()
-        while greenBlueRunning do
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 7, false) end)
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 8, false) end)
-            task.wait(1)
+if eventSettings.autoShop2 then
+    shop2Running = true
+    shop2Thread = task.spawn(function()
+        while shop2Running do
+            if isInStock(2) then
+                pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 2, true) end)
+                task.wait(0.1)
+            else
+                task.wait(10)
+            end
         end
     end)
 end
 
-if eventSettings.autoBuyPurpleRainbow then
-    purpleRainbowRunning = true
-    purpleRainbowThread = task.spawn(function()
-        while purpleRainbowRunning do
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 9, false) end)
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 10, false) end)
-            task.wait(1)
+if eventSettings.autoShop3 then
+    shop3Running = true
+    shop3Thread = task.spawn(function()
+        while shop3Running do
+            if isInStock(3) then
+                pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 3, true) end)
+                task.wait(0.1)
+            else
+                task.wait(10)
+            end
         end
     end)
 end
 
-if eventSettings.autoBuyPowerCrystal then
-    crystalRunning = true
-    crystalThread = task.spawn(function()
-        while crystalRunning do
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 13, false) end)
-            task.wait(1)
+if eventSettings.autoShop4 then
+    shop4Running = true
+    shop4Thread = task.spawn(function()
+        while shop4Running do
+            local anyBought = false
+            for i = 4, 6 do
+                if isInStock(i) then
+                    pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                    anyBought = true
+                    task.wait(0.1)
+                end
+            end
+            if not anyBought then
+                task.wait(10)
+            end
         end
     end)
 end
 
-if eventSettings.autoBuySunburst then
-    sunburstRunning = true
-    sunburstThread = task.spawn(function()
-        while sunburstRunning do
-            pcall(function() RE:FireServer("BuyShopItem", "crystal-shop", 14, false) end)
-            task.wait(1)
+if eventSettings.autoShop5 then
+    shop5Running = true
+    shop5Thread = task.spawn(function()
+        while shop5Running do
+            if isInStock(7) then
+                pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 7, true) end)
+                task.wait(0.1)
+            else
+                task.wait(10)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop6 then
+    shop6Running = true
+    shop6Thread = task.spawn(function()
+        while shop6Running do
+            local anyBought = false
+            for i = 8, 10 do
+                if isInStock(i) then
+                    pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                    anyBought = true
+                    task.wait(0.1)
+                end
+            end
+            if not anyBought then
+                task.wait(10)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop7 then
+    shop7Running = true
+    shop7Thread = task.spawn(function()
+        while shop7Running do
+            if isInStock(11) then
+                pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 11, true) end)
+                task.wait(0.1)
+            else
+                task.wait(10)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop8 then
+    shop8Running = true
+    shop8Thread = task.spawn(function()
+        while shop8Running do
+            if isInStock(12) then
+                pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", 12, true) end)
+                task.wait(0.1)
+            else
+                task.wait(10)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop9 then
+    shop9Running = true
+    shop9Thread = task.spawn(function()
+        while shop9Running do
+            local anyBought = false
+            for i = 13, 14 do
+                if isInStock(i) then
+                    pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                    anyBought = true
+                    task.wait(0.1)
+                end
+            end
+            if not anyBought then
+                task.wait(10)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop10 then
+    shop10Running = true
+    shop10Thread = task.spawn(function()
+        while shop10Running do
+            local anyBought = false
+            for i = 15, 16 do
+                if isInStock(i) then
+                    pcall(function() RE:FireServer("BuyShopItem", "eggcomp-shop", i, true) end)
+                    anyBought = true
+                    task.wait(0.1)
+                end
+            end
+            if not anyBought then
+                task.wait(10)
+            end
         end
     end)
 end
