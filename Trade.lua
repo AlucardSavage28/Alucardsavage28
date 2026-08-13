@@ -1,5 +1,5 @@
 -- ================================================
--- TRADE TAB
+-- TRADE TAB - Fixed with case-insensitive search
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -27,13 +27,56 @@ local movePetRunning = false
 local movePetThread = nil
 
 -- ======================================
+-- FUNCTIONS
+-- ======================================
+local function findPlayer(name)
+    if name == "" then return nil end
+    
+    -- Try exact match first
+    local exact = Players:FindFirstChild(name)
+    if exact then return exact end
+    
+    -- Case-insensitive search
+    local lowerName = name:lower()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower() == lowerName then
+            return p
+        end
+    end
+    
+    -- Partial match search
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower():find(lowerName) then
+            return p
+        end
+    end
+    
+    return nil
+end
+
+local function getTargetPlayerName()
+    -- Try callback value first
+    if targetPlayer ~= "" then return targetPlayer end
+    
+    -- Try reading from input object
+    if targetPlayerInput then
+        pcall(function()
+            if targetPlayerInput.CurrentValue and targetPlayerInput.CurrentValue ~= "" then
+                targetPlayer = targetPlayerInput.CurrentValue
+            end
+        end)
+    end
+    
+    return targetPlayer
+end
+
+-- ======================================
 -- UI
 -- ======================================
 TradeTab:CreateSection("Trade")
 
 TradeTab:CreateLabel("Only 1 player can be input, and send/accept trade only can with the player name you input")
 
--- Store input object reference
 targetPlayerInput = TradeTab:CreateInput({
     Name = "Target Player Name",
     PlaceholderText = "PlayerName123",
@@ -52,28 +95,15 @@ TradeTab:CreateToggle({
         if v then
             sendThread = task.spawn(function()
                 while sendRunning do
-                    -- Try to get name from callback first, then from input object
-                    if targetPlayerInput and targetPlayer == "" then
-                        -- Try to read current value from the input
+                    local name = getTargetPlayerName()
+                    local target = findPlayer(name)
+                    if target then
                         pcall(function()
-                            if targetPlayerInput.CurrentValue then
-                                targetPlayer = targetPlayerInput.CurrentValue
-                            end
+                            Remote:FireServer("TradeRequest", target)
                         end)
-                    end
-                    
-                    if targetPlayer ~= "" then
-                        local target = Players:FindFirstChild(targetPlayer)
-                        if target then
-                            pcall(function()
-                                Remote:FireServer("TradeRequest", target)
-                            end)
-                            print("[Trade] Sent request to " .. targetPlayer)
-                        else
-                            print("[Trade] Player not found: " .. targetPlayer)
-                        end
+                        print("[Trade] Sent request to " .. target.Name)
                     else
-                        print("[Trade] No target player set!")
+                        print("[Trade] Player not found: '" .. name .. "'")
                     end
                     task.wait(0.5)
                 end
@@ -92,22 +122,15 @@ TradeTab:CreateToggle({
         if v then
             acceptThread = task.spawn(function()
                 while acceptRunning do
-                    if targetPlayerInput and targetPlayer == "" then
+                    local name = getTargetPlayerName()
+                    local target = findPlayer(name)
+                    if target then
                         pcall(function()
-                            if targetPlayerInput.CurrentValue then
-                                targetPlayer = targetPlayerInput.CurrentValue
-                            end
+                            Remote:FireServer("TradeAcceptRequest", target)
                         end)
-                    end
-                    
-                    if targetPlayer ~= "" then
-                        local target = Players:FindFirstChild(targetPlayer)
-                        if target then
-                            pcall(function()
-                                Remote:FireServer("TradeAcceptRequest", target)
-                            end)
-                            print("[Trade] Accepted request from " .. targetPlayer)
-                        end
+                        print("[Trade] Accepted request from " .. target.Name)
+                    else
+                        print("[Trade] Player not found: '" .. name .. "'")
                     end
                     task.wait(1)
                 end
