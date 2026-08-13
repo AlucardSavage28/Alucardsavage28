@@ -15,6 +15,7 @@ local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 -- ======================================
 -- SETTINGS
 -- ======================================
+local targetPlayerInput = nil
 local targetPlayer = ""
 local sendRunning = false
 local sendThread = nil
@@ -32,7 +33,8 @@ TradeTab:CreateSection("Trade")
 
 TradeTab:CreateLabel("Only 1 player can be input, and send/accept trade only can with the player name you input")
 
-TradeTab:CreateInput({
+-- Store input object reference
+targetPlayerInput = TradeTab:CreateInput({
     Name = "Target Player Name",
     PlaceholderText = "PlayerName123",
     CurrentValue = "",
@@ -50,13 +52,28 @@ TradeTab:CreateToggle({
         if v then
             sendThread = task.spawn(function()
                 while sendRunning do
+                    -- Try to get name from callback first, then from input object
+                    if targetPlayerInput and targetPlayer == "" then
+                        -- Try to read current value from the input
+                        pcall(function()
+                            if targetPlayerInput.CurrentValue then
+                                targetPlayer = targetPlayerInput.CurrentValue
+                            end
+                        end)
+                    end
+                    
                     if targetPlayer ~= "" then
                         local target = Players:FindFirstChild(targetPlayer)
                         if target then
                             pcall(function()
                                 Remote:FireServer("TradeRequest", target)
                             end)
+                            print("[Trade] Sent request to " .. targetPlayer)
+                        else
+                            print("[Trade] Player not found: " .. targetPlayer)
                         end
+                    else
+                        print("[Trade] No target player set!")
                     end
                     task.wait(0.5)
                 end
@@ -75,12 +92,21 @@ TradeTab:CreateToggle({
         if v then
             acceptThread = task.spawn(function()
                 while acceptRunning do
+                    if targetPlayerInput and targetPlayer == "" then
+                        pcall(function()
+                            if targetPlayerInput.CurrentValue then
+                                targetPlayer = targetPlayerInput.CurrentValue
+                            end
+                        end)
+                    end
+                    
                     if targetPlayer ~= "" then
                         local target = Players:FindFirstChild(targetPlayer)
                         if target then
                             pcall(function()
                                 Remote:FireServer("TradeAcceptRequest", target)
                             end)
+                            print("[Trade] Accepted request from " .. targetPlayer)
                         end
                     end
                     task.wait(1)
