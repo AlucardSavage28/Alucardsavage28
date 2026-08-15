@@ -185,7 +185,7 @@ AutoTab:CreateToggle({
                             getgenv().ActivityStatus.trigger = true
                             wasCollecting = true
                         end
-                        print("[Auto] Collected " .. count .. " presents!")
+                        
                     else
                         if wasCollecting then
                             getgenv().ActivityStatus.current = "Done collecting presents"
@@ -913,7 +913,7 @@ if autoSettings.presentRain then
                     getgenv().ActivityStatus.trigger = true
                     wasCollecting = true
                 end
-                print("[Auto] Collected " .. count .. " presents!")
+                
             else
                 if wasCollecting then
                     getgenv().ActivityStatus.current = "Done collecting presents"
