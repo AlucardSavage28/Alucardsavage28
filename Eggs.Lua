@@ -247,6 +247,30 @@ local function getRiftPositionByName(riftName)
     return nil
 end
 
+local function teleportToRiftSafely(riftName)
+    local riftPos = getRiftPositionByName(riftName)
+    if not riftPos then
+        pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
+        return
+    end
+    
+    local root = getRoot()
+    if not root then return end
+    
+    for attempt = 1, 3 do
+        root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0))
+        task.wait(0.5)
+        
+        if root.Velocity.Y > -50 then
+            return
+        end
+        
+        task.wait(0.3)
+    end
+    
+    pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
+end
+
 local function getAllEggNames()
     local eggs = {}
     local seen = {}
@@ -399,19 +423,11 @@ EggsTab:CreateToggle({
                     if isRiftExists("corruptshadow-rift") then
                         getgenv().questActive = true
                         getgenv().questEgg = "Dark Rift Egg"
-                        task.wait(0.3)
                         
                         getgenv().ActivityStatus.current = "Doing CorruptShadow Rift right now"
                         getgenv().ActivityStatus.trigger = true
                         
-                        local riftPos = getRiftPositionByName("corruptshadow-rift")
-                        if riftPos then
-                            local root = getRoot()
-                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                        end
-                        
-                        task.wait(0.3)
-                        pcall(function() Remote:FireServer("TeleportToRift", "corruptshadow-rift") end)
+                        teleportToRiftSafely("corruptshadow-rift")
                         task.wait(0.3)
                         
                         while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
@@ -437,7 +453,7 @@ EggsTab:CreateToggle({
     end
 })
 
--- OVERLORD RIFT (Priority 2 - checks CorruptShadow first)
+-- OVERLORD RIFT (Priority 2)
 EggsTab:CreateToggle({
     Name = "Auto Overlord Rift",
     CurrentValue = overlordEnabled,
@@ -452,19 +468,11 @@ EggsTab:CreateToggle({
                     if isRiftExists("overlord-rift") and not isRiftExists("corruptshadow-rift") then
                         getgenv().questActive = true
                         getgenv().questEgg = "Overlord Egg"
-                        task.wait(0.3)
                         
                         getgenv().ActivityStatus.current = "Doing Overlord Rift right now"
                         getgenv().ActivityStatus.trigger = true
                         
-                        local riftPos = getRiftPositionByName("overlord-rift")
-                        if riftPos then
-                            local root = getRoot()
-                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                        end
-                        
-                        task.wait(0.3)
-                        pcall(function() Remote:FireServer("TeleportToRift", "overlord-rift") end)
+                        teleportToRiftSafely("overlord-rift")
                         task.wait(0.3)
                         
                         while overlordEnabled and isRiftExists("overlord-rift") do
@@ -490,7 +498,7 @@ EggsTab:CreateToggle({
     end
 })
 
--- 4X EGG (Priority 3 - checks CorruptShadow and Overlord first)
+-- 4X EGG (Priority 3)
 EggsTab:CreateToggle({
     Name = "Auto 4x Egg",
     CurrentValue = fourXEnabled,
@@ -561,7 +569,7 @@ EggsTab:CreateToggle({
     end
 })
 
--- SHADOW RIFT (Priority 4 - checks CorruptShadow, Overlord, 4x first)
+-- SHADOW RIFT (Priority 4)
 EggsTab:CreateToggle({
     Name = "Auto Shadow Rift",
     CurrentValue = shadowEnabled,
@@ -588,19 +596,11 @@ EggsTab:CreateToggle({
                         
                         getgenv().questActive = true
                         getgenv().questEgg = "Dark Rift Egg"
-                        task.wait(0.3)
                         
                         getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
                         getgenv().ActivityStatus.trigger = true
                         
-                        local riftPos = getRiftPositionByName("shadow-rift")
-                        if riftPos then
-                            local root = getRoot()
-                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                        end
-                        
-                        task.wait(0.3)
-                        pcall(function() Remote:FireServer("TeleportToRift", "shadow-rift") end)
+                        teleportToRiftSafely("shadow-rift")
                         task.wait(0.3)
                         
                         while shadowEnabled and isRiftExists("shadow-rift") do
@@ -626,7 +626,7 @@ EggsTab:CreateToggle({
     end
 })
 
--- DOODLE RIFT (Priority 5 - checks all above first)
+-- DOODLE RIFT (Priority 5)
 EggsTab:CreateToggle({
     Name = "Auto Doodle Rift",
     CurrentValue = doodleEnabled,
@@ -654,19 +654,11 @@ EggsTab:CreateToggle({
                         
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
-                        task.wait(0.3)
                         
                         getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
                         getgenv().ActivityStatus.trigger = true
                         
-                        local riftPos = getRiftPositionByName("doodle-rift")
-                        if riftPos then
-                            local root = getRoot()
-                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                        end
-                        
-                        task.wait(0.3)
-                        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                        teleportToRiftSafely("doodle-rift")
                         task.wait(0.3)
                         
                         while doodleEnabled and isRiftExists("doodle-rift") do
@@ -1046,19 +1038,11 @@ if corruptShadowEnabled then
             if isRiftExists("corruptshadow-rift") then
                 getgenv().questActive = true
                 getgenv().questEgg = "Dark Rift Egg"
-                task.wait(0.3)
                 
                 getgenv().ActivityStatus.current = "Doing CorruptShadow Rift right now"
                 getgenv().ActivityStatus.trigger = true
                 
-                local riftPos = getRiftPositionByName("corruptshadow-rift")
-                if riftPos then
-                    local root = getRoot()
-                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                end
-                
-                task.wait(0.3)
-                pcall(function() Remote:FireServer("TeleportToRift", "corruptshadow-rift") end)
+                teleportToRiftSafely("corruptshadow-rift")
                 task.wait(0.3)
                 
                 while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
@@ -1084,19 +1068,11 @@ if overlordEnabled then
             if isRiftExists("overlord-rift") and not isRiftExists("corruptshadow-rift") then
                 getgenv().questActive = true
                 getgenv().questEgg = "Overlord Egg"
-                task.wait(0.3)
                 
                 getgenv().ActivityStatus.current = "Doing Overlord Rift right now"
                 getgenv().ActivityStatus.trigger = true
                 
-                local riftPos = getRiftPositionByName("overlord-rift")
-                if riftPos then
-                    local root = getRoot()
-                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                end
-                
-                task.wait(0.3)
-                pcall(function() Remote:FireServer("TeleportToRift", "overlord-rift") end)
+                teleportToRiftSafely("overlord-rift")
                 task.wait(0.3)
                 
                 while overlordEnabled and isRiftExists("overlord-rift") do
@@ -1190,19 +1166,11 @@ if shadowEnabled then
                 
                 getgenv().questActive = true
                 getgenv().questEgg = "Dark Rift Egg"
-                task.wait(0.3)
                 
                 getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
                 getgenv().ActivityStatus.trigger = true
                 
-                local riftPos = getRiftPositionByName("shadow-rift")
-                if riftPos then
-                    local root = getRoot()
-                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                end
-                
-                task.wait(0.3)
-                pcall(function() Remote:FireServer("TeleportToRift", "shadow-rift") end)
+                teleportToRiftSafely("shadow-rift")
                 task.wait(0.3)
                 
                 while shadowEnabled and isRiftExists("shadow-rift") do
@@ -1241,19 +1209,11 @@ if doodleEnabled then
                 
                 getgenv().questActive = true
                 getgenv().questEgg = "Doodle Egg"
-                task.wait(0.3)
                 
                 getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
                 getgenv().ActivityStatus.trigger = true
                 
-                local riftPos = getRiftPositionByName("doodle-rift")
-                if riftPos then
-                    local root = getRoot()
-                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                end
-                
-                task.wait(0.3)
-                pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                teleportToRiftSafely("doodle-rift")
                 task.wait(0.3)
                 
                 while doodleEnabled and isRiftExists("doodle-rift") do
