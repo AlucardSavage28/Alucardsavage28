@@ -129,6 +129,8 @@ local xlBountyThread = nil
 local inventoryEggList = getInventoryEggs()
 local selectedInventoryEgg = eggSettings.inventoryEgg or inventoryEggList[1] or "Dominus Egg"
 
+local lastTeleportTime = 0
+
 -- XL Bounty
 local selectedXLEgg = ""
 
@@ -257,18 +259,9 @@ local function teleportToRiftSafely(riftName)
     local root = getRoot()
     if not root then return end
     
-    for attempt = 1, 3 do
-        root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0))
-        task.wait(0.5)
-        
-        if root.Velocity.Y > -50 then
-            return
-        end
-        
-        task.wait(0.3)
-    end
-    
-    pcall(function() Remote:FireServer("TeleportToRift", riftName) end)
+    root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0))
+    root.Velocity = Vector3.zero
+    root.RotVelocity = Vector3.zero
 end
 
 local function getAllEggNames()
@@ -428,11 +421,18 @@ EggsTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         
                         teleportToRiftSafely("corruptshadow-rift")
+                        lastTeleportTime = tick()
                         task.wait(0.3)
                         
                         while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Dark Rift Egg"
+                            
+                            if tick() - lastTeleportTime >= 3 then
+                                teleportToRiftSafely("corruptshadow-rift")
+                                lastTeleportTime = tick()
+                            end
+                            
                             pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
@@ -473,11 +473,18 @@ EggsTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         
                         teleportToRiftSafely("overlord-rift")
+                        lastTeleportTime = tick()
                         task.wait(0.3)
                         
                         while overlordEnabled and isRiftExists("overlord-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Overlord Egg"
+                            
+                            if tick() - lastTeleportTime >= 3 then
+                                teleportToRiftSafely("overlord-rift")
+                                lastTeleportTime = tick()
+                            end
+                            
                             pcall(function() Remote:FireServer("HatchEgg", "Overlord Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
@@ -601,11 +608,18 @@ EggsTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         
                         teleportToRiftSafely("shadow-rift")
+                        lastTeleportTime = tick()
                         task.wait(0.3)
                         
                         while shadowEnabled and isRiftExists("shadow-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Dark Rift Egg"
+                            
+                            if tick() - lastTeleportTime >= 3 then
+                                teleportToRiftSafely("shadow-rift")
+                                lastTeleportTime = tick()
+                            end
+                            
                             pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
@@ -659,11 +673,18 @@ EggsTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         
                         teleportToRiftSafely("doodle-rift")
+                        lastTeleportTime = tick()
                         task.wait(0.3)
                         
                         while doodleEnabled and isRiftExists("doodle-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Doodle Egg"
+                            
+                            if tick() - lastTeleportTime >= 3 then
+                                teleportToRiftSafely("doodle-rift")
+                                lastTeleportTime = tick()
+                            end
+                            
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
@@ -1043,11 +1064,18 @@ if corruptShadowEnabled then
                 getgenv().ActivityStatus.trigger = true
                 
                 teleportToRiftSafely("corruptshadow-rift")
+                lastTeleportTime = tick()
                 task.wait(0.3)
                 
                 while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Dark Rift Egg"
+                    
+                    if tick() - lastTeleportTime >= 3 then
+                        teleportToRiftSafely("corruptshadow-rift")
+                        lastTeleportTime = tick()
+                    end
+                    
                     pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -1073,11 +1101,18 @@ if overlordEnabled then
                 getgenv().ActivityStatus.trigger = true
                 
                 teleportToRiftSafely("overlord-rift")
+                lastTeleportTime = tick()
                 task.wait(0.3)
                 
                 while overlordEnabled and isRiftExists("overlord-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Overlord Egg"
+                    
+                    if tick() - lastTeleportTime >= 3 then
+                        teleportToRiftSafely("overlord-rift")
+                        lastTeleportTime = tick()
+                    end
+                    
                     pcall(function() Remote:FireServer("HatchEgg", "Overlord Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -1171,11 +1206,18 @@ if shadowEnabled then
                 getgenv().ActivityStatus.trigger = true
                 
                 teleportToRiftSafely("shadow-rift")
+                lastTeleportTime = tick()
                 task.wait(0.3)
                 
                 while shadowEnabled and isRiftExists("shadow-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Dark Rift Egg"
+                    
+                    if tick() - lastTeleportTime >= 3 then
+                        teleportToRiftSafely("shadow-rift")
+                        lastTeleportTime = tick()
+                    end
+                    
                     pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -1214,11 +1256,18 @@ if doodleEnabled then
                 getgenv().ActivityStatus.trigger = true
                 
                 teleportToRiftSafely("doodle-rift")
+                lastTeleportTime = tick()
                 task.wait(0.3)
                 
                 while doodleEnabled and isRiftExists("doodle-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Doodle Egg"
+                    
+                    if tick() - lastTeleportTime >= 3 then
+                        teleportToRiftSafely("doodle-rift")
+                        lastTeleportTime = tick()
+                    end
+                    
                     pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
