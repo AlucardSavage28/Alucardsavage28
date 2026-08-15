@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (HATCH + 4X + DOODLE + SHADOW RIFT + INVENTORY + BOUNTY + XL BOUNTY + RIFT)
+-- EGGS TAB (HATCH + CORRUPTSHADOW + OVERLORD + 4X + SHADOW + DOODLE + INVENTORY + BOUNTY + XL BOUNTY + RIFT)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -101,9 +101,11 @@ local currentBountyPet = "Unknown"
 local currentBountyEgg = "Unknown"
 local currentBountyChance = "Unknown"
 
+local corruptShadowEnabled = eggSettings.autoCorruptShadow or false
+local overlordEnabled = eggSettings.autoOverlord or false
 local fourXEnabled = eggSettings.auto4x or false
+local shadowEnabled = eggSettings.autoShadow or false
 local doodleEnabled = eggSettings.autoDoodle or false
-local shadowRiftEnabled = eggSettings.autoShadowRift or false
 local autoHatchEnabled = eggSettings.autoHatch or false
 local spamEEnabled = eggSettings.autoSpamE or false
 local hideAnimEnabled = eggSettings.hideAnim or false
@@ -112,9 +114,11 @@ local bountyEnabled = eggSettings.autoBounty or false
 local riftEnabled = eggSettings.autoRiftBounty or false
 local xlBountyRunning = false
 
+local corruptShadowThread = nil
+local overlordThread = nil
 local fourXThread = nil
+local shadowThread = nil
 local doodleThread = nil
-local shadowRiftThread = nil
 local autoHatchThread = nil
 local spamEThread = nil
 local inventoryThread = nil
@@ -205,45 +209,34 @@ local function getRiftPosition(name)
     return nil
 end
 
-local function isDoodleRiftExists()
+local function isRiftExists(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
     if riftFolder then
         riftFolder = riftFolder:FindFirstChild("Rifts")
-        if riftFolder and riftFolder:FindFirstChild("doodle-rift") then
+        if riftFolder and riftFolder:FindFirstChild(riftName) then
             return true
         end
     end
     return false
 end
 
-local function isShadowRiftExists()
-    local riftFolder = workspace:FindFirstChild("Rendered")
-    if riftFolder then
-        riftFolder = riftFolder:FindFirstChild("Rifts")
-        if riftFolder and riftFolder:FindFirstChild("shadow-rift") then
-            return true
-        end
-    end
-    return false
-end
-
-local function getShadowRiftPosition()
+local function getRiftPositionByName(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
     if riftFolder then
         local rifts = riftFolder:FindFirstChild("Rifts")
         if rifts then
-            local shadowRift = rifts:FindFirstChild("shadow-rift")
-            if shadowRift then
-                local spawn = shadowRift:FindFirstChild("EggPlatformSpawn")
+            local rift = rifts:FindFirstChild(riftName)
+            if rift then
+                local spawn = rift:FindFirstChild("EggPlatformSpawn")
                 if spawn then
                     local part = spawn:FindFirstChild("Part")
                     if part then return part.Position end
                 end
-                local output = shadowRift:FindFirstChild("Output")
+                local output = rift:FindFirstChild("Output")
                 if output and output:IsA("BasePart") then
                     return output.Position
                 end
-                for _, child in ipairs(shadowRift:GetDescendants()) do
+                for _, child in ipairs(rift:GetDescendants()) do
                     if child:IsA("BasePart") then
                         return child.Position
                     end
@@ -381,85 +374,123 @@ local function toggleAutoHatchR()
             end
         end
     end
-    -- Backup: press R key
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
     task.wait(0.1)
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
 end
 
 -- ======================================
--- UI - SPECIAL EGGS
+-- UI - SPECIAL EGGS (Priority Order)
 -- ======================================
 EggsTab:CreateSection("------- Special Eggs -------")
 
--- DOODLE RIFT (Priority 1)
+-- CORRUPTSHADOW RIFT (Priority 1 - Highest)
 EggsTab:CreateToggle({
-    Name = "Auto Doodle Rift",
-    CurrentValue = doodleEnabled,
+    Name = "Auto CorruptShadow Rift",
+    CurrentValue = corruptShadowEnabled,
     Callback = function(v)
-        doodleEnabled = v
-        eggSettings.autoDoodle = v
+        corruptShadowEnabled = v
+        eggSettings.autoCorruptShadow = v
         getgenv().HubSettings.eggs = eggSettings
         saveHubSettings()
         if v then
-            doodleThread = task.spawn(function()
-                while doodleEnabled do
-                    if isDoodleRiftExists() then
+            corruptShadowThread = task.spawn(function()
+                while corruptShadowEnabled do
+                    if isRiftExists("corruptshadow-rift") then
                         getgenv().questActive = true
-                        getgenv().questEgg = "Doodle Egg"
+                        getgenv().questEgg = "Dark Rift Egg"
                         task.wait(0.3)
                         
-                        getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
+                        getgenv().ActivityStatus.current = "Doing CorruptShadow Rift right now"
                         getgenv().ActivityStatus.trigger = true
                         
-                        local riftFolder = workspace:FindFirstChild("Rendered")
-                        if riftFolder then
-                            local rifts = riftFolder:FindFirstChild("Rifts")
-                            if rifts then
-                                local doodleRift = rifts:FindFirstChild("doodle-rift")
-                                if doodleRift then
-                                    for _, child in ipairs(doodleRift:GetDescendants()) do
-                                        if child:IsA("BasePart") then
-                                            local root = getRoot()
-                                            if root then root.CFrame = CFrame.new(child.Position + Vector3.new(0, 5, 0)) end
-                                            break
-                                        end
-                                    end
-                                end
-                            end
+                        local riftPos = getRiftPositionByName("corruptshadow-rift")
+                        if riftPos then
+                            local root = getRoot()
+                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
                         end
                         
                         task.wait(0.3)
+                        pcall(function() Remote:FireServer("TeleportToRift", "corruptshadow-rift") end)
+                        task.wait(0.3)
                         
-                        local riftExists = true
-                        while doodleEnabled and riftExists do
+                        while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
                             getgenv().questActive = true
-                            getgenv().questEgg = "Doodle Egg"
-                            
-                            pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                            getgenv().questEgg = "Dark Rift Egg"
+                            pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
-                            riftExists = isDoodleRiftExists()
                         end
                         
-                        getgenv().ActivityStatus.current = "Finished Doodle Rift"
+                        getgenv().ActivityStatus.current = "Finished CorruptShadow Rift"
                         getgenv().ActivityStatus.trigger = true
-                        
                         getgenv().questActive = false
                         getgenv().questEgg = nil
                     end
-                    
                     task.wait(1)
                 end
             end)
         else
-            if doodleThread then task.cancel(doodleThread) end
+            if corruptShadowThread then task.cancel(corruptShadowThread) end
             getgenv().questActive = false
             getgenv().questEgg = nil
         end
     end
 })
 
--- 4X EGG (Priority 2 - Auto Detect)
+-- OVERLORD RIFT (Priority 2 - checks CorruptShadow first)
+EggsTab:CreateToggle({
+    Name = "Auto Overlord Rift",
+    CurrentValue = overlordEnabled,
+    Callback = function(v)
+        overlordEnabled = v
+        eggSettings.autoOverlord = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
+        if v then
+            overlordThread = task.spawn(function()
+                while overlordEnabled do
+                    if isRiftExists("overlord-rift") and not isRiftExists("corruptshadow-rift") then
+                        getgenv().questActive = true
+                        getgenv().questEgg = "Overlord Egg"
+                        task.wait(0.3)
+                        
+                        getgenv().ActivityStatus.current = "Doing Overlord Rift right now"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        local riftPos = getRiftPositionByName("overlord-rift")
+                        if riftPos then
+                            local root = getRoot()
+                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                        end
+                        
+                        task.wait(0.3)
+                        pcall(function() Remote:FireServer("TeleportToRift", "overlord-rift") end)
+                        task.wait(0.3)
+                        
+                        while overlordEnabled and isRiftExists("overlord-rift") do
+                            getgenv().questActive = true
+                            getgenv().questEgg = "Overlord Egg"
+                            pcall(function() Remote:FireServer("HatchEgg", "Overlord Egg", HATCH_AMOUNT) end)
+                            task.wait(0.05)
+                        end
+                        
+                        getgenv().ActivityStatus.current = "Finished Overlord Rift"
+                        getgenv().ActivityStatus.trigger = true
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
+                    end
+                    task.wait(1)
+                end
+            end)
+        else
+            if overlordThread then task.cancel(overlordThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+        end
+    end
+})
+
+-- 4X EGG (Priority 3 - checks CorruptShadow and Overlord first)
 EggsTab:CreateToggle({
     Name = "Auto 4x Egg",
     CurrentValue = fourXEnabled,
@@ -471,7 +502,7 @@ EggsTab:CreateToggle({
         if v then
             fourXThread = task.spawn(function()
                 while fourXEnabled do
-                    if not isDoodleRiftExists() then
+                    if not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") then
                         local eggFound = false
                         local eggName = nil
                         local eggObj = nil
@@ -497,7 +528,7 @@ EggsTab:CreateToggle({
                             if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
                             
                             while fourXEnabled and eggFound do
-                                if isDoodleRiftExists() then break end
+                                if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") then break end
                                 
                                 getgenv().questActive = true
                                 getgenv().questEgg = eggName
@@ -515,12 +546,10 @@ EggsTab:CreateToggle({
                             
                             getgenv().ActivityStatus.current = "Finished 4x Egg"
                             getgenv().ActivityStatus.trigger = true
-                            
                             getgenv().questActive = false
                             getgenv().questEgg = nil
                         end
                     end
-                    
                     task.wait(1)
                 end
             end)
@@ -532,19 +561,31 @@ EggsTab:CreateToggle({
     end
 })
 
--- SHADOW RIFT (Priority 2.5)
+-- SHADOW RIFT (Priority 4 - checks CorruptShadow, Overlord, 4x first)
 EggsTab:CreateToggle({
     Name = "Auto Shadow Rift",
-    CurrentValue = shadowRiftEnabled,
+    CurrentValue = shadowEnabled,
     Callback = function(v)
-        shadowRiftEnabled = v
-        eggSettings.autoShadowRift = v
+        shadowEnabled = v
+        eggSettings.autoShadow = v
         getgenv().HubSettings.eggs = eggSettings
         saveHubSettings()
         if v then
-            shadowRiftThread = task.spawn(function()
-                while shadowRiftEnabled do
-                    if isShadowRiftExists() and not isDoodleRiftExists() then
+            shadowThread = task.spawn(function()
+                while shadowEnabled do
+                    local fourXExists = false
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj.Name:find("4x Luck") and obj:IsA("Model") then
+                            fourXExists = true
+                            break
+                        end
+                    end
+                    
+                    if isRiftExists("shadow-rift") 
+                        and not isRiftExists("corruptshadow-rift") 
+                        and not isRiftExists("overlord-rift")
+                        and not fourXExists then
+                        
                         getgenv().questActive = true
                         getgenv().questEgg = "Dark Rift Egg"
                         task.wait(0.3)
@@ -552,40 +593,99 @@ EggsTab:CreateToggle({
                         getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
                         getgenv().ActivityStatus.trigger = true
                         
-                        local riftPos = getShadowRiftPosition()
+                        local riftPos = getRiftPositionByName("shadow-rift")
                         if riftPos then
                             local root = getRoot()
                             if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
                         end
                         
                         task.wait(0.3)
-                        
                         pcall(function() Remote:FireServer("TeleportToRift", "shadow-rift") end)
-                        
                         task.wait(0.3)
                         
-                        local riftExists = true
-                        while shadowRiftEnabled and riftExists do
+                        while shadowEnabled and isRiftExists("shadow-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Dark Rift Egg"
-                            
                             pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
-                            riftExists = isShadowRiftExists()
                         end
                         
                         getgenv().ActivityStatus.current = "Finished Shadow Rift"
                         getgenv().ActivityStatus.trigger = true
-                        
                         getgenv().questActive = false
                         getgenv().questEgg = nil
                     end
-                    
                     task.wait(1)
                 end
             end)
         else
-            if shadowRiftThread then task.cancel(shadowRiftThread) end
+            if shadowThread then task.cancel(shadowThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+        end
+    end
+})
+
+-- DOODLE RIFT (Priority 5 - checks all above first)
+EggsTab:CreateToggle({
+    Name = "Auto Doodle Rift",
+    CurrentValue = doodleEnabled,
+    Callback = function(v)
+        doodleEnabled = v
+        eggSettings.autoDoodle = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
+        if v then
+            doodleThread = task.spawn(function()
+                while doodleEnabled do
+                    local fourXExists = false
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj.Name:find("4x Luck") and obj:IsA("Model") then
+                            fourXExists = true
+                            break
+                        end
+                    end
+                    
+                    if isRiftExists("doodle-rift")
+                        and not isRiftExists("corruptshadow-rift")
+                        and not isRiftExists("overlord-rift")
+                        and not isRiftExists("shadow-rift")
+                        and not fourXExists then
+                        
+                        getgenv().questActive = true
+                        getgenv().questEgg = "Doodle Egg"
+                        task.wait(0.3)
+                        
+                        getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        local riftPos = getRiftPositionByName("doodle-rift")
+                        if riftPos then
+                            local root = getRoot()
+                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                        end
+                        
+                        task.wait(0.3)
+                        pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                        task.wait(0.3)
+                        
+                        while doodleEnabled and isRiftExists("doodle-rift") do
+                            getgenv().questActive = true
+                            getgenv().questEgg = "Doodle Egg"
+                            pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                            task.wait(0.05)
+                        end
+                        
+                        getgenv().ActivityStatus.current = "Finished Doodle Rift"
+                        getgenv().ActivityStatus.trigger = true
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
+                    end
+                    task.wait(1)
+                end
+            end)
+        else
+            if doodleThread then task.cancel(doodleThread) end
             getgenv().questActive = false
             getgenv().questEgg = nil
         end
@@ -940,6 +1040,239 @@ EggsTab:CreateToggle({
 -- ======================================
 -- AUTO-START SAVED TOGGLES
 -- ======================================
+if corruptShadowEnabled then
+    corruptShadowThread = task.spawn(function()
+        while corruptShadowEnabled do
+            if isRiftExists("corruptshadow-rift") then
+                getgenv().questActive = true
+                getgenv().questEgg = "Dark Rift Egg"
+                task.wait(0.3)
+                
+                getgenv().ActivityStatus.current = "Doing CorruptShadow Rift right now"
+                getgenv().ActivityStatus.trigger = true
+                
+                local riftPos = getRiftPositionByName("corruptshadow-rift")
+                if riftPos then
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                end
+                
+                task.wait(0.3)
+                pcall(function() Remote:FireServer("TeleportToRift", "corruptshadow-rift") end)
+                task.wait(0.3)
+                
+                while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Dark Rift Egg"
+                    pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                end
+                
+                getgenv().ActivityStatus.current = "Finished CorruptShadow Rift"
+                getgenv().ActivityStatus.trigger = true
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+if overlordEnabled then
+    overlordThread = task.spawn(function()
+        while overlordEnabled do
+            if isRiftExists("overlord-rift") and not isRiftExists("corruptshadow-rift") then
+                getgenv().questActive = true
+                getgenv().questEgg = "Overlord Egg"
+                task.wait(0.3)
+                
+                getgenv().ActivityStatus.current = "Doing Overlord Rift right now"
+                getgenv().ActivityStatus.trigger = true
+                
+                local riftPos = getRiftPositionByName("overlord-rift")
+                if riftPos then
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                end
+                
+                task.wait(0.3)
+                pcall(function() Remote:FireServer("TeleportToRift", "overlord-rift") end)
+                task.wait(0.3)
+                
+                while overlordEnabled and isRiftExists("overlord-rift") do
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Overlord Egg"
+                    pcall(function() Remote:FireServer("HatchEgg", "Overlord Egg", HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                end
+                
+                getgenv().ActivityStatus.current = "Finished Overlord Rift"
+                getgenv().ActivityStatus.trigger = true
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+if fourXEnabled then
+    fourXThread = task.spawn(function()
+        while fourXEnabled do
+            if not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") then
+                local eggFound = false
+                local eggName = nil
+                local eggObj = nil
+                
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj.Name:find("4x Luck") and obj:IsA("Model") then
+                        eggFound = true
+                        eggName = obj.Name
+                        eggObj = obj
+                        break
+                    end
+                end
+                
+                if eggFound and eggObj then
+                    getgenv().questActive = true
+                    getgenv().questEgg = eggName
+                    
+                    getgenv().ActivityStatus.current = "Doing 4x Egg right now"
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    local pos = eggObj:GetPivot().Position
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+                    
+                    while fourXEnabled and eggFound do
+                        if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") then break end
+                        
+                        getgenv().questActive = true
+                        getgenv().questEgg = eggName
+                        
+                        pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
+                        task.wait(0.05)
+                        
+                        eggFound = false
+                        for _, obj2 in ipairs(workspace:GetDescendants()) do
+                            if obj2.Name == eggName and obj2:IsA("Model") then
+                                eggFound = true; break
+                            end
+                        end
+                    end
+                    
+                    getgenv().ActivityStatus.current = "Finished 4x Egg"
+                    getgenv().ActivityStatus.trigger = true
+                    getgenv().questActive = false
+                    getgenv().questEgg = nil
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+if shadowEnabled then
+    shadowThread = task.spawn(function()
+        while shadowEnabled do
+            local fourXExists = false
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name:find("4x Luck") and obj:IsA("Model") then
+                    fourXExists = true
+                    break
+                end
+            end
+            
+            if isRiftExists("shadow-rift") 
+                and not isRiftExists("corruptshadow-rift") 
+                and not isRiftExists("overlord-rift")
+                and not fourXExists then
+                
+                getgenv().questActive = true
+                getgenv().questEgg = "Dark Rift Egg"
+                task.wait(0.3)
+                
+                getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
+                getgenv().ActivityStatus.trigger = true
+                
+                local riftPos = getRiftPositionByName("shadow-rift")
+                if riftPos then
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                end
+                
+                task.wait(0.3)
+                pcall(function() Remote:FireServer("TeleportToRift", "shadow-rift") end)
+                task.wait(0.3)
+                
+                while shadowEnabled and isRiftExists("shadow-rift") do
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Dark Rift Egg"
+                    pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                end
+                
+                getgenv().ActivityStatus.current = "Finished Shadow Rift"
+                getgenv().ActivityStatus.trigger = true
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+if doodleEnabled then
+    doodleThread = task.spawn(function()
+        while doodleEnabled do
+            local fourXExists = false
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name:find("4x Luck") and obj:IsA("Model") then
+                    fourXExists = true
+                    break
+                end
+            end
+            
+            if isRiftExists("doodle-rift")
+                and not isRiftExists("corruptshadow-rift")
+                and not isRiftExists("overlord-rift")
+                and not isRiftExists("shadow-rift")
+                and not fourXExists then
+                
+                getgenv().questActive = true
+                getgenv().questEgg = "Doodle Egg"
+                task.wait(0.3)
+                
+                getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
+                getgenv().ActivityStatus.trigger = true
+                
+                local riftPos = getRiftPositionByName("doodle-rift")
+                if riftPos then
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                end
+                
+                task.wait(0.3)
+                pcall(function() Remote:FireServer("TeleportToRift", "doodle-rift") end)
+                task.wait(0.3)
+                
+                while doodleEnabled and isRiftExists("doodle-rift") do
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Doodle Egg"
+                    pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                end
+                
+                getgenv().ActivityStatus.current = "Finished Doodle Rift"
+                getgenv().ActivityStatus.trigger = true
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end
+            task.wait(1)
+        end
+    end)
+end
+
 if autoHatchEnabled then
     autoHatchThread = task.spawn(function()
         local wasActive = false
@@ -1018,161 +1351,6 @@ if riftEnabled then
                     World = EGG_WORLDS[currentBountyEgg] or "The Overworld"
                 })
             end)
-        end
-    end)
-end
-
-if doodleEnabled then
-    doodleThread = task.spawn(function()
-        while doodleEnabled do
-            if isDoodleRiftExists() then
-                getgenv().questActive = true
-                getgenv().questEgg = "Doodle Egg"
-                task.wait(0.3)
-                
-                getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
-                getgenv().ActivityStatus.trigger = true
-                
-                local riftFolder = workspace:FindFirstChild("Rendered")
-                if riftFolder then
-                    local rifts = riftFolder:FindFirstChild("Rifts")
-                    if rifts then
-                        local doodleRift = rifts:FindFirstChild("doodle-rift")
-                        if doodleRift then
-                            for _, child in ipairs(doodleRift:GetDescendants()) do
-                                if child:IsA("BasePart") then
-                                    local root = getRoot()
-                                    if root then root.CFrame = CFrame.new(child.Position + Vector3.new(0, 5, 0)) end
-                                    break
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                task.wait(0.3)
-                
-                local riftExists = true
-                while doodleEnabled and riftExists do
-                    getgenv().questActive = true
-                    getgenv().questEgg = "Doodle Egg"
-                    
-                    pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
-                    task.wait(0.05)
-                    riftExists = isDoodleRiftExists()
-                end
-                
-                getgenv().ActivityStatus.current = "Finished Doodle Rift"
-                getgenv().ActivityStatus.trigger = true
-                
-                getgenv().questActive = false
-                getgenv().questEgg = nil
-            end
-            
-            task.wait(1)
-        end
-    end)
-end
-
-if fourXEnabled then
-    fourXThread = task.spawn(function()
-        while fourXEnabled do
-            if not isDoodleRiftExists() then
-                local eggFound = false
-                local eggName = nil
-                local eggObj = nil
-                
-                for _, obj in ipairs(workspace:GetDescendants()) do
-                    if obj.Name:find("4x Luck") and obj:IsA("Model") then
-                        eggFound = true
-                        eggName = obj.Name
-                        eggObj = obj
-                        break
-                    end
-                end
-                
-                if eggFound and eggObj then
-                    getgenv().questActive = true
-                    getgenv().questEgg = eggName
-                    
-                    getgenv().ActivityStatus.current = "Doing 4x Egg right now"
-                    getgenv().ActivityStatus.trigger = true
-                    
-                    local pos = eggObj:GetPivot().Position
-                    local root = getRoot()
-                    if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-                    
-                    while fourXEnabled and eggFound do
-                        if isDoodleRiftExists() then break end
-                        
-                        getgenv().questActive = true
-                        getgenv().questEgg = eggName
-                        
-                        pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
-                        task.wait(0.05)
-                        
-                        eggFound = false
-                        for _, obj2 in ipairs(workspace:GetDescendants()) do
-                            if obj2.Name == eggName and obj2:IsA("Model") then
-                                eggFound = true; break
-                            end
-                        end
-                    end
-                    
-                    getgenv().ActivityStatus.current = "Finished 4x Egg"
-                    getgenv().ActivityStatus.trigger = true
-                    
-                    getgenv().questActive = false
-                    getgenv().questEgg = nil
-                end
-            end
-            
-            task.wait(1)
-        end
-    end)
-end
-
-if shadowRiftEnabled then
-    shadowRiftThread = task.spawn(function()
-        while shadowRiftEnabled do
-            if isShadowRiftExists() and not isDoodleRiftExists() then
-                getgenv().questActive = true
-                getgenv().questEgg = "Dark Rift Egg"
-                task.wait(0.3)
-                
-                getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
-                getgenv().ActivityStatus.trigger = true
-                
-                local riftPos = getShadowRiftPosition()
-                if riftPos then
-                    local root = getRoot()
-                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-                end
-                
-                task.wait(0.3)
-                
-                pcall(function() Remote:FireServer("TeleportToRift", "shadow-rift") end)
-                
-                task.wait(0.3)
-                
-                local riftExists = true
-                while shadowRiftEnabled and riftExists do
-                    getgenv().questActive = true
-                    getgenv().questEgg = "Dark Rift Egg"
-                    
-                    pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
-                    task.wait(0.05)
-                    riftExists = isShadowRiftExists()
-                end
-                
-                getgenv().ActivityStatus.current = "Finished Shadow Rift"
-                getgenv().ActivityStatus.trigger = true
-                
-                getgenv().questActive = false
-                getgenv().questEgg = nil
-            end
-            
-            task.wait(1)
         end
     end)
 end
