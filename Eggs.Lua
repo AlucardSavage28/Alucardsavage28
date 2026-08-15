@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (HATCH + 4X + DOODLE + INVENTORY + BOUNTY + XL BOUNTY + RIFT)
+-- EGGS TAB (HATCH + 4X + DOODLE + SHADOW RIFT + INVENTORY + BOUNTY + XL BOUNTY + RIFT)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -103,6 +103,7 @@ local currentBountyChance = "Unknown"
 
 local fourXEnabled = eggSettings.auto4x or false
 local doodleEnabled = eggSettings.autoDoodle or false
+local shadowRiftEnabled = eggSettings.autoShadowRift or false
 local autoHatchEnabled = eggSettings.autoHatch or false
 local spamEEnabled = eggSettings.autoSpamE or false
 local hideAnimEnabled = eggSettings.hideAnim or false
@@ -113,6 +114,7 @@ local xlBountyRunning = false
 
 local fourXThread = nil
 local doodleThread = nil
+local shadowRiftThread = nil
 local autoHatchThread = nil
 local spamEThread = nil
 local inventoryThread = nil
@@ -212,6 +214,44 @@ local function isDoodleRiftExists()
         end
     end
     return false
+end
+
+local function isShadowRiftExists()
+    local riftFolder = workspace:FindFirstChild("Rendered")
+    if riftFolder then
+        riftFolder = riftFolder:FindFirstChild("Rifts")
+        if riftFolder and riftFolder:FindFirstChild("shadow-rift") then
+            return true
+        end
+    end
+    return false
+end
+
+local function getShadowRiftPosition()
+    local riftFolder = workspace:FindFirstChild("Rendered")
+    if riftFolder then
+        local rifts = riftFolder:FindFirstChild("Rifts")
+        if rifts then
+            local shadowRift = rifts:FindFirstChild("shadow-rift")
+            if shadowRift then
+                local spawn = shadowRift:FindFirstChild("EggPlatformSpawn")
+                if spawn then
+                    local part = spawn:FindFirstChild("Part")
+                    if part then return part.Position end
+                end
+                local output = shadowRift:FindFirstChild("Output")
+                if output and output:IsA("BasePart") then
+                    return output.Position
+                end
+                for _, child in ipairs(shadowRift:GetDescendants()) do
+                    if child:IsA("BasePart") then
+                        return child.Position
+                    end
+                end
+            end
+        end
+    end
+    return nil
 end
 
 local function getAllEggNames()
@@ -316,6 +356,35 @@ local function getTimeUntilReset()
         end
     end
     return "Unknown"
+end
+
+local function toggleAutoHatchR()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local screenGui = playerGui:FindFirstChild("ScreenGui")
+        if screenGui then
+            local hud = screenGui:FindFirstChild("HUD")
+            if hud then
+                local lootPool = hud:FindFirstChild("LootPoolViewer")
+                if lootPool then
+                    local keybinds = lootPool:FindFirstChild("Keybinds")
+                    if keybinds then
+                        local key2 = keybinds:FindFirstChild("2")
+                        if key2 then
+                            local btn = key2:FindFirstChild("Button")
+                            if btn then
+                                firesignal(btn.Activated)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    -- Backup: press R key
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+    task.wait(0.1)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
 end
 
 -- ======================================
@@ -463,6 +532,66 @@ EggsTab:CreateToggle({
     end
 })
 
+-- SHADOW RIFT (Priority 2.5)
+EggsTab:CreateToggle({
+    Name = "Auto Shadow Rift",
+    CurrentValue = shadowRiftEnabled,
+    Callback = function(v)
+        shadowRiftEnabled = v
+        eggSettings.autoShadowRift = v
+        getgenv().HubSettings.eggs = eggSettings
+        saveHubSettings()
+        if v then
+            shadowRiftThread = task.spawn(function()
+                while shadowRiftEnabled do
+                    if isShadowRiftExists() and not isDoodleRiftExists() then
+                        getgenv().questActive = true
+                        getgenv().questEgg = "Dark Rift Egg"
+                        task.wait(0.3)
+                        
+                        getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        local riftPos = getShadowRiftPosition()
+                        if riftPos then
+                            local root = getRoot()
+                            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                        end
+                        
+                        task.wait(0.3)
+                        
+                        pcall(function() Remote:FireServer("TeleportToRift", "shadow-rift") end)
+                        
+                        task.wait(0.3)
+                        
+                        local riftExists = true
+                        while shadowRiftEnabled and riftExists do
+                            getgenv().questActive = true
+                            getgenv().questEgg = "Dark Rift Egg"
+                            
+                            pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
+                            task.wait(0.05)
+                            riftExists = isShadowRiftExists()
+                        end
+                        
+                        getgenv().ActivityStatus.current = "Finished Shadow Rift"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
+                    end
+                    
+                    task.wait(1)
+                end
+            end)
+        else
+            if shadowRiftThread then task.cancel(shadowRiftThread) end
+            getgenv().questActive = false
+            getgenv().questEgg = nil
+        end
+    end
+})
+
 -- ======================================
 -- UI - HATCH SELECTED EGG
 -- ======================================
@@ -510,7 +639,6 @@ EggsTab:CreateInput({
     end
 })
 
--- Original slow Auto Hatch with 4-second safety delay
 EggsTab:CreateToggle({
     Name = "Auto Hatch (Teleport + Hatch)",
     CurrentValue = autoHatchEnabled,
@@ -548,7 +676,6 @@ EggsTab:CreateToggle({
     end
 })
 
--- New Auto Spam E with smart selection (fast, doesn't steal questActive)
 EggsTab:CreateToggle({
     Name = "Auto Spam E",
     CurrentValue = spamEEnabled,
@@ -559,12 +686,12 @@ EggsTab:CreateToggle({
         saveHubSettings()
         if v then
             spamEThread = task.spawn(function()
+                local lastAutoHatchR = 0
                 while spamEEnabled do
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
                     task.wait(0.05)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
                     
-                    -- Smart egg selection
                     local eggToHatch = nil
                     if getgenv().questActive and getgenv().questEgg then
                         eggToHatch = getgenv().questEgg
@@ -576,6 +703,11 @@ EggsTab:CreateToggle({
                     
                     if eggToHatch then
                         pcall(function() Remote:FireServer("HatchEgg", eggToHatch, HATCH_AMOUNT) end)
+                    end
+                    
+                    if tick() - lastAutoHatchR >= 60 then
+                        lastAutoHatchR = tick()
+                        toggleAutoHatchR()
                     end
                     
                     task.wait(0.1)
@@ -667,7 +799,6 @@ local function refreshBountyLabels()
     pcall(function() bountyResetLabel:SetText("Resets in: " .. getTimeUntilReset()) end)
 end
 
--- Original slow Auto Bounty with 4-second safety delay
 EggsTab:CreateToggle({
     Name = "Auto Bounty (Teleport + Hatch)",
     CurrentValue = bountyEnabled,
@@ -1001,8 +1132,54 @@ if fourXEnabled then
     end)
 end
 
+if shadowRiftEnabled then
+    shadowRiftThread = task.spawn(function()
+        while shadowRiftEnabled do
+            if isShadowRiftExists() and not isDoodleRiftExists() then
+                getgenv().questActive = true
+                getgenv().questEgg = "Dark Rift Egg"
+                task.wait(0.3)
+                
+                getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
+                getgenv().ActivityStatus.trigger = true
+                
+                local riftPos = getShadowRiftPosition()
+                if riftPos then
+                    local root = getRoot()
+                    if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
+                end
+                
+                task.wait(0.3)
+                
+                pcall(function() Remote:FireServer("TeleportToRift", "shadow-rift") end)
+                
+                task.wait(0.3)
+                
+                local riftExists = true
+                while shadowRiftEnabled and riftExists do
+                    getgenv().questActive = true
+                    getgenv().questEgg = "Dark Rift Egg"
+                    
+                    pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                    riftExists = isShadowRiftExists()
+                end
+                
+                getgenv().ActivityStatus.current = "Finished Shadow Rift"
+                getgenv().ActivityStatus.trigger = true
+                
+                getgenv().questActive = false
+                getgenv().questEgg = nil
+            end
+            
+            task.wait(1)
+        end
+    end)
+end
+
 if spamEEnabled then
     spamEThread = task.spawn(function()
+        local lastAutoHatchR = 0
         while spamEEnabled do
             VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
             task.wait(0.05)
@@ -1019,6 +1196,11 @@ if spamEEnabled then
             
             if eggToHatch then
                 pcall(function() Remote:FireServer("HatchEgg", eggToHatch, HATCH_AMOUNT) end)
+            end
+            
+            if tick() - lastAutoHatchR >= 60 then
+                lastAutoHatchR = tick()
+                toggleAutoHatchR()
             end
             
             task.wait(0.1)
