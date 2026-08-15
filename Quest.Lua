@@ -78,6 +78,7 @@ local claimRunning = false
 local claimThread = nil
 local HATCH_AMOUNT = questSettings.hatchAmount or 12
 local COIN_CAP = 5000000000000
+local skippedQuests = {}
 
 -- ======================================
 -- FUNCTIONS
@@ -264,7 +265,8 @@ local function completeQuest(quest)
                 
                 restorePosition(prevPos)
             else
-                print("[Quest] No crates available, skipping pearl quest")
+                -- Add to skipped list so it doesn't retry
+                skippedQuests[quest.id] = true
                 getgenv().questActive = false
                 getgenv().questEgg = nil
                 task.wait(1)
@@ -394,6 +396,7 @@ local function questLoop(filter)
         while true do
             local quests = getActiveQuests(filter)
             if #quests == 0 then
+                skippedQuests = {}
                 getgenv().questActive = false
                 getgenv().questEgg = nil
                 task.wait(10)
@@ -405,8 +408,10 @@ local function questLoop(filter)
                 local curr = q.currency or ""
                 if q.type == "Hatch" and not q.egg and not q.rarity then
                 elseif q.type == "Collect" and curr:lower():find("pearl") then
-                    questToDo = q
-                    break
+                    if not skippedQuests[q.id] then
+                        questToDo = q
+                        break
+                    end
                 else
                     questToDo = q
                     break
@@ -513,8 +518,10 @@ QuestTab:CreateToggle({
                         for _, q in ipairs(quests) do
                             local curr = q.currency or ""
                             if q.type == "Collect" and curr:lower():find("pearl") then
-                                questToDo = q
-                                break
+                                if not skippedQuests[q.id] then
+                                    questToDo = q
+                                    break
+                                end
                             elseif q.type == "Hatch" and not q.egg and not q.rarity then
                             else
                                 questToDo = q
@@ -577,8 +584,10 @@ if questSettings.autoGlobal then
                 for _, q in ipairs(quests) do
                     local curr = q.currency or ""
                     if q.type == "Collect" and curr:lower():find("pearl") then
-                        questToDo = q
-                        break
+                        if not skippedQuests[q.id] then
+                            questToDo = q
+                            break
+                        end
                     elseif q.type == "Hatch" and not q.egg and not q.rarity then
                     else
                         questToDo = q
