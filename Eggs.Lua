@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (5S COOLDOWN RIFT CHECK - FAST HATCH)
+-- EGGS TAB (5S COOLDOWN + FAST SPAM E + NO 4S DELAY)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -438,27 +438,21 @@ EggsTab:CreateToggle({
                     if isRiftExists("corruptshadow-rift") then
                         getgenv().questActive = true
                         getgenv().questEgg = "Dark Rift Egg"
-                        
                         getgenv().ActivityStatus.current = "Doing CorruptShadow Rift right now"
                         getgenv().ActivityStatus.trigger = true
-                        
                         teleportToRiftSafely("corruptshadow-rift")
                         lastTeleportTime = tick()
                         task.wait(0.3)
-                        
                         while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Dark Rift Egg"
-                            
                             if tick() - lastTeleportTime >= 3 then
                                 teleportToRiftSafely("corruptshadow-rift")
                                 lastTeleportTime = tick()
                             end
-                            
                             pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
-                        
                         getgenv().ActivityStatus.current = "Finished CorruptShadow Rift"
                         getgenv().ActivityStatus.trigger = true
                         getgenv().questActive = false
@@ -490,27 +484,21 @@ EggsTab:CreateToggle({
                     if isRiftExists("overlord-rift") and not isRiftExists("corruptshadow-rift") then
                         getgenv().questActive = true
                         getgenv().questEgg = "Overlord Egg"
-                        
                         getgenv().ActivityStatus.current = "Doing Overlord Rift right now"
                         getgenv().ActivityStatus.trigger = true
-                        
                         teleportToRiftSafely("overlord-rift")
                         lastTeleportTime = tick()
                         task.wait(0.3)
-                        
                         while overlordEnabled and isRiftExists("overlord-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Overlord Egg"
-                            
                             if tick() - lastTeleportTime >= 3 then
                                 teleportToRiftSafely("overlord-rift")
                                 lastTeleportTime = tick()
                             end
-                            
                             pcall(function() Remote:FireServer("HatchEgg", "Overlord Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
-                        
                         getgenv().ActivityStatus.current = "Finished Overlord Rift"
                         getgenv().ActivityStatus.trigger = true
                         getgenv().questActive = false
@@ -543,7 +531,6 @@ EggsTab:CreateToggle({
                         local eggFound = false
                         local eggName = nil
                         local eggObj = nil
-                        
                         for _, obj in ipairs(workspace:GetDescendants()) do
                             if obj.Name:find("4x Luck") and obj:IsA("Model") then
                                 eggFound = true
@@ -552,27 +539,20 @@ EggsTab:CreateToggle({
                                 break
                             end
                         end
-                        
                         if eggFound and eggObj then
                             getgenv().questActive = true
                             getgenv().questEgg = eggName
-                            
                             getgenv().ActivityStatus.current = "Doing 4x Egg right now"
                             getgenv().ActivityStatus.trigger = true
-                            
                             local pos = eggObj:GetPivot().Position
                             local root = getRoot()
                             if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-                            
                             while fourXEnabled and eggFound do
                                 if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") then break end
-                                
                                 getgenv().questActive = true
                                 getgenv().questEgg = eggName
-                                
                                 pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
                                 task.wait(0.05)
-                                
                                 eggFound = false
                                 for _, obj2 in ipairs(workspace:GetDescendants()) do
                                     if obj2.Name == eggName and obj2:IsA("Model") then
@@ -580,7 +560,6 @@ EggsTab:CreateToggle({
                                     end
                                 end
                             end
-                            
                             getgenv().ActivityStatus.current = "Finished 4x Egg"
                             getgenv().ActivityStatus.trigger = true
                             getgenv().questActive = false
@@ -617,35 +596,24 @@ EggsTab:CreateToggle({
                             break
                         end
                     end
-                    
-                    if isRiftExists("shadow-rift") 
-                        and not isRiftExists("corruptshadow-rift") 
-                        and not isRiftExists("overlord-rift")
-                        and not fourXExists then
-                        
+                    if isRiftExists("shadow-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not fourXExists then
                         getgenv().questActive = true
                         getgenv().questEgg = "Dark Rift Egg"
-                        
                         getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
                         getgenv().ActivityStatus.trigger = true
-                        
                         teleportToRiftSafely("shadow-rift")
                         lastTeleportTime = tick()
                         task.wait(0.3)
-                        
                         while shadowEnabled and isRiftExists("shadow-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Dark Rift Egg"
-                            
                             if tick() - lastTeleportTime >= 3 then
                                 teleportToRiftSafely("shadow-rift")
                                 lastTeleportTime = tick()
                             end
-                            
                             pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
-                        
                         getgenv().ActivityStatus.current = "Finished Shadow Rift"
                         getgenv().ActivityStatus.trigger = true
                         getgenv().questActive = false
@@ -681,36 +649,24 @@ EggsTab:CreateToggle({
                             break
                         end
                     end
-                    
-                    if isRiftExists("doodle-rift")
-                        and not isRiftExists("corruptshadow-rift")
-                        and not isRiftExists("overlord-rift")
-                        and not isRiftExists("shadow-rift")
-                        and not fourXExists then
-                        
+                    if isRiftExists("doodle-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not isRiftExists("shadow-rift") and not fourXExists then
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
-                        
                         getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
                         getgenv().ActivityStatus.trigger = true
-                        
                         teleportToRiftSafely("doodle-rift")
                         lastTeleportTime = tick()
                         task.wait(0.3)
-                        
                         while doodleEnabled and isRiftExists("doodle-rift") do
                             getgenv().questActive = true
                             getgenv().questEgg = "Doodle Egg"
-                            
                             if tick() - lastTeleportTime >= 3 then
                                 teleportToRiftSafely("doodle-rift")
                                 lastTeleportTime = tick()
                             end
-                            
                             pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                             task.wait(0.05)
                         end
-                        
                         getgenv().ActivityStatus.current = "Finished Doodle Rift"
                         getgenv().ActivityStatus.trigger = true
                         getgenv().questActive = false
@@ -868,7 +824,7 @@ EggsTab:CreateToggle({
                         toggleAutoHatchR()
                     end
                     
-                    task.wait(0.1)
+                    task.wait(0.05) -- FASTER (was 0.1)
                 end
             end)
         else
@@ -982,7 +938,6 @@ EggsTab:CreateToggle({
                     
                     refreshBountyLabels()
                     
-                    -- Check rift every 5 seconds OR when bounty egg changes
                     local now = tick()
                     if now - lastCheckTime >= 5 or currentBountyEgg ~= lastEgg then
                         lastCheckTime = now
@@ -1103,7 +1058,6 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
-                    -- Check rift every 5 seconds OR when XL egg changes
                     local now = tick()
                     if now - lastCheckTime >= 5 or selectedXLEgg ~= lastEgg then
                         lastCheckTime = now
@@ -1457,7 +1411,7 @@ if spamEEnabled then
                 lastAutoHatchR = tick()
                 toggleAutoHatchR()
             end
-            task.wait(0.1)
+            task.wait(0.05)
         end
     end)
 end
