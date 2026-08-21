@@ -502,10 +502,9 @@ task.spawn(function()
 end)
 
 -- ======================================
--- SPECIAL EVENTS SCANNER (4X PLUSHIE + DOODLE)
+-- SPECIAL EVENTS SCANNER (4X EGG ONLY)
 -- ======================================
 local was4xPlushieActive = false
-local wasDoodleRiftActive = false
 
 task.spawn(function()
     while true do
@@ -525,26 +524,12 @@ task.spawn(function()
             end
         end
         
-        local riftFolder = workspace:FindFirstChild("Rendered")
-        local doodleRiftFound = false
-        if riftFolder then
-            riftFolder = riftFolder:FindFirstChild("Rifts")
-            if riftFolder and riftFolder:FindFirstChild("doodle-rift") then doodleRiftFound = true end
-        end
-        
         if fourXFound and not was4xPlushieActive then
             was4xPlushieActive = true
             if HATCH_WEBHOOK_URL ~= "" then
-                pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = (DISCORD_USER_ID ~= "" and "<@"..DISCORD_USER_ID.."> " or "") .. "4x Plushie Egg Has Spawned!", embeds = {{title = "4x Plushie Egg Spawned!", description = "Go hatch it now!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
+                pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = (DISCORD_USER_ID ~= "" and "<@"..DISCORD_USER_ID.."> " or "") .. "4x Egg Has Spawned!", embeds = {{title = "4x Egg Spawned!", description = "Go hatch it now!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
             end
         elseif not fourXFound then was4xPlushieActive = false end
-        
-        if doodleRiftFound and not wasDoodleRiftActive then
-            wasDoodleRiftActive = true
-            if HATCH_WEBHOOK_URL ~= "" then
-                pcall(function() request({Url = HATCH_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode({content = (DISCORD_USER_ID ~= "" and "<@"..DISCORD_USER_ID.."> " or "") .. "Doodle Rift Has Appeared!", embeds = {{title = "Doodle Rift Appeared!", description = "Go summon and hatch!", color = 0xFF4500, footer = {text = "Good Luck Hatching! | Renoa Hub"}}}})}) end)
-            end
-        elseif not doodleRiftFound then wasDoodleRiftActive = false end
     end
 end)
 
@@ -631,7 +616,7 @@ WebhookTab:CreateToggle({
 WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
-WebhookTab:CreateLabel("Alerts: 4x Plushie Egg + Doodle Rift")
+WebhookTab:CreateLabel("Alerts: 4x Egg")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
