@@ -1,5 +1,5 @@
 -- ================================================
--- POTION TAB
+-- POTION TAB (FASTER + FIXED ACTIVITY WEBHOOK)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -123,6 +123,9 @@ PotionTab:CreateToggle({
         getgenv().HubSettings.potions = potionSettings
         saveHubSettings()
         if v then
+            getgenv().ActivityStatus.current = "Start Auto use " .. selectedNormal
+            getgenv().ActivityStatus.trigger = true
+            
             normalThread = task.spawn(function()
                 while normalRunning do
                     local parts = {}
@@ -146,15 +149,15 @@ PotionTab:CreateToggle({
                     end
                     
                     if actualAmount > 0 then
-                        getgenv().ActivityStatus.current = "Using " .. selectedNormal .. " x" .. actualAmount
-                        getgenv().ActivityStatus.trigger = true
                         pcall(function() RE:FireServer("UsePotion", potionName, level, actualAmount) end)
                     end
-                    task.wait(0.5)
+                    task.wait(0.1) -- FASTER (was 0.5)
                 end
             end)
         else
             if normalThread then task.cancel(normalThread) end
+            getgenv().ActivityStatus.current = "Stopped Auto use " .. selectedNormal
+            getgenv().ActivityStatus.trigger = true
         end
     end
 })
@@ -201,6 +204,9 @@ PotionTab:CreateToggle({
         getgenv().HubSettings.potions = potionSettings
         saveHubSettings()
         if v then
+            getgenv().ActivityStatus.current = "Start Auto use " .. selectedSpecial
+            getgenv().ActivityStatus.trigger = true
+            
             specialThread = task.spawn(function()
                 while specialRunning do
                     local data = LocalData:Get()
@@ -217,15 +223,15 @@ PotionTab:CreateToggle({
                     end
                     
                     if actualAmount > 0 then
-                        getgenv().ActivityStatus.current = "Using " .. selectedSpecial .. " x" .. actualAmount
-                        getgenv().ActivityStatus.trigger = true
                         pcall(function() RE:FireServer("UsePotion", selectedSpecial, 1, actualAmount) end)
                     end
-                    task.wait(0.5)
+                    task.wait(0.1) -- FASTER (was 0.5)
                 end
             end)
         else
             if specialThread then task.cancel(specialThread) end
+            getgenv().ActivityStatus.current = "Stopped Auto use " .. selectedSpecial
+            getgenv().ActivityStatus.trigger = true
         end
     end
 })
@@ -282,6 +288,9 @@ if #eventPotions > 0 then
             getgenv().HubSettings.potions = potionSettings
             saveHubSettings()
             if v then
+                getgenv().ActivityStatus.current = "Start Auto use " .. selectedEvent
+                getgenv().ActivityStatus.trigger = true
+                
                 eventThread = task.spawn(function()
                     while eventRunning do
                         local data = LocalData:Get()
@@ -300,15 +309,15 @@ if #eventPotions > 0 then
                         end
                         
                         if actualAmount > 0 then
-                            getgenv().ActivityStatus.current = "Using " .. selectedEvent .. " x" .. actualAmount
-                            getgenv().ActivityStatus.trigger = true
                             pcall(function() RE:FireServer("UsePotion", selectedEvent, potionLevel, actualAmount) end)
                         end
-                        task.wait(0.5)
+                        task.wait(0.1) -- FASTER (was 0.5)
                     end
                 end)
             else
                 if eventThread then task.cancel(eventThread) end
+                getgenv().ActivityStatus.current = "Stopped Auto use " .. selectedEvent
+                getgenv().ActivityStatus.trigger = true
             end
         end
     })
@@ -329,6 +338,9 @@ end
 -- ======================================
 if potionSettings.normalRunning then
     normalRunning = true
+    getgenv().ActivityStatus.current = "Start Auto use " .. selectedNormal
+    getgenv().ActivityStatus.trigger = true
+    
     normalThread = task.spawn(function()
         while normalRunning do
             local parts = {}
@@ -350,17 +362,18 @@ if potionSettings.normalRunning then
             end
             
             if actualAmount > 0 then
-                getgenv().ActivityStatus.current = "Using " .. selectedNormal .. " x" .. actualAmount
-                getgenv().ActivityStatus.trigger = true
                 pcall(function() RE:FireServer("UsePotion", potionName, level, actualAmount) end)
             end
-            task.wait(0.5)
+            task.wait(0.1)
         end
     end)
 end
 
 if potionSettings.specialRunning then
     specialRunning = true
+    getgenv().ActivityStatus.current = "Start Auto use " .. selectedSpecial
+    getgenv().ActivityStatus.trigger = true
+    
     specialThread = task.spawn(function()
         while specialRunning do
             local data = LocalData:Get()
@@ -375,17 +388,18 @@ if potionSettings.specialRunning then
             end
             
             if actualAmount > 0 then
-                getgenv().ActivityStatus.current = "Using " .. selectedSpecial .. " x" .. actualAmount
-                getgenv().ActivityStatus.trigger = true
                 pcall(function() RE:FireServer("UsePotion", selectedSpecial, 1, actualAmount) end)
             end
-            task.wait(0.5)
+            task.wait(0.1)
         end
     end)
 end
 
 if potionSettings.eventRunning then
     eventRunning = true
+    getgenv().ActivityStatus.current = "Start Auto use " .. selectedEvent
+    getgenv().ActivityStatus.trigger = true
+    
     eventThread = task.spawn(function()
         while eventRunning do
             local data = LocalData:Get()
@@ -402,11 +416,9 @@ if potionSettings.eventRunning then
             end
             
             if actualAmount > 0 then
-                getgenv().ActivityStatus.current = "Using " .. selectedEvent .. " x" .. actualAmount
-                getgenv().ActivityStatus.trigger = true
                 pcall(function() RE:FireServer("UsePotion", selectedEvent, potionLevel, actualAmount) end)
             end
-            task.wait(0.5)
+            task.wait(0.1)
         end
     end)
 end
