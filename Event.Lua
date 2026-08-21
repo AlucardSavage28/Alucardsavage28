@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (UPDATED - CLEAN RIFT + SUMMON WEBHOOK)
+-- EVENT TAB (UPDATED - PRIORITY HATCH + SUMMON WEBHOOK)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -292,7 +292,28 @@ EventTab:CreateToggle({
             autoHatchRiftThread = task.spawn(function()
                 local wasActive = false
                 while autoHatchRiftEnabled do
+                    -- Wait for questActive to be false (respects priority system)
+                    while getgenv().questActive and autoHatchRiftEnabled do
+                        wasActive = false
+                        task.wait(0.5)
+                    end
+                    
+                    -- Check if higher priority rifts exist
+                    local higherPriorityActive = false
+                    if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") or isRiftExists("shadow-rift") or isRiftExists("doodle-rift") then
+                        higherPriorityActive = true
+                    end
+                    
+                    if higherPriorityActive then
+                        wasActive = false
+                        task.wait(1)
+                        continue
+                    end
+                    
                     if isRiftExists(riftName) then
+                        task.wait(4) -- Wait 4s after questActive false (same as other auto hatches)
+                        if getgenv().questActive then continue end
+                        
                         getgenv().questActive = true
                         getgenv().questEgg = riftEgg
                         
@@ -418,14 +439,46 @@ end
 
 if autoHatchRiftEnabled then
     autoHatchRiftThread = task.spawn(function()
+        local wasActive = false
         while autoHatchRiftEnabled do
+            while getgenv().questActive and autoHatchRiftEnabled do
+                wasActive = false
+                task.wait(0.5)
+            end
+            
+            local higherPriorityActive = false
+            if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") or isRiftExists("shadow-rift") or isRiftExists("doodle-rift") then
+                higherPriorityActive = true
+            end
+            
+            if higherPriorityActive then
+                wasActive = false
+                task.wait(1)
+                continue
+            end
+            
             if isRiftExists(riftName) then
+                task.wait(4)
+                if getgenv().questActive then continue end
+                
                 getgenv().questActive = true
                 getgenv().questEgg = riftEgg
+                
+                if not wasActive then
+                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg
+                    getgenv().ActivityStatus.trigger = true
+                    wasActive = true
+                end
+                
                 teleportToRift(riftName)
                 pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
                 task.wait(0.05)
             else
+                if wasActive then
+                    getgenv().ActivityStatus.current = "Rift gone, waiting..."
+                    getgenv().ActivityStatus.trigger = true
+                    wasActive = false
+                end
                 getgenv().questActive = false
                 getgenv().questEgg = nil
                 task.wait(1)
