@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (UPDATED - REMOVED DEAD EGGS + FIXED AUTO HATCH)
+-- EGGS TAB (FIXED LUCK + FALLBACK TELEPORT)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -30,7 +30,7 @@ if not settings.eggs then settings.eggs = {} end
 local eggSettings = settings.eggs
 
 -- ======================================
--- EGG LOCATIONS (NO POPCORN/SWEET/EXOTIC/OBSIDIAN)
+-- EGG LOCATIONS
 -- ======================================
 local EGG_LOCATIONS = {
     ["Common Egg"] = Vector3.new(-80, 7, 5),
@@ -186,7 +186,7 @@ local function eggNameToKey(name)
 end
 
 -- ======================================
--- HIGHEST LUCK RIFT FUNCTIONS
+-- HIGHEST LUCK RIFT FUNCTIONS (FIXED)
 -- ======================================
 local function getRiftLuck(rift)
     local display = rift:FindFirstChild("Display")
@@ -194,7 +194,7 @@ local function getRiftLuck(rift)
         local surfaceGui = display:FindFirstChild("SurfaceGui")
         if surfaceGui then
             for _, child in ipairs(surfaceGui:GetDescendants()) do
-                if child:IsA("TextLabel") and child.Text:find("Luck") then
+                if child:IsA("TextLabel") and child.Name == "Luck" then
                     local luck = child.Text:match("x(%d+)")
                     if luck then
                         return tonumber(luck)
@@ -230,39 +230,22 @@ local function getHighestLuckRift(riftName)
     return nil, 0
 end
 
-local function getRiftPositionFromRift(rift)
-    if rift then
-        local spawn = rift:FindFirstChild("EggPlatformSpawn")
-        if spawn then
-            local part = spawn:FindFirstChild("Part")
-            if part then return part.Position end
-            if spawn:IsA("BasePart") then return spawn.Position end
-        end
-        for _, child in ipairs(rift:GetDescendants()) do
-            if child:IsA("BasePart") then
-                return child.Position
-            end
-        end
-    end
-    return nil
-end
-
 local function teleportToBestRift(eggName)
     local riftKey = eggNameToKey(eggName)
     local bestRift, bestLuck = getHighestLuckRift(riftKey)
     if bestRift then
-        local pos = getRiftPositionFromRift(bestRift)
-        if pos then
-            local root = getRoot()
-            if root then
-                root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
-                root.Velocity = Vector3.zero
-                root.RotVelocity = Vector3.zero
-                return bestLuck
+        local spawn = bestRift:FindFirstChild("EggPlatformSpawn")
+        if spawn then
+            local part = spawn:FindFirstChild("Part")
+            if part then
+                local root = getRoot()
+                if root then
+                    root.CFrame = CFrame.new(part.Position + Vector3.new(0, 5, 0))
+                    root.Velocity = Vector3.zero
+                    root.RotVelocity = Vector3.zero
+                    return bestLuck
+                end
             end
-        else
-            pcall(function() Remote:FireServer("TeleportToRift", riftKey) end)
-            return 0
         end
     end
     return 0
@@ -997,6 +980,7 @@ EggsTab:CreateToggle({
                     
                     refreshBountyLabels()
                     
+                    -- Teleport to highest luck rift for bounty egg
                     local luck = teleportToBestRift(currentBountyEgg)
                     
                     if not wasActive or luck ~= lastLuck then
@@ -1004,6 +988,11 @@ EggsTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         wasActive = true
                         lastLuck = luck
+                    end
+                    
+                    -- Fallback if no rift
+                    if luck == 0 then
+                        teleportToEgg(currentBountyEgg)
                     end
                     
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
@@ -1098,6 +1087,7 @@ EggsTab:CreateToggle({
                     task.wait(4)
                     if getgenv().questActive then continue end
                     
+                    -- Teleport to highest luck rift for XL egg
                     local luck = teleportToBestRift(selectedXLEgg)
                     
                     if not wasActive or luck ~= lastLuck then
@@ -1105,6 +1095,11 @@ EggsTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         wasActive = true
                         lastLuck = luck
+                    end
+                    
+                    -- Fallback if no rift
+                    if luck == 0 then
+                        teleportToEgg(selectedXLEgg)
                     end
                     
                     pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
@@ -1342,6 +1337,9 @@ if bountyEnabled then
                 getgenv().ActivityStatus.trigger = true
                 wasActive = true
                 lastLuck = luck
+            end
+            if luck == 0 then
+                teleportToEgg(currentBountyEgg)
             end
             pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
             task.wait(0.05)
