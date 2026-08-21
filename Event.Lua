@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (HIGHEST LUCK PRIORITY + SUMMON WEBHOOK)
+-- EVENT TAB (UPDATED - NO WEBHOOK SECTION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -45,10 +45,6 @@ local HATCH_AMOUNT = 12 -- Hardcoded
 local riftName = "cloud-rift"
 local riftEgg = "Cloudy Rift Egg"
 local riftWorld = "The Overworld"
-
--- Summon Webhook settings
-local summonWebhookURL = eventSettings.summonWebhookURL or settings.activity.webhookURL or ""
-local summonDiscordID = eventSettings.summonDiscordID or settings.activity.userId or ""
 
 local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
@@ -107,7 +103,7 @@ end
 local lastEventDisplay = ""
 
 -- ======================================
--- SPAWNABLE RIFT FUNCTIONS (HIGHEST LUCK)
+-- SPAWNABLE RIFT FUNCTIONS
 -- ======================================
 local function isRiftExists(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
@@ -168,6 +164,7 @@ local function getRiftPositionFromRift(rift)
         if spawn then
             local part = spawn:FindFirstChild("Part")
             if part then return part.Position end
+            if spawn:IsA("BasePart") then return spawn.Position end
         end
         for _, child in ipairs(rift:GetDescendants()) do
             if child:IsA("BasePart") then
@@ -190,6 +187,9 @@ local function teleportToBestRift(riftName)
                 root.RotVelocity = Vector3.zero
                 return bestLuck
             end
+        else
+            pcall(function() RE:FireServer("TeleportToRift", riftName) end)
+            return 0
         end
     end
     return 0
@@ -208,37 +208,37 @@ local function summonRift()
 end
 
 -- ======================================
--- SUMMON WEBHOOK FUNCTIONS
+-- SUMMON WEBHOOK (USES ACTIVITY SETTINGS)
 -- ======================================
-local lastSummonState = "" -- Track last sent state to avoid spam
+local lastSummonState = ""
 
 local function sendSummonWebhook(success)
-    if summonWebhookURL == "" then return end
+    local webhookURL = settings.activity.webhookURL or ""
+    local discordID = settings.activity.userId or ""
+    
+    if webhookURL == "" then return end
     
     local content = ""
     local color = 0
     
     if success then
-        -- Success: No tag
         content = "Summon Cloud Rift Success✅"
-        color = 0x00FF00 -- Green
+        color = 0x00FF00
     else
-        -- Failed: With tag
-        if summonDiscordID ~= "" then
-            content = "Failed Summoning Cloud Rift❌ <@" .. summonDiscordID .. ">"
+        if discordID ~= "" then
+            content = "Failed Summoning Cloud Rift❌ <@" .. discordID .. ">"
         else
             content = "Failed Summoning Cloud Rift❌"
         end
-        color = 0xFF0000 -- Red
+        color = 0xFF0000
     end
     
-    -- Prevent duplicate sends
     if content == lastSummonState then return end
     lastSummonState = content
     
     pcall(function()
         request({
-            Url = summonWebhookURL,
+            Url = webhookURL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
@@ -331,7 +331,7 @@ EventTab:CreateToggle({
                 local wasActive = false
                 local lastLuck = 0
                 while autoHatchRiftEnabled do
-                    -- Wait for questActive to be false (respects priority system)
+                    -- Wait for questActive to be false
                     while getgenv().questActive and autoHatchRiftEnabled do
                         wasActive = false
                         task.wait(0.5)
@@ -350,7 +350,7 @@ EventTab:CreateToggle({
                     end
                     
                     if isRiftExists(riftName) then
-                        task.wait(4) -- Wait 4s after questActive false
+                        task.wait(4)
                         if getgenv().questActive then continue end
                         
                         getgenv().questActive = true
@@ -360,7 +360,7 @@ EventTab:CreateToggle({
                         local luck = teleportToBestRift(riftName)
                         
                         if not wasActive or luck ~= lastLuck then
-                            getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. " (x" .. luck .. " luck)"
+                            getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
                             getgenv().ActivityStatus.trigger = true
                             wasActive = true
                             lastLuck = luck
@@ -405,13 +405,12 @@ EventTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         
                         summonRift()
-                        task.wait(3) -- Wait for rift to appear
+                        task.wait(3)
                         
-                        -- Check if summon succeeded
                         if isRiftExists(riftName) then
-                            sendSummonWebhook(true) -- Success
+                            sendSummonWebhook(true)
                         else
-                            sendSummonWebhook(false) -- Failed
+                            sendSummonWebhook(false)
                         end
                         
                         task.wait(5)
@@ -425,40 +424,6 @@ EventTab:CreateToggle({
         end
     end
 })
-
--- ======================================
--- UI - SUMMON WEBHOOK
--- ======================================
-EventTab:CreateSection("Summon Webhook")
-
-EventTab:CreateInput({
-    Name = "Summon Webhook URL",
-    CurrentValue = summonWebhookURL,
-    PlaceholderText = "https://discord.com/api/webhooks/...",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        summonWebhookURL = v
-        eventSettings.summonWebhookURL = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-    end
-})
-
-EventTab:CreateInput({
-    Name = "Discord User ID (for failed tag)",
-    CurrentValue = summonDiscordID,
-    PlaceholderText = "Discord_User_ID",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        summonDiscordID = v
-        eventSettings.summonDiscordID = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-    end
-})
-
-EventTab:CreateLabel("✅ Success: No tag")
-EventTab:CreateLabel("❌ Failed: With tag")
 
 -- ======================================
 -- UI - EVENT SHOP
@@ -511,7 +476,7 @@ if autoHatchRiftEnabled then
                 local luck = teleportToBestRift(riftName)
                 
                 if not wasActive or luck ~= lastLuck then
-                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. " (x" .. luck .. " luck)"
+                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
                     getgenv().ActivityStatus.trigger = true
                     wasActive = true
                     lastLuck = luck
