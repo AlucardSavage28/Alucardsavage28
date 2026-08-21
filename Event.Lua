@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (COOLDOWN RIFT CHECK - FAST HATCH)
+-- EVENT TAB (FIXED AUTO SUMMON - EVERY 55 MIN)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -319,7 +319,6 @@ EventTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
-                    -- Check higher priority every loop (fast)
                     local higherPriorityActive = false
                     if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") or isRiftExists("shadow-rift") or isRiftExists("doodle-rift") then
                         higherPriorityActive = true
@@ -332,9 +331,8 @@ EventTab:CreateToggle({
                         continue
                     end
                     
-                    -- Check rift existence + luck every 10 seconds
                     local now = tick()
-                    if now - lastCheckTime >= 10 then
+                    if now - lastCheckTime >= 5 then
                         lastCheckTime = now
                         riftExists = isRiftExists(riftName)
                         if riftExists then
@@ -343,7 +341,6 @@ EventTab:CreateToggle({
                     end
                     
                     if riftExists then
-                        task.wait(4)
                         if getgenv().questActive then continue end
                         
                         getgenv().questActive = true
@@ -388,23 +385,19 @@ EventTab:CreateToggle({
         if v then
             autoSummonRiftThread = task.spawn(function()
                 while autoSummonRiftEnabled do
-                    if not isRiftExists(riftName) then
-                        getgenv().ActivityStatus.current = "Summoning " .. riftName
-                        getgenv().ActivityStatus.trigger = true
-                        
-                        summonRift()
-                        task.wait(3)
-                        
-                        if isRiftExists(riftName) then
-                            sendSummonWebhook(true)
-                        else
-                            sendSummonWebhook(false)
-                        end
-                        
-                        task.wait(5)
+                    getgenv().ActivityStatus.current = "Summoning " .. riftName
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    summonRift()
+                    task.wait(5)
+                    
+                    if isRiftExists(riftName) then
+                        sendSummonWebhook(true)
                     else
-                        task.wait(30)
+                        sendSummonWebhook(false)
                     end
+                    
+                    task.wait(3300) -- Wait 55 minutes
                 end
             end)
         else
@@ -459,7 +452,7 @@ if autoHatchRiftEnabled then
             end
             
             local now = tick()
-            if now - lastCheckTime >= 10 then
+            if now - lastCheckTime >= 5 then
                 lastCheckTime = now
                 riftExists = isRiftExists(riftName)
                 if riftExists then
@@ -468,7 +461,6 @@ if autoHatchRiftEnabled then
             end
             
             if riftExists then
-                task.wait(4)
                 if getgenv().questActive then continue end
                 
                 getgenv().questActive = true
@@ -499,20 +491,16 @@ end
 if autoSummonRiftEnabled then
     autoSummonRiftThread = task.spawn(function()
         while autoSummonRiftEnabled do
-            if not isRiftExists(riftName) then
-                summonRift()
-                task.wait(3)
-                
-                if isRiftExists(riftName) then
-                    sendSummonWebhook(true)
-                else
-                    sendSummonWebhook(false)
-                end
-                
-                task.wait(5)
+            summonRift()
+            task.wait(5)
+            
+            if isRiftExists(riftName) then
+                sendSummonWebhook(true)
             else
-                task.wait(30)
+                sendSummonWebhook(false)
             end
+            
+            task.wait(3300)
         end
     end)
 end
