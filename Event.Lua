@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (FIXED AUTO SUMMON)
+-- EVENT TAB (UPDATED - CLEAN RIFT + SUMMON WEBHOOK)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -12,9 +12,12 @@ local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
+local HttpService = game:GetService("HttpService")
 
 local RemoteContainer = ReplicatedStorage.Shared.Framework.Network.Remote
 local RemoteFunction = RemoteContainer.RemoteFunction
+
+local request = http_request or request or (syn and syn.request)
 
 -- ======================================
 -- LOAD SAVED SETTINGS
@@ -36,12 +39,16 @@ local autoHatchRiftThread = nil
 local autoSummonRiftEnabled = eventSettings.autoSummonRift or false
 local autoSummonRiftThread = nil
 
-local HATCH_AMOUNT = eventSettings.riftHatchAmount or 12
+local HATCH_AMOUNT = 12 -- Hardcoded
 
--- Rift info (from your UI dump)
+-- Rift info
 local riftName = "cloud-rift"
 local riftEgg = "Cloudy Rift Egg"
 local riftWorld = "The Overworld"
+
+-- Summon Webhook settings
+local summonWebhookURL = eventSettings.summonWebhookURL or settings.activity.webhookURL or ""
+local summonDiscordID = eventSettings.summonDiscordID or settings.activity.userId or ""
 
 local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
@@ -120,13 +127,11 @@ local function getRiftPosition(riftName)
         if riftFolder then
             local rift = riftFolder:FindFirstChild(riftName)
             if rift then
-                -- Try EggPlatformSpawn first (like Eggs tab)
                 local spawn = rift:FindFirstChild("EggPlatformSpawn")
                 if spawn then
                     local part = spawn:FindFirstChild("Part")
                     if part then return part.Position end
                 end
-                -- Fallback: any BasePart
                 for _, child in ipairs(rift:GetDescendants()) do
                     if child:IsA("BasePart") then
                         return child.Position
@@ -153,7 +158,6 @@ local function teleportToRift(riftName)
 end
 
 local function summonRift()
-    -- Using same format as Rift tab and Egg tab
     pcall(function()
         RemoteFunction:InvokeServer("SummonRift", {
             Type = "Egg",
@@ -162,6 +166,54 @@ local function summonRift()
             Luck = 5,
             World = riftWorld
         })
+    end)
+end
+
+-- ======================================
+-- SUMMON WEBHOOK FUNCTIONS
+-- ======================================
+local lastSummonState = "" -- Track last sent state to avoid spam
+
+local function sendSummonWebhook(success)
+    if summonWebhookURL == "" then return end
+    
+    local content = ""
+    local color = 0
+    
+    if success then
+        -- Success: No tag
+        content = "Summon Cloud Rift Success✅"
+        color = 0x00FF00 -- Green
+    else
+        -- Failed: With tag
+        if summonDiscordID ~= "" then
+            content = "Failed Summoning Cloud Rift❌ <@" .. summonDiscordID .. ">"
+        else
+            content = "Failed Summoning Cloud Rift❌"
+        end
+        color = 0xFF0000 -- Red
+    end
+    
+    -- Prevent duplicate sends
+    if content == lastSummonState then return end
+    lastSummonState = content
+    
+    pcall(function()
+        request({
+            Url = summonWebhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                content = content,
+                embeds = {{
+                    title = success and "✅ Rift Summoned" or "❌ Summon Failed",
+                    description = "**" .. player.Name .. "**",
+                    color = color,
+                    footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
+                }}
+            })
+        })
+        print("[Summon Webhook] " .. content)
     end)
 end
 
@@ -228,35 +280,6 @@ EventTab:CreateToggle({
 -- ======================================
 EventTab:CreateSection("Spawnable Special Rift")
 
-EventTab:CreateLabel("Rift: " .. riftName)
-EventTab:CreateLabel("Egg: " .. riftEgg)
-
-EventTab:CreateInput({
-    Name = "Hatch Amount",
-    CurrentValue = tostring(HATCH_AMOUNT),
-    PlaceholderText = "12",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        local n = tonumber(v)
-        if n then
-            HATCH_AMOUNT = n
-            eventSettings.riftHatchAmount = n
-            getgenv().HubSettings.event = eventSettings
-            saveHubSettings()
-        end
-    end
-})
-
-EventTab:CreateButton({
-    Name = "Summon Rift Now",
-    Callback = function()
-        summonRift()
-        getgenv().ActivityStatus.current = "Summoning " .. riftName
-        getgenv().ActivityStatus.trigger = true
-        print("[Event] Summoning rift...")
-    end
-})
-
 EventTab:CreateToggle({
     Name = "Auto Hatch",
     CurrentValue = autoHatchRiftEnabled,
@@ -316,8 +339,18 @@ EventTab:CreateToggle({
                     if not isRiftExists(riftName) then
                         getgenv().ActivityStatus.current = "Summoning " .. riftName
                         getgenv().ActivityStatus.trigger = true
+                        
                         summonRift()
-                        task.wait(3)
+                        task.wait(3) -- Wait for rift to appear
+                        
+                        -- Check if summon succeeded
+                        if isRiftExists(riftName) then
+                            sendSummonWebhook(true) -- Success
+                        else
+                            sendSummonWebhook(false) -- Failed
+                        end
+                        
+                        task.wait(5)
                     else
                         task.wait(30)
                     end
@@ -328,6 +361,40 @@ EventTab:CreateToggle({
         end
     end
 })
+
+-- ======================================
+-- UI - SUMMON WEBHOOK
+-- ======================================
+EventTab:CreateSection("Summon Webhook")
+
+EventTab:CreateInput({
+    Name = "Summon Webhook URL",
+    CurrentValue = summonWebhookURL,
+    PlaceholderText = "https://discord.com/api/webhooks/...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        summonWebhookURL = v
+        eventSettings.summonWebhookURL = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+    end
+})
+
+EventTab:CreateInput({
+    Name = "Discord User ID (for failed tag)",
+    CurrentValue = summonDiscordID,
+    PlaceholderText = "Discord_User_ID",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        summonDiscordID = v
+        eventSettings.summonDiscordID = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+    end
+})
+
+EventTab:CreateLabel("✅ Success: No tag")
+EventTab:CreateLabel("❌ Failed: With tag")
 
 -- ======================================
 -- UI - EVENT SHOP
@@ -373,6 +440,14 @@ if autoSummonRiftEnabled then
             if not isRiftExists(riftName) then
                 summonRift()
                 task.wait(3)
+                
+                if isRiftExists(riftName) then
+                    sendSummonWebhook(true)
+                else
+                    sendSummonWebhook(false)
+                end
+                
+                task.wait(5)
             else
                 task.wait(30)
             end
