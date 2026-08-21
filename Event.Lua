@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (UPDATED - REMOVED SHOP, ADDED RIFT)
+-- EVENT TAB (FIXED AUTO SUMMON)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -37,8 +37,11 @@ local autoSummonRiftEnabled = eventSettings.autoSummonRift or false
 local autoSummonRiftThread = nil
 
 local HATCH_AMOUNT = eventSettings.riftHatchAmount or 12
-local riftName = "cloud-rift" -- The special rift name
-local riftEgg = "Cloudy Rift Egg" -- The egg it hatches
+
+-- Rift info (from your UI dump)
+local riftName = "cloud-rift"
+local riftEgg = "Cloudy Rift Egg"
+local riftWorld = "The Overworld"
 
 local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
@@ -117,6 +120,13 @@ local function getRiftPosition(riftName)
         if riftFolder then
             local rift = riftFolder:FindFirstChild(riftName)
             if rift then
+                -- Try EggPlatformSpawn first (like Eggs tab)
+                local spawn = rift:FindFirstChild("EggPlatformSpawn")
+                if spawn then
+                    local part = spawn:FindFirstChild("Part")
+                    if part then return part.Position end
+                end
+                -- Fallback: any BasePart
                 for _, child in ipairs(rift:GetDescendants()) do
                     if child:IsA("BasePart") then
                         return child.Position
@@ -142,8 +152,21 @@ local function teleportToRift(riftName)
     end
 end
 
+local function summonRift()
+    -- Using same format as Rift tab and Egg tab
+    pcall(function()
+        RemoteFunction:InvokeServer("SummonRift", {
+            Type = "Egg",
+            Name = riftEgg,
+            Time = 5,
+            Luck = 5,
+            World = riftWorld
+        })
+    end)
+end
+
 -- ======================================
--- UI - EVENT BOARD (renamed from Auto Event)
+-- UI - EVENT BOARD
 -- ======================================
 EventTab:CreateSection("Event Board")
 
@@ -224,6 +247,16 @@ EventTab:CreateInput({
     end
 })
 
+EventTab:CreateButton({
+    Name = "Summon Rift Now",
+    Callback = function()
+        summonRift()
+        getgenv().ActivityStatus.current = "Summoning " .. riftName
+        getgenv().ActivityStatus.trigger = true
+        print("[Event] Summoning rift...")
+    end
+})
+
 EventTab:CreateToggle({
     Name = "Auto Hatch",
     CurrentValue = autoHatchRiftEnabled,
@@ -283,24 +316,11 @@ EventTab:CreateToggle({
                     if not isRiftExists(riftName) then
                         getgenv().ActivityStatus.current = "Summoning " .. riftName
                         getgenv().ActivityStatus.trigger = true
-                        
-                        -- Summon the rift with 60m duration and x25 luck
-                        pcall(function()
-                            RemoteFunction:InvokeServer("SummonRift", {
-                                Type = "Egg",
-                                Name = "Cloudy Rift Egg",
-                                Time = 60,
-                                Luck = 25,
-                                World = "The Overworld"
-                            })
-                        end)
-                        
-                        task.wait(5) -- Wait for summon to process
+                        summonRift()
+                        task.wait(3)
                     else
-                        task.wait(30) -- Check every 30s if rift exists
+                        task.wait(30)
                     end
-                    
-                    task.wait(1)
                 end
             end)
         else
@@ -310,7 +330,7 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP (REPLACED WITH LABEL)
+-- UI - EVENT SHOP
 -- ======================================
 EventTab:CreateSection("Event Shop")
 
@@ -351,20 +371,11 @@ if autoSummonRiftEnabled then
     autoSummonRiftThread = task.spawn(function()
         while autoSummonRiftEnabled do
             if not isRiftExists(riftName) then
-                pcall(function()
-                    RemoteFunction:InvokeServer("SummonRift", {
-                        Type = "Egg",
-                        Name = "Cloudy Rift Egg",
-                        Time = 60,
-                        Luck = 25,
-                        World = "The Overworld"
-                    })
-                end)
-                task.wait(5)
+                summonRift()
+                task.wait(3)
             else
                 task.wait(30)
             end
-            task.wait(1)
         end
     end)
 end
