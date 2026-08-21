@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (HATCH + CORRUPTSHADOW + OVERLORD + 4X + SHADOW + DOODLE + INVENTORY + BOUNTY + XL BOUNTY + RIFT)
+-- EGGS TAB (HIGHEST LUCK PRIORITY FOR ALL HATCHES)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -173,20 +173,38 @@ local function eggNameToKey(name)
     return name:lower():gsub("%s+", "-")
 end
 
-local function getRiftPosition(name)
-    local key = eggNameToKey(name)
+-- ======================================
+-- HIGHEST LUCK RIFT FUNCTIONS
+-- ======================================
+local function getRiftLuck(rift)
+    local display = rift:FindFirstChild("Display")
+    if display then
+        local surfaceGui = display:FindFirstChild("SurfaceGui")
+        if surfaceGui then
+            for _, child in ipairs(surfaceGui:GetDescendants()) do
+                if child:IsA("TextLabel") and child.Text:find("Luck") then
+                    local luck = child.Text:match("x(%d+)")
+                    if luck then
+                        return tonumber(luck)
+                    end
+                end
+            end
+        end
+    end
+    return 0
+end
+
+local function getHighestLuckRift(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
     if riftFolder then
         riftFolder = riftFolder:FindFirstChild("Rifts")
         if riftFolder then
             local bestRift = nil
-            local bestLuck = -1
+            local bestLuck = 0
             
             for _, rift in ipairs(riftFolder:GetChildren()) do
-                if rift.Name == key then
-                    local data = Rifts[key]
-                    local luck = 0
-                    if data and data.Luck then luck = tonumber(data.Luck) or 0 end
+                if rift.Name == riftName then
+                    local luck = getRiftLuck(rift)
                     if luck > bestLuck then
                         bestLuck = luck
                         bestRift = rift
@@ -194,21 +212,73 @@ local function getRiftPosition(name)
                 end
             end
             
-            if bestRift then
-                local spawn = bestRift:FindFirstChild("EggPlatformSpawn")
-                if spawn then
-                    local part = spawn:FindFirstChild("Part")
-                    if part then return part.Position end
-                end
-                for _, child in ipairs(bestRift:GetDescendants()) do
-                    if child:IsA("BasePart") then
-                        return child.Position
-                    end
-                end
+            return bestRift, bestLuck
+        end
+    end
+    return nil, 0
+end
+
+local function getRiftPositionFromRift(rift)
+    if rift then
+        local spawn = rift:FindFirstChild("EggPlatformSpawn")
+        if spawn then
+            local part = spawn:FindFirstChild("Part")
+            if part then return part.Position end
+        end
+        for _, child in ipairs(rift:GetDescendants()) do
+            if child:IsA("BasePart") then
+                return child.Position
             end
         end
     end
     return nil
+end
+
+local function teleportToBestRift(eggName)
+    local riftKey = eggNameToKey(eggName)
+    local bestRift, bestLuck = getHighestLuckRift(riftKey)
+    if bestRift then
+        local pos = getRiftPositionFromRift(bestRift)
+        if pos then
+            local root = getRoot()
+            if root then
+                root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
+                root.Velocity = Vector3.zero
+                root.RotVelocity = Vector3.zero
+                return bestLuck
+            end
+        end
+    end
+    return 0
+end
+
+-- ======================================
+-- FALLBACK TELEPORT (No rift - use static location)
+-- ======================================
+local function teleportToEgg(eggName)
+    local luck = teleportToBestRift(eggName)
+    if luck > 0 then return true end
+    
+    -- Fallback to static location
+    local pos = EGG_LOCATIONS[eggName] or discoveredEggs[eggName]
+    if not pos then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj.Name == eggName and obj:IsA("Model") then
+                pos = obj:GetPivot().Position
+                discoveredEggs[eggName] = pos
+                break
+            end
+        end
+    end
+    if pos then
+        local dist = getDistance(pos)
+        if dist > 10 then
+            local root = getRoot()
+            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
+        end
+        return true
+    end
+    return false
 end
 
 local function isRiftExists(riftName)
@@ -233,10 +303,6 @@ local function getRiftPositionByName(riftName)
                 if spawn then
                     local part = spawn:FindFirstChild("Part")
                     if part then return part.Position end
-                end
-                local output = rift:FindFirstChild("Output")
-                if output and output:IsA("BasePart") then
-                    return output.Position
                 end
                 for _, child in ipairs(rift:GetDescendants()) do
                     if child:IsA("BasePart") then
@@ -295,38 +361,6 @@ local function getAllEggNames()
     
     table.sort(eggs)
     return eggs
-end
-
-local function teleportToEgg(eggName)
-    local riftPos = getRiftPosition(eggName)
-    if riftPos then
-        local dist = getDistance(riftPos)
-        if dist > 10 then
-            local root = getRoot()
-            if root then root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0)) end
-        end
-        return true
-    end
-    
-    local pos = EGG_LOCATIONS[eggName] or discoveredEggs[eggName]
-    if not pos then
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj.Name == eggName and obj:IsA("Model") then
-                pos = obj:GetPivot().Position
-                discoveredEggs[eggName] = pos
-                break
-            end
-        end
-    end
-    if pos then
-        local dist = getDistance(pos)
-        if dist > 10 then
-            local root = getRoot()
-            if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-        end
-        return true
-    end
-    return false
 end
 
 local function updateBountyInfo()
@@ -763,6 +797,7 @@ EggsTab:CreateToggle({
         if v then
             autoHatchThread = task.spawn(function()
                 local wasActive = false
+                local lastLuck = 0
                 while autoHatchEnabled do
                     while getgenv().questActive and autoHatchEnabled do
                         wasActive = false
@@ -772,13 +807,21 @@ EggsTab:CreateToggle({
                     task.wait(4)
                     if getgenv().questActive then continue end
                     
-                    if not wasActive and not getgenv().questActive then
-                        getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
+                    -- Teleport to highest luck rift
+                    local luck = teleportToBestRift(selectedEgg)
+                    
+                    if not wasActive or luck ~= lastLuck then
+                        getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
                         getgenv().ActivityStatus.trigger = true
                         wasActive = true
+                        lastLuck = luck
                     end
                     
-                    teleportToEgg(selectedEgg)
+                    -- Fallback if no rift
+                    if luck == 0 then
+                        teleportToEgg(selectedEgg)
+                    end
+                    
                     pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -924,6 +967,7 @@ EggsTab:CreateToggle({
             refreshBountyLabels()
             bountyThread = task.spawn(function()
                 local wasActive = false
+                local lastLuck = 0
                 while bountyEnabled do
                     while getgenv().questActive and bountyEnabled do
                         wasActive = false
@@ -935,13 +979,21 @@ EggsTab:CreateToggle({
                     
                     refreshBountyLabels()
                     
-                    if not wasActive and not getgenv().questActive then
-                        getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
+                    -- Teleport to highest luck rift for bounty egg
+                    local luck = teleportToBestRift(currentBountyEgg)
+                    
+                    if not wasActive or luck ~= lastLuck then
+                        getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
                         getgenv().ActivityStatus.trigger = true
                         wasActive = true
+                        lastLuck = luck
                     end
                     
-                    teleportToEgg(currentBountyEgg)
+                    -- Fallback if no rift
+                    if luck == 0 then
+                        teleportToEgg(currentBountyEgg)
+                    end
+                    
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -1024,6 +1076,7 @@ EggsTab:CreateToggle({
         if v then
             xlBountyThread = task.spawn(function()
                 local wasActive = false
+                local lastLuck = 0
                 while xlBountyRunning do
                     while getgenv().questActive and xlBountyRunning do
                         wasActive = false
@@ -1033,13 +1086,21 @@ EggsTab:CreateToggle({
                     task.wait(4)
                     if getgenv().questActive then continue end
                     
-                    if not wasActive and not getgenv().questActive then
-                        getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg
+                    -- Teleport to highest luck rift for XL egg
+                    local luck = teleportToBestRift(selectedXLEgg)
+                    
+                    if not wasActive or luck ~= lastLuck then
+                        getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
                         getgenv().ActivityStatus.trigger = true
                         wasActive = true
+                        lastLuck = luck
                     end
                     
-                    teleportToEgg(selectedXLEgg)
+                    -- Fallback if no rift
+                    if luck == 0 then
+                        teleportToEgg(selectedXLEgg)
+                    end
+                    
                     pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
@@ -1059,29 +1120,19 @@ if corruptShadowEnabled then
             if isRiftExists("corruptshadow-rift") then
                 getgenv().questActive = true
                 getgenv().questEgg = "Dark Rift Egg"
-                
-                getgenv().ActivityStatus.current = "Doing CorruptShadow Rift right now"
-                getgenv().ActivityStatus.trigger = true
-                
                 teleportToRiftSafely("corruptshadow-rift")
                 lastTeleportTime = tick()
                 task.wait(0.3)
-                
                 while corruptShadowEnabled and isRiftExists("corruptshadow-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Dark Rift Egg"
-                    
                     if tick() - lastTeleportTime >= 3 then
                         teleportToRiftSafely("corruptshadow-rift")
                         lastTeleportTime = tick()
                     end
-                    
                     pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
-                
-                getgenv().ActivityStatus.current = "Finished CorruptShadow Rift"
-                getgenv().ActivityStatus.trigger = true
                 getgenv().questActive = false
                 getgenv().questEgg = nil
             end
@@ -1096,29 +1147,19 @@ if overlordEnabled then
             if isRiftExists("overlord-rift") and not isRiftExists("corruptshadow-rift") then
                 getgenv().questActive = true
                 getgenv().questEgg = "Overlord Egg"
-                
-                getgenv().ActivityStatus.current = "Doing Overlord Rift right now"
-                getgenv().ActivityStatus.trigger = true
-                
                 teleportToRiftSafely("overlord-rift")
                 lastTeleportTime = tick()
                 task.wait(0.3)
-                
                 while overlordEnabled and isRiftExists("overlord-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Overlord Egg"
-                    
                     if tick() - lastTeleportTime >= 3 then
                         teleportToRiftSafely("overlord-rift")
                         lastTeleportTime = tick()
                     end
-                    
                     pcall(function() Remote:FireServer("HatchEgg", "Overlord Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
-                
-                getgenv().ActivityStatus.current = "Finished Overlord Rift"
-                getgenv().ActivityStatus.trigger = true
                 getgenv().questActive = false
                 getgenv().questEgg = nil
             end
@@ -1134,7 +1175,6 @@ if fourXEnabled then
                 local eggFound = false
                 local eggName = nil
                 local eggObj = nil
-                
                 for _, obj in ipairs(workspace:GetDescendants()) do
                     if obj.Name:find("4x Luck") and obj:IsA("Model") then
                         eggFound = true
@@ -1143,27 +1183,18 @@ if fourXEnabled then
                         break
                     end
                 end
-                
                 if eggFound and eggObj then
                     getgenv().questActive = true
                     getgenv().questEgg = eggName
-                    
-                    getgenv().ActivityStatus.current = "Doing 4x Egg right now"
-                    getgenv().ActivityStatus.trigger = true
-                    
                     local pos = eggObj:GetPivot().Position
                     local root = getRoot()
                     if root then root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0)) end
-                    
                     while fourXEnabled and eggFound do
                         if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") then break end
-                        
                         getgenv().questActive = true
                         getgenv().questEgg = eggName
-                        
                         pcall(function() Remote:FireServer("HatchEgg", eggName, HATCH_AMOUNT) end)
                         task.wait(0.05)
-                        
                         eggFound = false
                         for _, obj2 in ipairs(workspace:GetDescendants()) do
                             if obj2.Name == eggName and obj2:IsA("Model") then
@@ -1171,9 +1202,6 @@ if fourXEnabled then
                             end
                         end
                     end
-                    
-                    getgenv().ActivityStatus.current = "Finished 4x Egg"
-                    getgenv().ActivityStatus.trigger = true
                     getgenv().questActive = false
                     getgenv().questEgg = nil
                 end
@@ -1193,37 +1221,22 @@ if shadowEnabled then
                     break
                 end
             end
-            
-            if isRiftExists("shadow-rift") 
-                and not isRiftExists("corruptshadow-rift") 
-                and not isRiftExists("overlord-rift")
-                and not fourXExists then
-                
+            if isRiftExists("shadow-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not fourXExists then
                 getgenv().questActive = true
                 getgenv().questEgg = "Dark Rift Egg"
-                
-                getgenv().ActivityStatus.current = "Doing Shadow Rift right now"
-                getgenv().ActivityStatus.trigger = true
-                
                 teleportToRiftSafely("shadow-rift")
                 lastTeleportTime = tick()
                 task.wait(0.3)
-                
                 while shadowEnabled and isRiftExists("shadow-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Dark Rift Egg"
-                    
                     if tick() - lastTeleportTime >= 3 then
                         teleportToRiftSafely("shadow-rift")
                         lastTeleportTime = tick()
                     end
-                    
                     pcall(function() Remote:FireServer("HatchEgg", "Dark Rift Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
-                
-                getgenv().ActivityStatus.current = "Finished Shadow Rift"
-                getgenv().ActivityStatus.trigger = true
                 getgenv().questActive = false
                 getgenv().questEgg = nil
             end
@@ -1242,38 +1255,22 @@ if doodleEnabled then
                     break
                 end
             end
-            
-            if isRiftExists("doodle-rift")
-                and not isRiftExists("corruptshadow-rift")
-                and not isRiftExists("overlord-rift")
-                and not isRiftExists("shadow-rift")
-                and not fourXExists then
-                
+            if isRiftExists("doodle-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not isRiftExists("shadow-rift") and not fourXExists then
                 getgenv().questActive = true
                 getgenv().questEgg = "Doodle Egg"
-                
-                getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
-                getgenv().ActivityStatus.trigger = true
-                
                 teleportToRiftSafely("doodle-rift")
                 lastTeleportTime = tick()
                 task.wait(0.3)
-                
                 while doodleEnabled and isRiftExists("doodle-rift") do
                     getgenv().questActive = true
                     getgenv().questEgg = "Doodle Egg"
-                    
                     if tick() - lastTeleportTime >= 3 then
                         teleportToRiftSafely("doodle-rift")
                         lastTeleportTime = tick()
                     end
-                    
                     pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
                     task.wait(0.05)
                 end
-                
-                getgenv().ActivityStatus.current = "Finished Doodle Rift"
-                getgenv().ActivityStatus.trigger = true
                 getgenv().questActive = false
                 getgenv().questEgg = nil
             end
@@ -1285,22 +1282,22 @@ end
 if autoHatchEnabled then
     autoHatchThread = task.spawn(function()
         local wasActive = false
+        local lastLuck = 0
         while autoHatchEnabled do
             while getgenv().questActive and autoHatchEnabled do
                 wasActive = false
                 task.wait(0.5)
             end
-            
             task.wait(4)
             if getgenv().questActive then continue end
-            
-            if not wasActive and not getgenv().questActive then
-                getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
+            local luck = teleportToBestRift(selectedEgg)
+            if not wasActive or luck ~= lastLuck then
+                getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
                 getgenv().ActivityStatus.trigger = true
                 wasActive = true
+                lastLuck = luck
             end
-            
-            teleportToEgg(selectedEgg)
+            if luck == 0 then teleportToEgg(selectedEgg) end
             pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
             task.wait(0.05)
         end
@@ -1311,24 +1308,23 @@ if bountyEnabled then
     refreshBountyLabels()
     bountyThread = task.spawn(function()
         local wasActive = false
+        local lastLuck = 0
         while bountyEnabled do
             while getgenv().questActive and bountyEnabled do
                 wasActive = false
                 task.wait(0.5)
             end
-            
             task.wait(4)
             if getgenv().questActive then continue end
-            
             refreshBountyLabels()
-            
-            if not wasActive and not getgenv().questActive then
-                getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
+            local luck = teleportToBestRift(currentBountyEgg)
+            if not wasActive or luck ~= lastLuck then
+                getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
                 getgenv().ActivityStatus.trigger = true
                 wasActive = true
+                lastLuck = luck
             end
-            
-            teleportToEgg(currentBountyEgg)
+            if luck == 0 then teleportToEgg(currentBountyEgg) end
             pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
             task.wait(0.05)
         end
@@ -1371,7 +1367,6 @@ if spamEEnabled then
             VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
             task.wait(0.05)
             VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-            
             local eggToHatch = nil
             if getgenv().questActive and getgenv().questEgg then
                 eggToHatch = getgenv().questEgg
@@ -1380,16 +1375,13 @@ if spamEEnabled then
             else
                 eggToHatch = selectedEgg
             end
-            
             if eggToHatch then
                 pcall(function() Remote:FireServer("HatchEgg", eggToHatch, HATCH_AMOUNT) end)
             end
-            
             if tick() - lastAutoHatchR >= 60 then
                 lastAutoHatchR = tick()
                 toggleAutoHatchR()
             end
-            
             task.wait(0.1)
         end
     end)
