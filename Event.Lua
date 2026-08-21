@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (UPDATED - NO WEBHOOK SECTION)
+-- EVENT TAB (FIXED LUCK READING + HIGHEST LUCK PRIORITY)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -103,7 +103,7 @@ end
 local lastEventDisplay = ""
 
 -- ======================================
--- SPAWNABLE RIFT FUNCTIONS
+-- SPAWNABLE RIFT FUNCTIONS (FIXED)
 -- ======================================
 local function isRiftExists(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
@@ -122,7 +122,7 @@ local function getRiftLuck(rift)
         local surfaceGui = display:FindFirstChild("SurfaceGui")
         if surfaceGui then
             for _, child in ipairs(surfaceGui:GetDescendants()) do
-                if child:IsA("TextLabel") and child.Text:find("Luck") then
+                if child:IsA("TextLabel") and child.Name == "Luck" then
                     local luck = child.Text:match("x(%d+)")
                     if luck then
                         return tonumber(luck)
@@ -158,38 +158,21 @@ local function getHighestLuckRift(riftName)
     return nil, 0
 end
 
-local function getRiftPositionFromRift(rift)
-    if rift then
-        local spawn = rift:FindFirstChild("EggPlatformSpawn")
-        if spawn then
-            local part = spawn:FindFirstChild("Part")
-            if part then return part.Position end
-            if spawn:IsA("BasePart") then return spawn.Position end
-        end
-        for _, child in ipairs(rift:GetDescendants()) do
-            if child:IsA("BasePart") then
-                return child.Position
-            end
-        end
-    end
-    return nil
-end
-
 local function teleportToBestRift(riftName)
     local bestRift, bestLuck = getHighestLuckRift(riftName)
     if bestRift then
-        local pos = getRiftPositionFromRift(bestRift)
-        if pos then
-            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
-                root.Velocity = Vector3.zero
-                root.RotVelocity = Vector3.zero
-                return bestLuck
+        local spawn = bestRift:FindFirstChild("EggPlatformSpawn")
+        if spawn then
+            local part = spawn:FindFirstChild("Part")
+            if part then
+                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = CFrame.new(part.Position + Vector3.new(0, 5, 0))
+                    root.Velocity = Vector3.zero
+                    root.RotVelocity = Vector3.zero
+                    return bestLuck
+                end
             end
-        else
-            pcall(function() RE:FireServer("TeleportToRift", riftName) end)
-            return 0
         end
     end
     return 0
