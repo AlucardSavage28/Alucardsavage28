@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (FIXED LUCK READING + HIGHEST LUCK PRIORITY)
+-- EVENT TAB (COOLDOWN RIFT CHECK - FAST HATCH)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -33,15 +33,12 @@ local selectedEvent = eventSettings.selectedEvent or "Luck Event"
 local eventRunning = false
 local eventThread = nil
 
--- Spawnable Special Rift settings
 local autoHatchRiftEnabled = eventSettings.autoHatchRift or false
 local autoHatchRiftThread = nil
 local autoSummonRiftEnabled = eventSettings.autoSummonRift or false
 local autoSummonRiftThread = nil
 
-local HATCH_AMOUNT = 12 -- Hardcoded
-
--- Rift info
+local HATCH_AMOUNT = 12
 local riftName = "cloud-rift"
 local riftEgg = "Cloudy Rift Egg"
 local riftWorld = "The Overworld"
@@ -103,7 +100,7 @@ end
 local lastEventDisplay = ""
 
 -- ======================================
--- SPAWNABLE RIFT FUNCTIONS (FIXED)
+-- SPAWNABLE RIFT FUNCTIONS
 -- ======================================
 local function isRiftExists(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
@@ -312,15 +309,17 @@ EventTab:CreateToggle({
         if v then
             autoHatchRiftThread = task.spawn(function()
                 local wasActive = false
-                local lastLuck = 0
+                local currentLuck = 0
+                local lastCheckTime = 0
+                local riftExists = false
+                
                 while autoHatchRiftEnabled do
-                    -- Wait for questActive to be false
                     while getgenv().questActive and autoHatchRiftEnabled do
                         wasActive = false
                         task.wait(0.5)
                     end
                     
-                    -- Check if higher priority rifts exist
+                    -- Check higher priority every loop (fast)
                     local higherPriorityActive = false
                     if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") or isRiftExists("shadow-rift") or isRiftExists("doodle-rift") then
                         higherPriorityActive = true
@@ -328,25 +327,32 @@ EventTab:CreateToggle({
                     
                     if higherPriorityActive then
                         wasActive = false
+                        riftExists = false
                         task.wait(1)
                         continue
                     end
                     
-                    if isRiftExists(riftName) then
+                    -- Check rift existence + luck every 10 seconds
+                    local now = tick()
+                    if now - lastCheckTime >= 10 then
+                        lastCheckTime = now
+                        riftExists = isRiftExists(riftName)
+                        if riftExists then
+                            currentLuck = teleportToBestRift(riftName)
+                        end
+                    end
+                    
+                    if riftExists then
                         task.wait(4)
                         if getgenv().questActive then continue end
                         
                         getgenv().questActive = true
                         getgenv().questEgg = riftEgg
                         
-                        -- Teleport to highest luck rift
-                        local luck = teleportToBestRift(riftName)
-                        
-                        if not wasActive or luck ~= lastLuck then
-                            getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
                             getgenv().ActivityStatus.trigger = true
                             wasActive = true
-                            lastLuck = luck
                         end
                         
                         pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
@@ -356,7 +362,6 @@ EventTab:CreateToggle({
                             getgenv().ActivityStatus.current = "Rift gone, waiting..."
                             getgenv().ActivityStatus.trigger = true
                             wasActive = false
-                            lastLuck = 0
                         end
                         getgenv().questActive = false
                         getgenv().questEgg = nil
@@ -431,7 +436,10 @@ end
 if autoHatchRiftEnabled then
     autoHatchRiftThread = task.spawn(function()
         local wasActive = false
-        local lastLuck = 0
+        local currentLuck = 0
+        local lastCheckTime = 0
+        local riftExists = false
+        
         while autoHatchRiftEnabled do
             while getgenv().questActive and autoHatchRiftEnabled do
                 wasActive = false
@@ -445,24 +453,31 @@ if autoHatchRiftEnabled then
             
             if higherPriorityActive then
                 wasActive = false
+                riftExists = false
                 task.wait(1)
                 continue
             end
             
-            if isRiftExists(riftName) then
+            local now = tick()
+            if now - lastCheckTime >= 10 then
+                lastCheckTime = now
+                riftExists = isRiftExists(riftName)
+                if riftExists then
+                    currentLuck = teleportToBestRift(riftName)
+                end
+            end
+            
+            if riftExists then
                 task.wait(4)
                 if getgenv().questActive then continue end
                 
                 getgenv().questActive = true
                 getgenv().questEgg = riftEgg
                 
-                local luck = teleportToBestRift(riftName)
-                
-                if not wasActive or luck ~= lastLuck then
-                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
+                if not wasActive then
+                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
                     getgenv().ActivityStatus.trigger = true
                     wasActive = true
-                    lastLuck = luck
                 end
                 
                 pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
@@ -472,7 +487,6 @@ if autoHatchRiftEnabled then
                     getgenv().ActivityStatus.current = "Rift gone, waiting..."
                     getgenv().ActivityStatus.trigger = true
                     wasActive = false
-                    lastLuck = 0
                 end
                 getgenv().questActive = false
                 getgenv().questEgg = nil
