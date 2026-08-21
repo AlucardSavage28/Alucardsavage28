@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (FIXED LUCK + FALLBACK TELEPORT)
+-- EGGS TAB (5S COOLDOWN RIFT CHECK - FAST HATCH)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -143,7 +143,6 @@ local selectedInventoryEgg = eggSettings.inventoryEgg or inventoryEggList[1] or 
 
 local lastTeleportTime = 0
 
--- XL Bounty
 local selectedXLEgg = ""
 
 local function getXLEggs()
@@ -186,7 +185,7 @@ local function eggNameToKey(name)
 end
 
 -- ======================================
--- HIGHEST LUCK RIFT FUNCTIONS (FIXED)
+-- HIGHEST LUCK RIFT FUNCTIONS
 -- ======================================
 local function getRiftLuck(rift)
     local display = rift:FindFirstChild("Display")
@@ -786,41 +785,43 @@ EggsTab:CreateToggle({
         if v then
             autoHatchThread = task.spawn(function()
                 local wasActive = false
-                local lastLuck = 0
+                local currentLuck = 0
+                local lastCheckTime = 0
+                local riftExists = false
+                local lastEgg = ""
+                
                 while autoHatchEnabled do
                     while getgenv().questActive and autoHatchEnabled do
                         wasActive = false
                         task.wait(0.5)
                     end
                     
-                    task.wait(4)
-                    if getgenv().questActive then continue end
+                    -- Check rift every 5 seconds OR when egg changes
+                    local now = tick()
+                    if now - lastCheckTime >= 5 or selectedEgg ~= lastEgg then
+                        lastCheckTime = now
+                        lastEgg = selectedEgg
+                        local riftKey = eggNameToKey(selectedEgg)
+                        riftExists = isRiftExists(riftKey)
+                        if riftExists then
+                            currentLuck = teleportToBestRift(selectedEgg)
+                        end
+                    end
                     
-                    -- Check if selected egg has a rift active
-                    local riftKey = eggNameToKey(selectedEgg)
-                    
-                    if isRiftExists(riftKey) then
-                        -- RIFT EXISTS - Hatch at highest luck rift
-                        local luck = teleportToBestRift(selectedEgg)
-                        
-                        if not wasActive or luck ~= lastLuck then
-                            getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
+                    if riftExists then
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
                             getgenv().ActivityStatus.trigger = true
                             wasActive = true
-                            lastLuck = luck
                         end
-                        
                         pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                         task.wait(0.05)
                     else
-                        -- NO RIFT - Just teleport to static coordinates
                         if not wasActive then
                             getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
                             getgenv().ActivityStatus.trigger = true
                             wasActive = true
                         end
-                        lastLuck = 0
-                        
                         teleportToEgg(selectedEgg)
                         pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                         task.wait(0.05)
@@ -968,35 +969,49 @@ EggsTab:CreateToggle({
             refreshBountyLabels()
             bountyThread = task.spawn(function()
                 local wasActive = false
-                local lastLuck = 0
+                local currentLuck = 0
+                local lastCheckTime = 0
+                local riftExists = false
+                local lastEgg = ""
+                
                 while bountyEnabled do
                     while getgenv().questActive and bountyEnabled do
                         wasActive = false
                         task.wait(0.5)
                     end
                     
-                    task.wait(4)
-                    if getgenv().questActive then continue end
-                    
                     refreshBountyLabels()
                     
-                    -- Teleport to highest luck rift for bounty egg
-                    local luck = teleportToBestRift(currentBountyEgg)
-                    
-                    if not wasActive or luck ~= lastLuck then
-                        getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
-                        getgenv().ActivityStatus.trigger = true
-                        wasActive = true
-                        lastLuck = luck
+                    -- Check rift every 5 seconds OR when bounty egg changes
+                    local now = tick()
+                    if now - lastCheckTime >= 5 or currentBountyEgg ~= lastEgg then
+                        lastCheckTime = now
+                        lastEgg = currentBountyEgg
+                        local riftKey = eggNameToKey(currentBountyEgg)
+                        riftExists = isRiftExists(riftKey)
+                        if riftExists then
+                            currentLuck = teleportToBestRift(currentBountyEgg)
+                        end
                     end
                     
-                    -- Fallback if no rift
-                    if luck == 0 then
+                    if riftExists then
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
+                            getgenv().ActivityStatus.trigger = true
+                            wasActive = true
+                        end
+                        pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
+                        task.wait(0.05)
+                    else
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
+                            getgenv().ActivityStatus.trigger = true
+                            wasActive = true
+                        end
                         teleportToEgg(currentBountyEgg)
+                        pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
+                        task.wait(0.05)
                     end
-                    
-                    pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
-                    task.wait(0.05)
                 end
             end)
         else
@@ -1077,33 +1092,47 @@ EggsTab:CreateToggle({
         if v then
             xlBountyThread = task.spawn(function()
                 local wasActive = false
-                local lastLuck = 0
+                local currentLuck = 0
+                local lastCheckTime = 0
+                local riftExists = false
+                local lastEgg = ""
+                
                 while xlBountyRunning do
                     while getgenv().questActive and xlBountyRunning do
                         wasActive = false
                         task.wait(0.5)
                     end
                     
-                    task.wait(4)
-                    if getgenv().questActive then continue end
-                    
-                    -- Teleport to highest luck rift for XL egg
-                    local luck = teleportToBestRift(selectedXLEgg)
-                    
-                    if not wasActive or luck ~= lastLuck then
-                        getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
-                        getgenv().ActivityStatus.trigger = true
-                        wasActive = true
-                        lastLuck = luck
+                    -- Check rift every 5 seconds OR when XL egg changes
+                    local now = tick()
+                    if now - lastCheckTime >= 5 or selectedXLEgg ~= lastEgg then
+                        lastCheckTime = now
+                        lastEgg = selectedXLEgg
+                        local riftKey = eggNameToKey(selectedXLEgg)
+                        riftExists = isRiftExists(riftKey)
+                        if riftExists then
+                            currentLuck = teleportToBestRift(selectedXLEgg)
+                        end
                     end
                     
-                    -- Fallback if no rift
-                    if luck == 0 then
+                    if riftExists then
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
+                            getgenv().ActivityStatus.trigger = true
+                            wasActive = true
+                        end
+                        pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
+                        task.wait(0.05)
+                    else
+                        if not wasActive then
+                            getgenv().ActivityStatus.current = "Auto Hatching XL Bounty: " .. selectedXLEgg
+                            getgenv().ActivityStatus.trigger = true
+                            wasActive = true
+                        end
                         teleportToEgg(selectedXLEgg)
+                        pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
+                        task.wait(0.05)
                     end
-                    
-                    pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
-                    task.wait(0.05)
                 end
             end)
         else
@@ -1283,37 +1312,46 @@ end
 if autoHatchEnabled then
     autoHatchThread = task.spawn(function()
         local wasActive = false
-        local lastLuck = 0
+        local currentLuck = 0
+        local lastCheckTime = 0
+        local riftExists = false
+        local lastEgg = ""
+        
         while autoHatchEnabled do
             while getgenv().questActive and autoHatchEnabled do
                 wasActive = false
                 task.wait(0.5)
             end
-            task.wait(4)
-            if getgenv().questActive then continue end
             
-            local riftKey = eggNameToKey(selectedEgg)
+            local now = tick()
+            if now - lastCheckTime >= 5 or selectedEgg ~= lastEgg then
+                lastCheckTime = now
+                lastEgg = selectedEgg
+                local riftKey = eggNameToKey(selectedEgg)
+                riftExists = isRiftExists(riftKey)
+                if riftExists then
+                    currentLuck = teleportToBestRift(selectedEgg)
+                end
+            end
             
-            if isRiftExists(riftKey) then
-                local luck = teleportToBestRift(selectedEgg)
-                if not wasActive or luck ~= lastLuck then
-                    getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
+            if riftExists then
+                if not wasActive then
+                    getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
                     getgenv().ActivityStatus.trigger = true
                     wasActive = true
-                    lastLuck = luck
                 end
+                pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
+                task.wait(0.05)
             else
                 if not wasActive then
                     getgenv().ActivityStatus.current = "Auto Hatching " .. selectedEgg
                     getgenv().ActivityStatus.trigger = true
                     wasActive = true
                 end
-                lastLuck = 0
                 teleportToEgg(selectedEgg)
+                pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
+                task.wait(0.05)
             end
-            
-            pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
-            task.wait(0.05)
         end
     end)
 end
@@ -1322,27 +1360,48 @@ if bountyEnabled then
     refreshBountyLabels()
     bountyThread = task.spawn(function()
         local wasActive = false
-        local lastLuck = 0
+        local currentLuck = 0
+        local lastCheckTime = 0
+        local riftExists = false
+        local lastEgg = ""
+        
         while bountyEnabled do
             while getgenv().questActive and bountyEnabled do
                 wasActive = false
                 task.wait(0.5)
             end
-            task.wait(4)
-            if getgenv().questActive then continue end
+            
             refreshBountyLabels()
-            local luck = teleportToBestRift(currentBountyEgg)
-            if not wasActive or luck ~= lastLuck then
-                getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg .. (luck > 0 and " (x" .. luck .. " luck)" or "")
-                getgenv().ActivityStatus.trigger = true
-                wasActive = true
-                lastLuck = luck
+            
+            local now = tick()
+            if now - lastCheckTime >= 5 or currentBountyEgg ~= lastEgg then
+                lastCheckTime = now
+                lastEgg = currentBountyEgg
+                local riftKey = eggNameToKey(currentBountyEgg)
+                riftExists = isRiftExists(riftKey)
+                if riftExists then
+                    currentLuck = teleportToBestRift(currentBountyEgg)
+                end
             end
-            if luck == 0 then
+            
+            if riftExists then
+                if not wasActive then
+                    getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
+                    getgenv().ActivityStatus.trigger = true
+                    wasActive = true
+                end
+                pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
+                task.wait(0.05)
+            else
+                if not wasActive then
+                    getgenv().ActivityStatus.current = "Auto Hatching Bounty: " .. currentBountyPet .. " from " .. currentBountyEgg
+                    getgenv().ActivityStatus.trigger = true
+                    wasActive = true
+                end
                 teleportToEgg(currentBountyEgg)
+                pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
+                task.wait(0.05)
             end
-            pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
-            task.wait(0.05)
         end
     end)
 end
