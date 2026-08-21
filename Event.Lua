@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (UPDATED - PRIORITY HATCH + SUMMON WEBHOOK)
+-- EVENT TAB (HIGHEST LUCK PRIORITY + SUMMON WEBHOOK)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -107,7 +107,7 @@ end
 local lastEventDisplay = ""
 
 -- ======================================
--- SPAWNABLE RIFT FUNCTIONS
+-- SPAWNABLE RIFT FUNCTIONS (HIGHEST LUCK)
 -- ======================================
 local function isRiftExists(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
@@ -120,41 +120,79 @@ local function isRiftExists(riftName)
     return false
 end
 
-local function getRiftPosition(riftName)
+local function getRiftLuck(rift)
+    local display = rift:FindFirstChild("Display")
+    if display then
+        local surfaceGui = display:FindFirstChild("SurfaceGui")
+        if surfaceGui then
+            for _, child in ipairs(surfaceGui:GetDescendants()) do
+                if child:IsA("TextLabel") and child.Text:find("Luck") then
+                    local luck = child.Text:match("x(%d+)")
+                    if luck then
+                        return tonumber(luck)
+                    end
+                end
+            end
+        end
+    end
+    return 0
+end
+
+local function getHighestLuckRift(riftName)
     local riftFolder = workspace:FindFirstChild("Rendered")
     if riftFolder then
         riftFolder = riftFolder:FindFirstChild("Rifts")
         if riftFolder then
-            local rift = riftFolder:FindFirstChild(riftName)
-            if rift then
-                local spawn = rift:FindFirstChild("EggPlatformSpawn")
-                if spawn then
-                    local part = spawn:FindFirstChild("Part")
-                    if part then return part.Position end
-                end
-                for _, child in ipairs(rift:GetDescendants()) do
-                    if child:IsA("BasePart") then
-                        return child.Position
+            local bestRift = nil
+            local bestLuck = 0
+            
+            for _, rift in ipairs(riftFolder:GetChildren()) do
+                if rift.Name == riftName then
+                    local luck = getRiftLuck(rift)
+                    if luck > bestLuck then
+                        bestLuck = luck
+                        bestRift = rift
                     end
                 end
+            end
+            
+            return bestRift, bestLuck
+        end
+    end
+    return nil, 0
+end
+
+local function getRiftPositionFromRift(rift)
+    if rift then
+        local spawn = rift:FindFirstChild("EggPlatformSpawn")
+        if spawn then
+            local part = spawn:FindFirstChild("Part")
+            if part then return part.Position end
+        end
+        for _, child in ipairs(rift:GetDescendants()) do
+            if child:IsA("BasePart") then
+                return child.Position
             end
         end
     end
     return nil
 end
 
-local function teleportToRift(riftName)
-    local riftPos = getRiftPosition(riftName)
-    if riftPos then
-        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.CFrame = CFrame.new(riftPos + Vector3.new(0, 5, 0))
-            root.Velocity = Vector3.zero
-            root.RotVelocity = Vector3.zero
+local function teleportToBestRift(riftName)
+    local bestRift, bestLuck = getHighestLuckRift(riftName)
+    if bestRift then
+        local pos = getRiftPositionFromRift(bestRift)
+        if pos then
+            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                root.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
+                root.Velocity = Vector3.zero
+                root.RotVelocity = Vector3.zero
+                return bestLuck
+            end
         end
-    else
-        pcall(function() RE:FireServer("TeleportToRift", riftName) end)
     end
+    return 0
 end
 
 local function summonRift()
@@ -291,6 +329,7 @@ EventTab:CreateToggle({
         if v then
             autoHatchRiftThread = task.spawn(function()
                 local wasActive = false
+                local lastLuck = 0
                 while autoHatchRiftEnabled do
                     -- Wait for questActive to be false (respects priority system)
                     while getgenv().questActive and autoHatchRiftEnabled do
@@ -311,19 +350,22 @@ EventTab:CreateToggle({
                     end
                     
                     if isRiftExists(riftName) then
-                        task.wait(4) -- Wait 4s after questActive false (same as other auto hatches)
+                        task.wait(4) -- Wait 4s after questActive false
                         if getgenv().questActive then continue end
                         
                         getgenv().questActive = true
                         getgenv().questEgg = riftEgg
                         
-                        if not wasActive then
-                            getgenv().ActivityStatus.current = "Hatching " .. riftEgg
+                        -- Teleport to highest luck rift
+                        local luck = teleportToBestRift(riftName)
+                        
+                        if not wasActive or luck ~= lastLuck then
+                            getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. " (x" .. luck .. " luck)"
                             getgenv().ActivityStatus.trigger = true
                             wasActive = true
+                            lastLuck = luck
                         end
                         
-                        teleportToRift(riftName)
                         pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
                         task.wait(0.05)
                     else
@@ -331,6 +373,7 @@ EventTab:CreateToggle({
                             getgenv().ActivityStatus.current = "Rift gone, waiting..."
                             getgenv().ActivityStatus.trigger = true
                             wasActive = false
+                            lastLuck = 0
                         end
                         getgenv().questActive = false
                         getgenv().questEgg = nil
@@ -440,6 +483,7 @@ end
 if autoHatchRiftEnabled then
     autoHatchRiftThread = task.spawn(function()
         local wasActive = false
+        local lastLuck = 0
         while autoHatchRiftEnabled do
             while getgenv().questActive and autoHatchRiftEnabled do
                 wasActive = false
@@ -464,13 +508,15 @@ if autoHatchRiftEnabled then
                 getgenv().questActive = true
                 getgenv().questEgg = riftEgg
                 
-                if not wasActive then
-                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg
+                local luck = teleportToBestRift(riftName)
+                
+                if not wasActive or luck ~= lastLuck then
+                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. " (x" .. luck .. " luck)"
                     getgenv().ActivityStatus.trigger = true
                     wasActive = true
+                    lastLuck = luck
                 end
                 
-                teleportToRift(riftName)
                 pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
                 task.wait(0.05)
             else
@@ -478,6 +524,7 @@ if autoHatchRiftEnabled then
                     getgenv().ActivityStatus.current = "Rift gone, waiting..."
                     getgenv().ActivityStatus.trigger = true
                     wasActive = false
+                    lastLuck = 0
                 end
                 getgenv().questActive = false
                 getgenv().questEgg = nil
