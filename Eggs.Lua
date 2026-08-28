@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (5S COOLDOWN + FAST SPAM E + NO 4S DELAY)
+-- EGGS TAB (STRATUS EGG ADDED)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -30,7 +30,7 @@ if not settings.eggs then settings.eggs = {} end
 local eggSettings = settings.eggs
 
 -- ======================================
--- EGG LOCATIONS
+-- EGG LOCATIONS (STRATUS EGG ADDED)
 -- ======================================
 local EGG_LOCATIONS = {
     ["Common Egg"] = Vector3.new(-80, 7, 5),
@@ -55,6 +55,7 @@ local EGG_LOCATIONS = {
     ["Lunar Egg"] = Vector3.new(-148, 11, -15),
     ["Void Egg"] = Vector3.new(-150, 11, -26),
     ["Hell Egg"] = Vector3.new(-149, 11, -37),
+    ["Stratus Egg"] = Vector3.new(33, 11, 6), -- ADDED (8 studs forward from egg)
 }
 
 local EGG_WORLDS = {
@@ -80,6 +81,7 @@ local EGG_WORLDS = {
     ["Lunar Egg"] = "The Overworld",
     ["Void Egg"] = "The Overworld",
     ["Hell Egg"] = "The Overworld",
+    ["Stratus Egg"] = "The Overworld", -- ADDED
 }
 
 local discoveredEggs = {}
@@ -752,7 +754,6 @@ EggsTab:CreateToggle({
                         task.wait(0.5)
                     end
                     
-                    -- Check rift every 5 seconds OR when egg changes
                     local now = tick()
                     if now - lastCheckTime >= 5 or selectedEgg ~= lastEgg then
                         lastCheckTime = now
@@ -824,7 +825,7 @@ EggsTab:CreateToggle({
                         toggleAutoHatchR()
                     end
                     
-                    task.wait(0.05) -- FASTER (was 0.1)
+                    task.wait(0.05)
                 end
             end)
         else
