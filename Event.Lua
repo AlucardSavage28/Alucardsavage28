@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (FIXED AUTO SUMMON - EVERY 55 MIN)
+-- EVENT TAB (NEW EVENT SHOP + EVENT ALTAR)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -236,6 +236,39 @@ local function sendSummonWebhook(success)
 end
 
 -- ======================================
+-- SKY ALTAR FUNCTIONS
+-- ======================================
+local function getSkyAltarPets()
+    local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
+    
+    local data = LocalData:Get()
+    if data and data.Pets then
+        for _, pet in pairs(data.Pets) do
+            if not pet.Locked then
+                local info = Pets[pet.Name]
+                if info and info.Rarity and info.Rarity:find("Secret") then
+                    if pet.Shiny and pet.Mythic then
+                        table.insert(groups.ShinyMythic, pet)
+                    elseif pet.Shiny then
+                        table.insert(groups.Shiny, pet)
+                    elseif pet.Mythic then
+                        table.insert(groups.Mythic, pet)
+                    else
+                        table.insert(groups.Normal, pet)
+                    end
+                end
+            end
+        end
+    end
+    
+    if #groups.Normal >= 5 then return groups.Normal end
+    if #groups.Shiny >= 5 then return groups.Shiny end
+    if #groups.Mythic >= 5 then return groups.Mythic end
+    if #groups.ShinyMythic >= 5 then return groups.ShinyMythic end
+    return {}
+end
+
+-- ======================================
 -- UI - EVENT BOARD
 -- ======================================
 EventTab:CreateSection("Event Board")
@@ -397,7 +430,7 @@ EventTab:CreateToggle({
                         sendSummonWebhook(false)
                     end
                     
-                    task.wait(3300) -- Wait 55 minutes
+                    task.wait(3300)
                 end
             end)
         else
@@ -407,11 +440,255 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP
+-- UI - EVENT SHOP (NEW)
 -- ======================================
 EventTab:CreateSection("Event Shop")
 
-EventTab:CreateLabel("No new event shop")
+-- Toggle #1: Event Egg (Item 1)
+EventTab:CreateToggle({
+    Name = "Auto Buy Event Egg (1)",
+    CurrentValue = eventSettings.autoShop1 or false,
+    Callback = function(v)
+        eventSettings.autoShop1 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 1, false) end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #2: Boost Crystal (Item 2)
+EventTab:CreateToggle({
+    Name = "Auto Buy Boost Crystal (2)",
+    CurrentValue = eventSettings.autoShop2 or false,
+    Callback = function(v)
+        eventSettings.autoShop2 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 2, false) end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #3: Event Elixir (Item 3)
+EventTab:CreateToggle({
+    Name = "Auto Buy Event Elixir (3)",
+    CurrentValue = eventSettings.autoShop3 or false,
+    Callback = function(v)
+        eventSettings.autoShop3 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 3, false) end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #4: Infinity Elixir (Items 4-7)
+EventTab:CreateToggle({
+    Name = "Auto Buy Infinity Elixir (4,5,6,7)",
+    CurrentValue = eventSettings.autoShop4 or false,
+    Callback = function(v)
+        eventSettings.autoShop4 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    for i = 4, 7 do
+                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        task.wait(0.3)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #5: Infinity luck/mythic/gold (Items 8-10)
+EventTab:CreateToggle({
+    Name = "Auto Buy Infinity Luck/Mythic/Gold (8,9,10)",
+    CurrentValue = eventSettings.autoShop5 or false,
+    Callback = function(v)
+        eventSettings.autoShop5 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    for i = 8, 10 do
+                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        task.wait(0.3)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #6: Normal Pet Shop (Item 11)
+EventTab:CreateToggle({
+    Name = "Auto Buy Normal Pet (11)",
+    CurrentValue = eventSettings.autoShop6 or false,
+    Callback = function(v)
+        eventSettings.autoShop6 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 11, false) end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #7: XL Pet Shop (Item 12)
+EventTab:CreateToggle({
+    Name = "Auto Buy XL Pet (12)",
+    CurrentValue = eventSettings.autoShop7 or false,
+    Callback = function(v)
+        eventSettings.autoShop7 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 12, false) end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #8: Green & Blue Fragment (Items 13-14)
+EventTab:CreateToggle({
+    Name = "Auto Buy Green & Blue Fragment (13,14)",
+    CurrentValue = eventSettings.autoShop8 or false,
+    Callback = function(v)
+        eventSettings.autoShop8 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    for i = 13, 14 do
+                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        task.wait(0.3)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- Toggle #9: Purple & Rainbow Fragment (Items 15-16)
+EventTab:CreateToggle({
+    Name = "Auto Buy Purple & Rainbow Fragment (15,16)",
+    CurrentValue = eventSettings.autoShop9 or false,
+    Callback = function(v)
+        eventSettings.autoShop9 = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            task.spawn(function()
+                while v do
+                    for i = 15, 16 do
+                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        task.wait(0.3)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- ======================================
+-- UI - EVENT ALTAR (EVENT REBIRTH MACHINE)
+-- ======================================
+EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
+
+EventTab:CreateLabel("Uses SkyAltar with Secret pets")
+
+local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
+
+EventTab:CreateToggle({
+    Name = "Auto Event Altar",
+    CurrentValue = eventSettings.autoSkyAltar or false,
+    Callback = function(v)
+        eventSettings.autoSkyAltar = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            pcall(function() altarTrackerLabel:SetText("Last Used: None") end)
+            task.spawn(function()
+                local lastPrint = ""
+                local wasActive = false
+                while v do
+                    task.wait(5)
+                    
+                    local pets = getSkyAltarPets()
+                    if #pets < 5 then
+                        wasActive = false
+                        continue
+                    end
+                    
+                    local variantName = "Normal"
+                    if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
+                    elseif pets[1].Shiny then variantName = "Shiny"
+                    elseif pets[1].Mythic then variantName = "Mythic" end
+                    
+                    local payload = {}
+                    local usedNames = {}
+                    for i = 1, 5 do
+                        table.insert(payload, tostring(pets[i].Id))
+                        table.insert(usedNames, variantName .. " " .. pets[i].Name)
+                    end
+                    
+                    local text = table.concat(usedNames, ", ")
+                    pcall(function() altarTrackerLabel:SetText("Last Used: " .. text) end)
+                    
+                    pcall(function()
+                        RemoteFunction:InvokeServer("UseRebirthMachine", "SkyAltar", payload)
+                    end)
+                    
+                    if not wasActive then
+                        getgenv().ActivityStatus.current = "Event Altar used: " .. text
+                        getgenv().ActivityStatus.trigger = true
+                        wasActive = true
+                    end
+                    
+                    if text ~= lastPrint then
+                        print("[Event Altar] " .. text)
+                        lastPrint = text
+                    end
+                    
+                    task.wait(1.5)
+                end
+            end)
+        end
+    end
+})
 
 -- ======================================
 -- AUTO-START SAVED TOGGLES
@@ -501,6 +778,143 @@ if autoSummonRiftEnabled then
             end
             
             task.wait(3300)
+        end
+    end)
+end
+
+if eventSettings.autoShop1 then
+    task.spawn(function()
+        while eventSettings.autoShop1 do
+            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 1, false) end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+if eventSettings.autoShop2 then
+    task.spawn(function()
+        while eventSettings.autoShop2 do
+            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 2, false) end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+if eventSettings.autoShop3 then
+    task.spawn(function()
+        while eventSettings.autoShop3 do
+            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 3, false) end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+if eventSettings.autoShop4 then
+    task.spawn(function()
+        while eventSettings.autoShop4 do
+            for i = 4, 7 do
+                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                task.wait(0.3)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop5 then
+    task.spawn(function()
+        while eventSettings.autoShop5 do
+            for i = 8, 10 do
+                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                task.wait(0.3)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop6 then
+    task.spawn(function()
+        while eventSettings.autoShop6 do
+            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 11, false) end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+if eventSettings.autoShop7 then
+    task.spawn(function()
+        while eventSettings.autoShop7 do
+            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 12, false) end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+if eventSettings.autoShop8 then
+    task.spawn(function()
+        while eventSettings.autoShop8 do
+            for i = 13, 14 do
+                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                task.wait(0.3)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoShop9 then
+    task.spawn(function()
+        while eventSettings.autoShop9 do
+            for i = 15, 16 do
+                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                task.wait(0.3)
+            end
+        end
+    end)
+end
+
+if eventSettings.autoSkyAltar then
+    task.spawn(function()
+        local lastPrint = ""
+        local wasActive = false
+        while eventSettings.autoSkyAltar do
+            task.wait(5)
+            
+            local pets = getSkyAltarPets()
+            if #pets < 5 then
+                wasActive = false
+                continue
+            end
+            
+            local variantName = "Normal"
+            if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
+            elseif pets[1].Shiny then variantName = "Shiny"
+            elseif pets[1].Mythic then variantName = "Mythic" end
+            
+            local payload = {}
+            local usedNames = {}
+            for i = 1, 5 do
+                table.insert(payload, tostring(pets[i].Id))
+                table.insert(usedNames, variantName .. " " .. pets[i].Name)
+            end
+            
+            local text = table.concat(usedNames, ", ")
+            pcall(function() altarTrackerLabel:SetText("Last Used: " .. text) end)
+            
+            pcall(function()
+                RemoteFunction:InvokeServer("UseRebirthMachine", "SkyAltar", payload)
+            end)
+            
+            if not wasActive then
+                getgenv().ActivityStatus.current = "Event Altar used: " .. text
+                getgenv().ActivityStatus.trigger = true
+                wasActive = true
+            end
+            
+            if text ~= lastPrint then
+                print("[Event Altar] " .. text)
+                lastPrint = text
+            end
+            
+            task.wait(1.5)
         end
     end)
 end
