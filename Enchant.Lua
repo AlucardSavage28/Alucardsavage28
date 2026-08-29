@@ -1,5 +1,5 @@
 -- ================================================
--- ENCHANT TAB (AUTO RE-ENCHANT WHEN LOST)
+-- ENCHANT TAB (SILENT MODE - NO PRINT SPAM)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -111,7 +111,6 @@ local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
         local otherSlot = (targetSlot == 1) and 2 or 1
         local otherEnchant = (pet.Enchants or {})[otherSlot]
         if otherEnchant and otherEnchant.Id == targetEnchantId then
-            print("[Enchant] WARNING: " .. ENCHANT_DISPLAY[targetEnchantId] .. " is on Slot " .. otherSlot .. ", cannot roll on Slot " .. targetSlot)
             return false
         end
         
@@ -127,7 +126,7 @@ local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
 end
 
 -- ======================================
--- CHECK IF ENCHANT IS STILL THERE
+-- CHECK ENCHANT STATUS (SILENT)
 -- ======================================
 local function checkEnchantStatus()
     local pets = getEquippedPets()
@@ -136,19 +135,13 @@ local function checkEnchantStatus()
     for _, pet in ipairs(pets) do
         local enchants = pet.Enchants or {}
         
-        -- Check slot 1
         local slot1Enchant = enchants[1]
-        if slot1Enchant and slot1Enchant.Id == TARGET_ENCHANTS[1].Id then
-            -- Slot 1 is good
-        else
+        if not (slot1Enchant and slot1Enchant.Id == TARGET_ENCHANTS[1].Id) then
             missing.slot1 = missing.slot1 + 1
         end
         
-        -- Check slot 2
         local slot2Enchant = enchants[2]
-        if slot2Enchant and slot2Enchant.Id == TARGET_ENCHANTS[2].Id then
-            -- Slot 2 is good
-        else
+        if not (slot2Enchant and slot2Enchant.Id == TARGET_ENCHANTS[2].Id) then
             missing.slot2 = missing.slot2 + 1
         end
     end
@@ -157,42 +150,30 @@ local function checkEnchantStatus()
 end
 
 -- ======================================
--- RE-ENCHANT MISSING SLOTS
+-- RE-ENCHANT MISSING SLOTS (SILENT)
 -- ======================================
 local function reEnchantMissingSlots(missing)
     local pets = getEquippedPets()
     if #pets == 0 then return end
     
-    -- Re-enchant Slot 1 first
     if missing.slot1 > 0 then
-        print("[Enchant] " .. missing.slot1 .. " pets missing Slot 1 enchant, re-enchanting...")
-        getgenv().ActivityStatus.current = "Re-enchanting Slot 1 (" .. TARGET_ENCHANTS[1].Id .. ") on " .. missing.slot1 .. " pets"
-        getgenv().ActivityStatus.trigger = true
-        
         for i, pet in ipairs(pets) do
             if not enchantRunning then break end
             local enchants = pet.Enchants or {}
             local slot1Enchant = enchants[1]
             if not (slot1Enchant and slot1Enchant.Id == TARGET_ENCHANTS[1].Id) then
-                print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
                 enchantSingleSlot(pet.Id, 1, TARGET_ENCHANTS[1].Id)
                 task.wait(0.5)
             end
         end
     end
     
-    -- Then re-enchant Slot 2
     if missing.slot2 > 0 then
-        print("[Enchant] " .. missing.slot2 .. " pets missing Slot 2 enchant, re-enchanting...")
-        getgenv().ActivityStatus.current = "Re-enchanting Slot 2 (" .. TARGET_ENCHANTS[2].Id .. ") on " .. missing.slot2 .. " pets"
-        getgenv().ActivityStatus.trigger = true
-        
         for i, pet in ipairs(pets) do
             if not enchantRunning then break end
             local enchants = pet.Enchants or {}
             local slot2Enchant = enchants[2]
             if not (slot2Enchant and slot2Enchant.Id == TARGET_ENCHANTS[2].Id) then
-                print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
                 enchantSingleSlot(pet.Id, 2, TARGET_ENCHANTS[2].Id)
                 task.wait(0.5)
             end
@@ -201,17 +182,15 @@ local function reEnchantMissingSlots(missing)
 end
 
 -- ======================================
--- MONITOR LOOP
+-- MONITOR LOOP (SILENT)
 -- ======================================
 local function startMonitor()
     while monitorRunning do
-        task.wait(10) -- Check every 10 seconds
+        task.wait(10)
         
         if enchantRunning then
             local missing = checkEnchantStatus()
-            
             if missing.slot1 > 0 or missing.slot2 > 0 then
-                print("[Enchant] Detected missing enchants! Slot1: " .. missing.slot1 .. ", Slot2: " .. missing.slot2)
                 reEnchantMissingSlots(missing)
             end
         end
@@ -219,7 +198,7 @@ local function startMonitor()
 end
 
 -- ======================================
--- UI - MANUAL ENCHANT
+-- UI
 -- ======================================
 EnchantTab:CreateSection("Manual Enchant")
 
@@ -258,21 +237,16 @@ EnchantTab:CreateToggle({
         monitorRunning = v
         
         if v then
-            -- Start monitor
+            getgenv().ActivityStatus.current = "Auto Enchanting with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
+            getgenv().ActivityStatus.trigger = true
+            
             monitorThread = task.spawn(startMonitor)
             
-            -- Do initial enchant
             enchantThread = task.spawn(function()
                 local pets = getEquippedPets()
                 
-                getgenv().ActivityStatus.current = "Auto Enchanting all pets with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
-                getgenv().ActivityStatus.trigger = true
-                
-                print("[Enchant] Found " .. #pets .. " enchantable pets")
-                
                 for i, pet in ipairs(pets) do
                     if not enchantRunning then break end
-                    print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
                     enchantSingleSlot(pet.Id, 1, TARGET_ENCHANTS[1].Id)
                     if i < #pets then task.wait(0.5) end
                 end
@@ -280,16 +254,10 @@ EnchantTab:CreateToggle({
                 if enchantRunning then
                     for i, pet in ipairs(pets) do
                         if not enchantRunning then break end
-                        print("[Enchant] Pet " .. i .. "/" .. #pets .. ": " .. pet.Name)
                         enchantSingleSlot(pet.Id, 2, TARGET_ENCHANTS[2].Id)
                         if i < #pets then task.wait(0.5) end
                     end
                 end
-                
-                getgenv().ActivityStatus.current = "Done Enchanting - Monitoring..."
-                getgenv().ActivityStatus.trigger = true
-                
-                print("[Enchant] Initial enchanting done! Now monitoring...")
             end)
         else
             if enchantThread then task.cancel(enchantThread) end
