@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (ANTI-LAG SHOP + EVENT ALTAR)
+-- EVENT TAB (BUY ALL EVERY 20 MIN + EVENT ALTAR)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -273,6 +273,36 @@ local function getSkyAltarPets()
 end
 
 -- ======================================
+-- EVENT SHOP BUY ALL FUNCTION
+-- ======================================
+local function clickBuyAll(itemNum)
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local itemShop = playerGui:FindFirstChild("ScreenGui") and playerGui.ScreenGui:FindFirstChild("ItemShop")
+        if itemShop and itemShop.Visible then
+            local scrollingFrame = itemShop:FindFirstChild("Frame") and itemShop.Frame:FindFirstChild("Main") and itemShop.Frame.Main:FindFirstChild("ScrollingFrame")
+            if scrollingFrame then
+                local item = scrollingFrame:FindFirstChild("Item" .. itemNum)
+                if item then
+                    local buyAll = item:FindFirstChild("Buttons") and item.Buttons:FindFirstChild("BuyAll")
+                    if buyAll then
+                        local clickButton = buyAll:FindFirstChild("Button")
+                        if clickButton then
+                            firesignal(clickButton.Activated)
+                            pcall(function()
+                                clickButton.MouseButton1Click:Fire()
+                            end)
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- ======================================
 -- UI - EVENT BOARD
 -- ======================================
 EventTab:CreateSection("Event Board")
@@ -444,13 +474,13 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP (ANTI-LAG)
+-- UI - EVENT SHOP (BUY ALL EVERY 20 MIN)
 -- ======================================
 EventTab:CreateSection("Event Shop")
 
 -- Toggle #1: Event Egg (Item 1)
 EventTab:CreateToggle({
-    Name = "Auto Buy Event Egg (1)",
+    Name = "Auto Buy All Event Egg (1)",
     CurrentValue = eventSettings.autoShop1 or false,
     Callback = function(v)
         eventSettings.autoShop1 = v
@@ -459,8 +489,8 @@ EventTab:CreateToggle({
         if v then
             task.spawn(function()
                 while v do
-                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 1, false) end)
-                    task.wait(3)
+                    clickBuyAll(1)
+                    task.wait(1200)
                 end
             end)
         end
@@ -469,7 +499,7 @@ EventTab:CreateToggle({
 
 -- Toggle #2: Boost Crystal (Item 2)
 EventTab:CreateToggle({
-    Name = "Auto Buy Boost Crystal (2)",
+    Name = "Auto Buy All Boost Crystal (2)",
     CurrentValue = eventSettings.autoShop2 or false,
     Callback = function(v)
         eventSettings.autoShop2 = v
@@ -478,8 +508,8 @@ EventTab:CreateToggle({
         if v then
             task.spawn(function()
                 while v do
-                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 2, false) end)
-                    task.wait(3)
+                    clickBuyAll(2)
+                    task.wait(1200)
                 end
             end)
         end
@@ -488,7 +518,7 @@ EventTab:CreateToggle({
 
 -- Toggle #3: Event Elixir (Item 3)
 EventTab:CreateToggle({
-    Name = "Auto Buy Event Elixir (3)",
+    Name = "Auto Buy All Event Elixir (3)",
     CurrentValue = eventSettings.autoShop3 or false,
     Callback = function(v)
         eventSettings.autoShop3 = v
@@ -497,8 +527,8 @@ EventTab:CreateToggle({
         if v then
             task.spawn(function()
                 while v do
-                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 3, false) end)
-                    task.wait(3)
+                    clickBuyAll(3)
+                    task.wait(1200)
                 end
             end)
         end
@@ -507,7 +537,7 @@ EventTab:CreateToggle({
 
 -- Toggle #4: Infinity Elixir (Items 4-7)
 EventTab:CreateToggle({
-    Name = "Auto Buy Infinity Elixir (4,5,6,7)",
+    Name = "Auto Buy All Infinity Elixir (4,5,6,7)",
     CurrentValue = eventSettings.autoShop4 or false,
     Callback = function(v)
         eventSettings.autoShop4 = v
@@ -517,10 +547,10 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     for i = 4, 7 do
-                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        clickBuyAll(i)
                         task.wait(2)
                     end
-                    task.wait(5)
+                    task.wait(1200)
                 end
             end)
         end
@@ -529,7 +559,7 @@ EventTab:CreateToggle({
 
 -- Toggle #5: Infinity luck/mythic/gold (Items 8-10)
 EventTab:CreateToggle({
-    Name = "Auto Buy Infinity Luck/Mythic/Gold (8,9,10)",
+    Name = "Auto Buy All Infinity Luck/Mythic/Gold (8,9,10)",
     CurrentValue = eventSettings.autoShop5 or false,
     Callback = function(v)
         eventSettings.autoShop5 = v
@@ -539,10 +569,10 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     for i = 8, 10 do
-                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        clickBuyAll(i)
                         task.wait(2)
                     end
-                    task.wait(5)
+                    task.wait(1200)
                 end
             end)
         end
@@ -551,7 +581,7 @@ EventTab:CreateToggle({
 
 -- Toggle #6: Normal Pet Shop (Item 11)
 EventTab:CreateToggle({
-    Name = "Auto Buy Normal Pet (11)",
+    Name = "Auto Buy All Normal Pet (11)",
     CurrentValue = eventSettings.autoShop6 or false,
     Callback = function(v)
         eventSettings.autoShop6 = v
@@ -560,8 +590,8 @@ EventTab:CreateToggle({
         if v then
             task.spawn(function()
                 while v do
-                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 11, false) end)
-                    task.wait(3)
+                    clickBuyAll(11)
+                    task.wait(1200)
                 end
             end)
         end
@@ -570,7 +600,7 @@ EventTab:CreateToggle({
 
 -- Toggle #7: XL Pet Shop (Item 12)
 EventTab:CreateToggle({
-    Name = "Auto Buy XL Pet (12)",
+    Name = "Auto Buy All XL Pet (12)",
     CurrentValue = eventSettings.autoShop7 or false,
     Callback = function(v)
         eventSettings.autoShop7 = v
@@ -579,8 +609,8 @@ EventTab:CreateToggle({
         if v then
             task.spawn(function()
                 while v do
-                    pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 12, false) end)
-                    task.wait(3)
+                    clickBuyAll(12)
+                    task.wait(1200)
                 end
             end)
         end
@@ -589,7 +619,7 @@ EventTab:CreateToggle({
 
 -- Toggle #8: Green & Blue Fragment (Items 13-14)
 EventTab:CreateToggle({
-    Name = "Auto Buy Green & Blue Fragment (13,14)",
+    Name = "Auto Buy All Green & Blue Fragment (13,14)",
     CurrentValue = eventSettings.autoShop8 or false,
     Callback = function(v)
         eventSettings.autoShop8 = v
@@ -599,10 +629,10 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     for i = 13, 14 do
-                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        clickBuyAll(i)
                         task.wait(2)
                     end
-                    task.wait(5)
+                    task.wait(1200)
                 end
             end)
         end
@@ -611,7 +641,7 @@ EventTab:CreateToggle({
 
 -- Toggle #9: Purple & Rainbow Fragment (Items 15-16)
 EventTab:CreateToggle({
-    Name = "Auto Buy Purple & Rainbow Fragment (15,16)",
+    Name = "Auto Buy All Purple & Rainbow Fragment (15,16)",
     CurrentValue = eventSettings.autoShop9 or false,
     Callback = function(v)
         eventSettings.autoShop9 = v
@@ -621,10 +651,10 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     for i = 15, 16 do
-                        pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
+                        clickBuyAll(i)
                         task.wait(2)
                     end
-                    task.wait(5)
+                    task.wait(1200)
                 end
             end)
         end
@@ -792,31 +822,31 @@ end
 
 -- Event Shop auto-start
 if eventSettings.autoShop1 then
-    task.spawn(function() while eventSettings.autoShop1 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 1, false) end) task.wait(3) end end)
+    task.spawn(function() while eventSettings.autoShop1 do clickBuyAll(1) task.wait(1200) end end)
 end
 if eventSettings.autoShop2 then
-    task.spawn(function() while eventSettings.autoShop2 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 2, false) end) task.wait(3) end end)
+    task.spawn(function() while eventSettings.autoShop2 do clickBuyAll(2) task.wait(1200) end end)
 end
 if eventSettings.autoShop3 then
-    task.spawn(function() while eventSettings.autoShop3 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 3, false) end) task.wait(3) end end)
+    task.spawn(function() while eventSettings.autoShop3 do clickBuyAll(3) task.wait(1200) end end)
 end
 if eventSettings.autoShop4 then
-    task.spawn(function() while eventSettings.autoShop4 do for i = 4, 7 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
+    task.spawn(function() while eventSettings.autoShop4 do for i = 4, 7 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
 end
 if eventSettings.autoShop5 then
-    task.spawn(function() while eventSettings.autoShop5 do for i = 8, 10 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
+    task.spawn(function() while eventSettings.autoShop5 do for i = 8, 10 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
 end
 if eventSettings.autoShop6 then
-    task.spawn(function() while eventSettings.autoShop6 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 11, false) end) task.wait(3) end end)
+    task.spawn(function() while eventSettings.autoShop6 do clickBuyAll(11) task.wait(1200) end end)
 end
 if eventSettings.autoShop7 then
-    task.spawn(function() while eventSettings.autoShop7 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 12, false) end) task.wait(3) end end)
+    task.spawn(function() while eventSettings.autoShop7 do clickBuyAll(12) task.wait(1200) end end)
 end
 if eventSettings.autoShop8 then
-    task.spawn(function() while eventSettings.autoShop8 do for i = 13, 14 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
+    task.spawn(function() while eventSettings.autoShop8 do for i = 13, 14 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
 end
 if eventSettings.autoShop9 then
-    task.spawn(function() while eventSettings.autoShop9 do for i = 15, 16 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
+    task.spawn(function() while eventSettings.autoShop9 do for i = 15, 16 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
 end
 
 -- Event Altar auto-start
