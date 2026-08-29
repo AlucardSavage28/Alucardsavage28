@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (NEW EVENT SHOP + EVENT ALTAR)
+-- EVENT TAB (ANTI-LAG SHOP + EVENT ALTAR)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -246,7 +246,11 @@ local function getSkyAltarPets()
         for _, pet in pairs(data.Pets) do
             if not pet.Locked then
                 local info = Pets[pet.Name]
-                if info and info.Rarity and info.Rarity:find("Secret") then
+                if info 
+                    and info.Rarity 
+                    and info.Rarity:find("Secret")
+                    and info.Egg 
+                    and info.Egg == "Stratus Egg" then
                     if pet.Shiny and pet.Mythic then
                         table.insert(groups.ShinyMythic, pet)
                     elseif pet.Shiny then
@@ -440,7 +444,7 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP (NEW)
+-- UI - EVENT SHOP (ANTI-LAG)
 -- ======================================
 EventTab:CreateSection("Event Shop")
 
@@ -456,7 +460,7 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 1, false) end)
-                    task.wait(0.5)
+                    task.wait(3)
                 end
             end)
         end
@@ -475,7 +479,7 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 2, false) end)
-                    task.wait(0.5)
+                    task.wait(3)
                 end
             end)
         end
@@ -494,7 +498,7 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 3, false) end)
-                    task.wait(0.5)
+                    task.wait(3)
                 end
             end)
         end
@@ -514,8 +518,9 @@ EventTab:CreateToggle({
                 while v do
                     for i = 4, 7 do
                         pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                        task.wait(0.3)
+                        task.wait(2)
                     end
+                    task.wait(5)
                 end
             end)
         end
@@ -535,8 +540,9 @@ EventTab:CreateToggle({
                 while v do
                     for i = 8, 10 do
                         pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                        task.wait(0.3)
+                        task.wait(2)
                     end
+                    task.wait(5)
                 end
             end)
         end
@@ -555,7 +561,7 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 11, false) end)
-                    task.wait(0.5)
+                    task.wait(3)
                 end
             end)
         end
@@ -574,7 +580,7 @@ EventTab:CreateToggle({
             task.spawn(function()
                 while v do
                     pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 12, false) end)
-                    task.wait(0.5)
+                    task.wait(3)
                 end
             end)
         end
@@ -594,8 +600,9 @@ EventTab:CreateToggle({
                 while v do
                     for i = 13, 14 do
                         pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                        task.wait(0.3)
+                        task.wait(2)
                     end
+                    task.wait(5)
                 end
             end)
         end
@@ -615,8 +622,9 @@ EventTab:CreateToggle({
                 while v do
                     for i = 15, 16 do
                         pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                        task.wait(0.3)
+                        task.wait(2)
                     end
+                    task.wait(5)
                 end
             end)
         end
@@ -628,7 +636,7 @@ EventTab:CreateToggle({
 -- ======================================
 EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
 
-EventTab:CreateLabel("Uses SkyAltar with Secret pets")
+EventTab:CreateLabel("Uses SkyAltar with Stratus Egg Secret pets")
 
 local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
@@ -782,95 +790,36 @@ if autoSummonRiftEnabled then
     end)
 end
 
+-- Event Shop auto-start
 if eventSettings.autoShop1 then
-    task.spawn(function()
-        while eventSettings.autoShop1 do
-            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 1, false) end)
-            task.wait(0.5)
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop1 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 1, false) end) task.wait(3) end end)
 end
-
 if eventSettings.autoShop2 then
-    task.spawn(function()
-        while eventSettings.autoShop2 do
-            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 2, false) end)
-            task.wait(0.5)
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop2 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 2, false) end) task.wait(3) end end)
 end
-
 if eventSettings.autoShop3 then
-    task.spawn(function()
-        while eventSettings.autoShop3 do
-            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 3, false) end)
-            task.wait(0.5)
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop3 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 3, false) end) task.wait(3) end end)
 end
-
 if eventSettings.autoShop4 then
-    task.spawn(function()
-        while eventSettings.autoShop4 do
-            for i = 4, 7 do
-                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                task.wait(0.3)
-            end
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop4 do for i = 4, 7 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
 end
-
 if eventSettings.autoShop5 then
-    task.spawn(function()
-        while eventSettings.autoShop5 do
-            for i = 8, 10 do
-                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                task.wait(0.3)
-            end
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop5 do for i = 8, 10 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
 end
-
 if eventSettings.autoShop6 then
-    task.spawn(function()
-        while eventSettings.autoShop6 do
-            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 11, false) end)
-            task.wait(0.5)
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop6 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 11, false) end) task.wait(3) end end)
 end
-
 if eventSettings.autoShop7 then
-    task.spawn(function()
-        while eventSettings.autoShop7 do
-            pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 12, false) end)
-            task.wait(0.5)
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop7 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", 12, false) end) task.wait(3) end end)
 end
-
 if eventSettings.autoShop8 then
-    task.spawn(function()
-        while eventSettings.autoShop8 do
-            for i = 13, 14 do
-                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                task.wait(0.3)
-            end
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop8 do for i = 13, 14 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
 end
-
 if eventSettings.autoShop9 then
-    task.spawn(function()
-        while eventSettings.autoShop9 do
-            for i = 15, 16 do
-                pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end)
-                task.wait(0.3)
-            end
-        end
-    end)
+    task.spawn(function() while eventSettings.autoShop9 do for i = 15, 16 do pcall(function() RE:FireServer("BuyShopItem", "megaegg-shop", i, false) end) task.wait(2) end task.wait(5) end end)
 end
 
+-- Event Altar auto-start
 if eventSettings.autoSkyAltar then
     task.spawn(function()
         local lastPrint = ""
