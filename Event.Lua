@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (BUY ALL EVERY 20 MIN + EVENT ALTAR)
+-- EVENT TAB (SKYALTAR FIXED + BUY ALL + NO SPAM)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -231,12 +231,11 @@ local function sendSummonWebhook(success)
                 }}
             })
         })
-        print("[Summon Webhook] " .. content)
     end)
 end
 
 -- ======================================
--- SKY ALTAR FUNCTIONS
+-- SKY ALTAR FUNCTIONS (FIXED - EMPYREAN BOLT + UI OPEN)
 -- ======================================
 local function getSkyAltarPets()
     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
@@ -244,32 +243,49 @@ local function getSkyAltarPets()
     local data = LocalData:Get()
     if data and data.Pets then
         for _, pet in pairs(data.Pets) do
-            if not pet.Locked then
-                local info = Pets[pet.Name]
-                if info 
-                    and info.Rarity 
-                    and info.Rarity:find("Secret")
-                    and info.Egg 
-                    and info.Egg == "Stratus Egg" then
-                    if pet.Shiny and pet.Mythic then
-                        table.insert(groups.ShinyMythic, pet)
-                    elseif pet.Shiny then
-                        table.insert(groups.Shiny, pet)
-                    elseif pet.Mythic then
-                        table.insert(groups.Mythic, pet)
-                    else
-                        table.insert(groups.Normal, pet)
-                    end
+            if not pet.Locked and pet.Name == "Empyrean Bolt" then
+                if pet.Shiny and pet.Mythic then
+                    table.insert(groups.ShinyMythic, pet)
+                elseif pet.Shiny then
+                    table.insert(groups.Shiny, pet)
+                elseif pet.Mythic then
+                    table.insert(groups.Mythic, pet)
+                else
+                    table.insert(groups.Normal, pet)
                 end
             end
         end
     end
     
-    if #groups.Normal >= 5 then return groups.Normal end
-    if #groups.Shiny >= 5 then return groups.Shiny end
-    if #groups.Mythic >= 5 then return groups.Mythic end
-    if #groups.ShinyMythic >= 5 then return groups.ShinyMythic end
+    if #groups.Normal >= 3 then return groups.Normal end
+    if #groups.Shiny >= 3 then return groups.Shiny end
+    if #groups.Mythic >= 3 then return groups.Mythic end
+    if #groups.ShinyMythic >= 3 then return groups.ShinyMythic end
     return {}
+end
+
+local function useSkyAltar(pets)
+    local playerGui = player:FindFirstChild("PlayerGui")
+    local skyAltar = playerGui and playerGui:FindFirstChild("ScreenGui") and playerGui.ScreenGui:FindFirstChild("SkyAltar")
+    
+    if skyAltar then
+        skyAltar.Visible = true
+        task.wait(0.5)
+        
+        local payload = {}
+        for i = 1, 3 do
+            table.insert(payload, tostring(pets[i].Id))
+        end
+        
+        pcall(function()
+            RemoteFunction:InvokeServer("UseRebirthMachine", "SkyAltar", payload)
+        end)
+        
+        task.wait(1)
+        skyAltar.Visible = false
+        return true
+    end
+    return false
 end
 
 -- ======================================
@@ -478,7 +494,6 @@ EventTab:CreateToggle({
 -- ======================================
 EventTab:CreateSection("Event Shop")
 
--- Toggle #1: Event Egg (Item 1)
 EventTab:CreateToggle({
     Name = "Auto Buy All Event Egg (1)",
     CurrentValue = eventSettings.autoShop1 or false,
@@ -487,17 +502,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    clickBuyAll(1)
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do clickBuyAll(1) task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #2: Boost Crystal (Item 2)
 EventTab:CreateToggle({
     Name = "Auto Buy All Boost Crystal (2)",
     CurrentValue = eventSettings.autoShop2 or false,
@@ -506,17 +515,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    clickBuyAll(2)
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do clickBuyAll(2) task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #3: Event Elixir (Item 3)
 EventTab:CreateToggle({
     Name = "Auto Buy All Event Elixir (3)",
     CurrentValue = eventSettings.autoShop3 or false,
@@ -525,17 +528,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    clickBuyAll(3)
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do clickBuyAll(3) task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #4: Infinity Elixir (Items 4-7)
 EventTab:CreateToggle({
     Name = "Auto Buy All Infinity Elixir (4,5,6,7)",
     CurrentValue = eventSettings.autoShop4 or false,
@@ -544,20 +541,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    for i = 4, 7 do
-                        clickBuyAll(i)
-                        task.wait(2)
-                    end
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do for i = 4, 7 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #5: Infinity luck/mythic/gold (Items 8-10)
 EventTab:CreateToggle({
     Name = "Auto Buy All Infinity Luck/Mythic/Gold (8,9,10)",
     CurrentValue = eventSettings.autoShop5 or false,
@@ -566,20 +554,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    for i = 8, 10 do
-                        clickBuyAll(i)
-                        task.wait(2)
-                    end
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do for i = 8, 10 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #6: Normal Pet Shop (Item 11)
 EventTab:CreateToggle({
     Name = "Auto Buy All Normal Pet (11)",
     CurrentValue = eventSettings.autoShop6 or false,
@@ -588,17 +567,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    clickBuyAll(11)
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do clickBuyAll(11) task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #7: XL Pet Shop (Item 12)
 EventTab:CreateToggle({
     Name = "Auto Buy All XL Pet (12)",
     CurrentValue = eventSettings.autoShop7 or false,
@@ -607,17 +580,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    clickBuyAll(12)
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do clickBuyAll(12) task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #8: Green & Blue Fragment (Items 13-14)
 EventTab:CreateToggle({
     Name = "Auto Buy All Green & Blue Fragment (13,14)",
     CurrentValue = eventSettings.autoShop8 or false,
@@ -626,20 +593,11 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    for i = 13, 14 do
-                        clickBuyAll(i)
-                        task.wait(2)
-                    end
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do for i = 13, 14 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
         end
     end
 })
 
--- Toggle #9: Purple & Rainbow Fragment (Items 15-16)
 EventTab:CreateToggle({
     Name = "Auto Buy All Purple & Rainbow Fragment (15,16)",
     CurrentValue = eventSettings.autoShop9 or false,
@@ -648,15 +606,7 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function()
-                while v do
-                    for i = 15, 16 do
-                        clickBuyAll(i)
-                        task.wait(2)
-                    end
-                    task.wait(1200)
-                end
-            end)
+            task.spawn(function() while v do for i = 15, 16 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
         end
     end
 })
@@ -666,7 +616,7 @@ EventTab:CreateToggle({
 -- ======================================
 EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
 
-EventTab:CreateLabel("Uses SkyAltar with Stratus Egg Secret pets")
+EventTab:CreateLabel("Uses SkyAltar with Empyrean Bolt (3 pets)")
 
 local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
@@ -678,50 +628,27 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            pcall(function() altarTrackerLabel:SetText("Last Used: None") end)
             task.spawn(function()
-                local lastPrint = ""
-                local wasActive = false
                 while v do
                     task.wait(5)
                     
                     local pets = getSkyAltarPets()
-                    if #pets < 5 then
-                        wasActive = false
-                        continue
-                    end
-                    
-                    local variantName = "Normal"
-                    if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
-                    elseif pets[1].Shiny then variantName = "Shiny"
-                    elseif pets[1].Mythic then variantName = "Mythic" end
-                    
-                    local payload = {}
-                    local usedNames = {}
-                    for i = 1, 5 do
-                        table.insert(payload, tostring(pets[i].Id))
-                        table.insert(usedNames, variantName .. " " .. pets[i].Name)
-                    end
-                    
-                    local text = table.concat(usedNames, ", ")
-                    pcall(function() altarTrackerLabel:SetText("Last Used: " .. text) end)
-                    
-                    pcall(function()
-                        RemoteFunction:InvokeServer("UseRebirthMachine", "SkyAltar", payload)
-                    end)
-                    
-                    if not wasActive then
-                        getgenv().ActivityStatus.current = "Event Altar used: " .. text
+                    if #pets >= 3 then
+                        local variantName = "Normal"
+                        if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
+                        elseif pets[1].Shiny then variantName = "Shiny"
+                        elseif pets[1].Mythic then variantName = "Mythic" end
+                        
+                        local usedNames = variantName .. " " .. pets[1].Name .. " x3"
+                        pcall(function() altarTrackerLabel:SetText("Last Used: " .. usedNames) end)
+                        
+                        useSkyAltar(pets)
+                        
+                        getgenv().ActivityStatus.current = "Event Altar used"
                         getgenv().ActivityStatus.trigger = true
-                        wasActive = true
                     end
                     
-                    if text ~= lastPrint then
-                        print("[Event Altar] " .. text)
-                        lastPrint = text
-                    end
-                    
-                    task.wait(1.5)
+                    task.wait(15)
                 end
             end)
         end
@@ -820,7 +747,6 @@ if autoSummonRiftEnabled then
     end)
 end
 
--- Event Shop auto-start
 if eventSettings.autoShop1 then
     task.spawn(function() while eventSettings.autoShop1 do clickBuyAll(1) task.wait(1200) end end)
 end
@@ -849,51 +775,19 @@ if eventSettings.autoShop9 then
     task.spawn(function() while eventSettings.autoShop9 do for i = 15, 16 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
 end
 
--- Event Altar auto-start
 if eventSettings.autoSkyAltar then
     task.spawn(function()
-        local lastPrint = ""
-        local wasActive = false
         while eventSettings.autoSkyAltar do
             task.wait(5)
             
             local pets = getSkyAltarPets()
-            if #pets < 5 then
-                wasActive = false
-                continue
-            end
-            
-            local variantName = "Normal"
-            if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
-            elseif pets[1].Shiny then variantName = "Shiny"
-            elseif pets[1].Mythic then variantName = "Mythic" end
-            
-            local payload = {}
-            local usedNames = {}
-            for i = 1, 5 do
-                table.insert(payload, tostring(pets[i].Id))
-                table.insert(usedNames, variantName .. " " .. pets[i].Name)
-            end
-            
-            local text = table.concat(usedNames, ", ")
-            pcall(function() altarTrackerLabel:SetText("Last Used: " .. text) end)
-            
-            pcall(function()
-                RemoteFunction:InvokeServer("UseRebirthMachine", "SkyAltar", payload)
-            end)
-            
-            if not wasActive then
-                getgenv().ActivityStatus.current = "Event Altar used: " .. text
+            if #pets >= 3 then
+                useSkyAltar(pets)
+                getgenv().ActivityStatus.current = "Event Altar used"
                 getgenv().ActivityStatus.trigger = true
-                wasActive = true
             end
             
-            if text ~= lastPrint then
-                print("[Event Altar] " .. text)
-                lastPrint = text
-            end
-            
-            task.wait(1.5)
+            task.wait(15)
         end
     end)
 end
