@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (SKYALTAR FIXED + BUY ALL + NO SPAM)
+-- EVENT TAB (SKYALTAR EVERY 7 MIN + BUY ALL)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -630,7 +630,7 @@ EventTab:CreateToggle({
         if v then
             task.spawn(function()
                 while v do
-                    task.wait(5)
+                    task.wait(420) -- 7 minutes
                     
                     local pets = getSkyAltarPets()
                     if #pets >= 3 then
@@ -647,8 +647,6 @@ EventTab:CreateToggle({
                         getgenv().ActivityStatus.current = "Event Altar used"
                         getgenv().ActivityStatus.trigger = true
                     end
-                    
-                    task.wait(15)
                 end
             end)
         end
@@ -778,7 +776,7 @@ end
 if eventSettings.autoSkyAltar then
     task.spawn(function()
         while eventSettings.autoSkyAltar do
-            task.wait(5)
+            task.wait(420) -- 7 minutes
             
             local pets = getSkyAltarPets()
             if #pets >= 3 then
@@ -786,8 +784,6 @@ if eventSettings.autoSkyAltar then
                 getgenv().ActivityStatus.current = "Event Altar used"
                 getgenv().ActivityStatus.trigger = true
             end
-            
-            task.wait(15)
         end
     end)
 end
