@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (SCANNER + ANIMATION + CHANCE + EXISTS + XL + ALERTS + STATS)
+-- WEBHOOK TAB (STUCK DETECTION + SCANNER + ALERTS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -22,7 +22,7 @@ local settings = getgenv().HubSettings or {}
 if not settings.webhook then settings.webhook = {} end
 
 -- ======================================
--- WEBHOOK SETTINGS (from saved or default)
+-- WEBHOOK SETTINGS
 -- ======================================
 local HATCH_WEBHOOK_URL = settings.webhook.hatchURL or ""
 local ONLINE_WEBHOOK_URL = settings.webhook.onlineURL or ""
@@ -271,11 +271,12 @@ local function processPublic() if not publicProcessing then publicProcessing = t
 local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
--- ONLINE PING
+-- ONLINE PING (WITH STUCK DETECTION)
 -- ======================================
 local startTime = os.time()
 local lastHatches = 0
 local lastPingTime = os.time()
+local stuckNotified = false
 
 local leaderstats = player:FindFirstChild("leaderstats")
 if leaderstats then
@@ -286,7 +287,7 @@ end
 
 task.spawn(function()
     while true do
-        task.wait(1800)
+        task.wait(1800) -- 30 minutes
         if ONLINE_WEBHOOK_URL == "" then continue end
         
         local elapsed = os.time() - startTime
@@ -323,17 +324,35 @@ task.spawn(function()
                 "Rainbow: " .. (fragData.Rainbow or 0) .. "/250"
         end
 
+        -- Check if player is stuck
+        local isStuck = (perMin == 0 and perHour == 0)
+        local pingMsg = ""
+        local embedColor = 3447003 -- Default blue
+        
+        if isStuck and not stuckNotified then
+            if DISCORD_USER_ID ~= "" then
+                pingMsg = "<@" .. DISCORD_USER_ID .. "> Please check your roblox!"
+            else
+                pingMsg = "⚠️ Please check your roblox!"
+            end
+            embedColor = 0xFF0000 -- Red
+            stuckNotified = true
+        elseif not isStuck then
+            stuckNotified = false
+        end
+
         table.insert(onlineQueue, {
+            content = pingMsg,
             embeds = {{
-                title = "Still Online!",
+                title = isStuck and "⚠️ STUCK DETECTED!" or "Still Online!",
                 description =
-                    "**" .. player.Name .. "** is still online!\n\n" ..
+                    "**" .. player.Name .. "** is " .. (isStuck and "STUCK!" or "still online!") .. "\n\n" ..
                     "Online: " .. hours .. "h " .. minutes .. "m\n" ..
                     "Coins: " .. coins .. "\nGems: " .. gems .. "\nBubbles: " .. bubbles .. "\n\n" ..
                     "**Hatch Rate**\nPer Minute: " .. perMin .. "\nPer Hour: " .. perHour .. "\n\n" ..
                     "**Fragments**\n" .. fragmentText .. "\n\n" ..
                     "**Stats**\n" .. debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed,
-                color = 3447003,
+                color = embedColor,
                 footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
             }}
         })
@@ -618,6 +637,7 @@ WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Egg")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
+WebhookTab:CreateLabel("Stuck detection: Pings if hatch rate = 0")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
