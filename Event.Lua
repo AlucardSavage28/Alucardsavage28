@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (SKYALTAR EVERY 7 MIN + BUY ALL)
+-- EVENT TAB (COOLDOWN CHECK + BUY ALL + NO SPAM)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -235,7 +235,7 @@ local function sendSummonWebhook(success)
 end
 
 -- ======================================
--- SKY ALTAR FUNCTIONS (FIXED - EMPYREAN BOLT + UI OPEN)
+-- SKY ALTAR FUNCTIONS
 -- ======================================
 local function getSkyAltarPets()
     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
@@ -262,6 +262,36 @@ local function getSkyAltarPets()
     if #groups.Mythic >= 3 then return groups.Mythic end
     if #groups.ShinyMythic >= 3 then return groups.ShinyMythic end
     return {}
+end
+
+local function getCooldownText()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local skyAltar = playerGui:FindFirstChild("ScreenGui") and playerGui.ScreenGui:FindFirstChild("SkyAltar")
+        if skyAltar then
+            local cooldown = skyAltar:FindFirstChild("Frame") and skyAltar.Frame:FindFirstChild("Main") and skyAltar.Frame.Main:FindFirstChild("Cooldown")
+            if cooldown then
+                local current = cooldown:FindFirstChild("Current")
+                if current then
+                    return current.Text
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function parseCooldown(text)
+    if not text then return nil end
+    local minutes, seconds = text:match("(%d+):(%d+)")
+    if minutes and seconds then
+        return tonumber(minutes) * 60 + tonumber(seconds)
+    end
+    local secondsOnly = text:match("(%d+)s")
+    if secondsOnly then
+        return tonumber(secondsOnly)
+    end
+    return nil
 end
 
 local function useSkyAltar(pets)
@@ -612,7 +642,7 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT ALTAR (EVENT REBIRTH MACHINE)
+-- UI - EVENT ALTAR (WITH COOLDOWN CHECK)
 -- ======================================
 EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
 
@@ -630,22 +660,24 @@ EventTab:CreateToggle({
         if v then
             task.spawn(function()
                 while v do
-                    task.wait(420) -- 7 minutes
+                    local cooldownText = getCooldownText()
+                    local cooldownSeconds = parseCooldown(cooldownText)
                     
-                    local pets = getSkyAltarPets()
-                    if #pets >= 3 then
-                        local variantName = "Normal"
-                        if pets[1].Shiny and pets[1].Mythic then variantName = "Shiny Mythic"
-                        elseif pets[1].Shiny then variantName = "Shiny"
-                        elseif pets[1].Mythic then variantName = "Mythic" end
-                        
-                        local usedNames = variantName .. " " .. pets[1].Name .. " x3"
-                        pcall(function() altarTrackerLabel:SetText("Last Used: " .. usedNames) end)
-                        
-                        useSkyAltar(pets)
-                        
-                        getgenv().ActivityStatus.current = "Event Altar used"
-                        getgenv().ActivityStatus.trigger = true
+                    if cooldownSeconds and cooldownSeconds > 0 then
+                        pcall(function() altarTrackerLabel:SetText("Cooldown: " .. cooldownText) end)
+                        task.wait(math.min(cooldownSeconds + 5, 60))
+                    else
+                        local pets = getSkyAltarPets()
+                        if #pets >= 3 then
+                            pcall(function() altarTrackerLabel:SetText("Converting...") end)
+                            useSkyAltar(pets)
+                            getgenv().ActivityStatus.current = "Event Altar used"
+                            getgenv().ActivityStatus.trigger = true
+                            task.wait(10)
+                        else
+                            pcall(function() altarTrackerLabel:SetText("Not enough Empyrean Bolts") end)
+                            task.wait(60)
+                        end
                     end
                 end
             end)
@@ -776,13 +808,22 @@ end
 if eventSettings.autoSkyAltar then
     task.spawn(function()
         while eventSettings.autoSkyAltar do
-            task.wait(420) -- 7 minutes
+            local cooldownText = getCooldownText()
+            local cooldownSeconds = parseCooldown(cooldownText)
             
-            local pets = getSkyAltarPets()
-            if #pets >= 3 then
-                useSkyAltar(pets)
-                getgenv().ActivityStatus.current = "Event Altar used"
-                getgenv().ActivityStatus.trigger = true
+            if cooldownSeconds and cooldownSeconds > 0 then
+                pcall(function() altarTrackerLabel:SetText("Cooldown: " .. cooldownText) end)
+                task.wait(math.min(cooldownSeconds + 5, 60))
+            else
+                local pets = getSkyAltarPets()
+                if #pets >= 3 then
+                    useSkyAltar(pets)
+                    getgenv().ActivityStatus.current = "Event Altar used"
+                    getgenv().ActivityStatus.trigger = true
+                    task.wait(10)
+                else
+                    task.wait(60)
+                end
             end
         end
     end)
