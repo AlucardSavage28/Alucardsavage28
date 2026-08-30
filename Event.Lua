@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (COOLDOWN CHECK + BUY ALL + NO SPAM)
+-- EVENT TAB (FLIPPED ALTAR PRIORITY + COOLDOWN)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -235,10 +235,10 @@ local function sendSummonWebhook(success)
 end
 
 -- ======================================
--- SKY ALTAR FUNCTIONS
+-- SKY ALTAR FUNCTIONS (FLIPPED PRIORITY)
 -- ======================================
 local function getSkyAltarPets()
-    local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
+    local groups = {ShinyMythic = {}, Mythic = {}, Shiny = {}, Normal = {}}
     
     local data = LocalData:Get()
     if data and data.Pets then
@@ -246,10 +246,10 @@ local function getSkyAltarPets()
             if not pet.Locked and pet.Name == "Empyrean Bolt" then
                 if pet.Shiny and pet.Mythic then
                     table.insert(groups.ShinyMythic, pet)
-                elseif pet.Shiny then
-                    table.insert(groups.Shiny, pet)
                 elseif pet.Mythic then
                     table.insert(groups.Mythic, pet)
+                elseif pet.Shiny then
+                    table.insert(groups.Shiny, pet)
                 else
                     table.insert(groups.Normal, pet)
                 end
@@ -257,10 +257,10 @@ local function getSkyAltarPets()
         end
     end
     
-    if #groups.Normal >= 3 then return groups.Normal end
-    if #groups.Shiny >= 3 then return groups.Shiny end
-    if #groups.Mythic >= 3 then return groups.Mythic end
     if #groups.ShinyMythic >= 3 then return groups.ShinyMythic end
+    if #groups.Mythic >= 3 then return groups.Mythic end
+    if #groups.Shiny >= 3 then return groups.Shiny end
+    if #groups.Normal >= 3 then return groups.Normal end
     return {}
 end
 
@@ -642,11 +642,12 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT ALTAR (WITH COOLDOWN CHECK)
+-- UI - EVENT ALTAR (FLIPPED PRIORITY + COOLDOWN)
 -- ======================================
 EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
 
 EventTab:CreateLabel("Uses SkyAltar with Empyrean Bolt (3 pets)")
+EventTab:CreateLabel("Priority: Shiny Mythic > Mythic > Shiny > Normal")
 
 local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
