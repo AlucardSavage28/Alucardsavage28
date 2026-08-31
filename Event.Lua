@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (FLIPPED ALTAR PRIORITY + COOLDOWN)
+-- EVENT TAB (2H SHOP + FLIPPED ALTAR + COOLDOWN)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -319,33 +319,32 @@ local function useSkyAltar(pets)
 end
 
 -- ======================================
--- EVENT SHOP BUY ALL FUNCTION
+-- EVENT SHOP BUY ALL FUNCTION (OPEN + FIRE + CLOSE)
 -- ======================================
-local function clickBuyAll(itemNum)
+local function buyAllItems(itemNumbers)
     local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local itemShop = playerGui:FindFirstChild("ScreenGui") and playerGui.ScreenGui:FindFirstChild("ItemShop")
-        if itemShop and itemShop.Visible then
-            local scrollingFrame = itemShop:FindFirstChild("Frame") and itemShop.Frame:FindFirstChild("Main") and itemShop.Frame.Main:FindFirstChild("ScrollingFrame")
-            if scrollingFrame then
-                local item = scrollingFrame:FindFirstChild("Item" .. itemNum)
-                if item then
-                    local buyAll = item:FindFirstChild("Buttons") and item.Buttons:FindFirstChild("BuyAll")
-                    if buyAll then
-                        local clickButton = buyAll:FindFirstChild("Button")
-                        if clickButton then
-                            firesignal(clickButton.Activated)
-                            pcall(function()
-                                clickButton.MouseButton1Click:Fire()
-                            end)
-                            return true
-                        end
-                    end
-                end
-            end
-        end
+    local screenGui = playerGui and playerGui:FindFirstChild("ScreenGui")
+    local itemShop = screenGui and screenGui:FindFirstChild("ItemShop")
+    
+    if not itemShop then return false end
+    
+    -- Open shop
+    itemShop.Visible = true
+    task.wait(0.5)
+    
+    -- Fire Buy All for each item
+    for _, itemNum in ipairs(itemNumbers) do
+        pcall(function()
+            RE:FireServer("BuyShopItem", "megaegg-shop", itemNum, true)
+        end)
+        task.wait(0.3)
     end
-    return false
+    
+    -- Close shop
+    task.wait(0.3)
+    itemShop.Visible = false
+    
+    return true
 end
 
 -- ======================================
@@ -520,7 +519,7 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP (BUY ALL EVERY 20 MIN)
+-- UI - EVENT SHOP (2 HOURS DELAY)
 -- ======================================
 EventTab:CreateSection("Event Shop")
 
@@ -532,7 +531,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do clickBuyAll(1) task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({1})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -545,7 +549,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do clickBuyAll(2) task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({2})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -558,7 +567,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do clickBuyAll(3) task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({3})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -571,7 +585,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do for i = 4, 7 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({4, 5, 6, 7})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -584,7 +603,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do for i = 8, 10 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({8, 9, 10})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -597,7 +621,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do clickBuyAll(11) task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({11})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -610,7 +639,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do clickBuyAll(12) task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({12})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -623,7 +657,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do for i = 13, 14 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({13, 14})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -636,7 +675,12 @@ EventTab:CreateToggle({
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
         if v then
-            task.spawn(function() while v do for i = 15, 16 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+            task.spawn(function()
+                while v do
+                    buyAllItems({15, 16})
+                    task.wait(7200)
+                end
+            end)
         end
     end
 })
@@ -778,34 +822,36 @@ if autoSummonRiftEnabled then
     end)
 end
 
+-- Event Shop auto-start (2 hours)
 if eventSettings.autoShop1 then
-    task.spawn(function() while eventSettings.autoShop1 do clickBuyAll(1) task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop1 do buyAllItems({1}) task.wait(7200) end end)
 end
 if eventSettings.autoShop2 then
-    task.spawn(function() while eventSettings.autoShop2 do clickBuyAll(2) task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop2 do buyAllItems({2}) task.wait(7200) end end)
 end
 if eventSettings.autoShop3 then
-    task.spawn(function() while eventSettings.autoShop3 do clickBuyAll(3) task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop3 do buyAllItems({3}) task.wait(7200) end end)
 end
 if eventSettings.autoShop4 then
-    task.spawn(function() while eventSettings.autoShop4 do for i = 4, 7 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop4 do buyAllItems({4, 5, 6, 7}) task.wait(7200) end end)
 end
 if eventSettings.autoShop5 then
-    task.spawn(function() while eventSettings.autoShop5 do for i = 8, 10 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop5 do buyAllItems({8, 9, 10}) task.wait(7200) end end)
 end
 if eventSettings.autoShop6 then
-    task.spawn(function() while eventSettings.autoShop6 do clickBuyAll(11) task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop6 do buyAllItems({11}) task.wait(7200) end end)
 end
 if eventSettings.autoShop7 then
-    task.spawn(function() while eventSettings.autoShop7 do clickBuyAll(12) task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop7 do buyAllItems({12}) task.wait(7200) end end)
 end
 if eventSettings.autoShop8 then
-    task.spawn(function() while eventSettings.autoShop8 do for i = 13, 14 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop8 do buyAllItems({13, 14}) task.wait(7200) end end)
 end
 if eventSettings.autoShop9 then
-    task.spawn(function() while eventSettings.autoShop9 do for i = 15, 16 do clickBuyAll(i) task.wait(2) end task.wait(1200) end end)
+    task.spawn(function() while eventSettings.autoShop9 do buyAllItems({15, 16}) task.wait(7200) end end)
 end
 
+-- Event Altar auto-start
 if eventSettings.autoSkyAltar then
     task.spawn(function()
         while eventSettings.autoSkyAltar do
