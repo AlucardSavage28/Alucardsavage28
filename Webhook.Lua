@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (STUCK DETECTION + AUTO REJOIN)
+-- WEBHOOK TAB (BUFFERED STUCK DETECTION + AUTO REJOIN)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -272,13 +272,13 @@ local function processPublic() if not publicProcessing then publicProcessing = t
 local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
--- ONLINE PING (STUCK DETECTION + AUTO REJOIN)
+-- STUCK DETECTION (EVERY 2 MIN + BUFFER)
 -- ======================================
-local startTime = os.time()
 local lastHatches = 0
-local lastPingTime = os.time()
+local zeroHatchCount = 0
 local stuckNotified = false
 local isRejoining = false
+local ZERO_WINDOW_THRESHOLD = 3 -- Rejoin after 3 windows (6 min)
 
 local leaderstats = player:FindFirstChild("leaderstats")
 if leaderstats then
@@ -289,9 +289,70 @@ end
 
 task.spawn(function()
     while true do
+        task.wait(120) -- 2 minutes
+        if ONLINE_WEBHOOK_URL == "" then continue end
+        if isRejoining then continue end
+        
+        local currentHatches = 0
+        local leaderstats = player:FindFirstChild("leaderstats")
+        if leaderstats then
+            for _, stat in ipairs(leaderstats:GetChildren()) do
+                if stat.Name:find("Hatches") then currentHatches = tonumber(stat.Value) or 0 end
+            end
+        end
+        
+        local hatchesInWindow = currentHatches - lastHatches
+        lastHatches = currentHatches
+        
+        if hatchesInWindow == 0 then
+            zeroHatchCount = zeroHatchCount + 1
+            
+            if zeroHatchCount >= ZERO_WINDOW_THRESHOLD and not stuckNotified then
+                stuckNotified = true
+                isRejoining = true
+                
+                local pingMsg = ""
+                if DISCORD_USER_ID ~= "" then
+                    pingMsg = "<@" .. DISCORD_USER_ID .. ">, Trying to rejoining but Please Still Check on your Roblox!"
+                else
+                    pingMsg = "Trying to rejoining but Please Still Check on your Roblox!"
+                end
+                
+                table.insert(onlineQueue, {
+                    content = pingMsg,
+                    embeds = {{
+                        title = "⚠️ STUCK DETECTED - REJOINING!",
+                        description = "**" .. player.Name .. "** has no hatches for " .. (zeroHatchCount * 2) .. " minutes! Rejoining...",
+                        color = 0xFF0000,
+                        footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
+                    }}
+                })
+                processOnline()
+                
+                task.spawn(function()
+                    task.wait(5)
+                    pcall(function()
+                        TeleportService:Teleport(game.PlaceId, player)
+                    end)
+                end)
+            end
+        else
+            zeroHatchCount = 0
+            stuckNotified = false
+            isRejoining = false
+        end
+    end
+end)
+
+-- ======================================
+-- REGULAR ONLINE PING (EVERY 30 MIN)
+-- ======================================
+local startTime = os.time()
+
+task.spawn(function()
+    while true do
         task.wait(1800)
         if ONLINE_WEBHOOK_URL == "" then continue end
-        
         if isRejoining then continue end
         
         local elapsed = os.time() - startTime
@@ -302,19 +363,11 @@ task.spawn(function()
         local gems = data and formatNum(data.Gems or 0) or "0"
         local leaderstats = player:FindFirstChild("leaderstats")
         local bubbles = "0"
-        local currentHatches = 0
         if leaderstats then
             for _, stat in ipairs(leaderstats:GetChildren()) do
                 if stat.Name:find("Bubble") then bubbles = formatNum(stat.Value) end
-                if stat.Name:find("Hatches") then currentHatches = tonumber(stat.Value) or 0 end
             end
         end
-        local timeSinceLastPing = (os.time() - lastPingTime) / 60
-        local hatchesSinceLastPing = currentHatches - lastHatches
-        local perMin = timeSinceLastPing > 0 and math.floor(hatchesSinceLastPing / timeSinceLastPing) or 0
-        local perHour = perMin * 60
-        lastHatches = currentHatches
-        lastPingTime = os.time()
         
         local debugStats = getDebugStats()
         
@@ -328,60 +381,20 @@ task.spawn(function()
                 "Rainbow: " .. (fragData.Rainbow or 0) .. "/250"
         end
 
-        local isStuck = (perMin == 0 and perHour == 0)
-        local pingMsg = ""
-        local embedColor = 3447003
-        
-        if isStuck and not stuckNotified then
-            stuckNotified = true
-            isRejoining = true
-            
-            if DISCORD_USER_ID ~= "" then
-                pingMsg = "<@" .. DISCORD_USER_ID .. ">, Trying to rejoining but Please Still Check on your Roblox!"
-            else
-                pingMsg = "Trying to rejoining but Please Still Check on your Roblox!"
-            end
-            embedColor = 0xFF0000
-            
-            table.insert(onlineQueue, {
-                content = pingMsg,
-                embeds = {{
-                    title = "⚠️ STUCK DETECTED - REJOINING!",
-                    description = "**" .. player.Name .. "** is stuck! Rejoining server...",
-                    color = embedColor,
-                    footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
-                }}
-            })
-            processOnline()
-            
-            task.spawn(function()
-                task.wait(5)
-                pcall(function()
-                    TeleportService:Teleport(game.PlaceId, player)
-                end)
-            end)
-        elseif not isStuck then
-            stuckNotified = false
-            isRejoining = false
-        end
-
-        if not isStuck then
-            table.insert(onlineQueue, {
-                embeds = {{
-                    title = "Still Online!",
-                    description =
-                        "**" .. player.Name .. "** is still online!\n\n" ..
-                        "Online: " .. hours .. "h " .. minutes .. "m\n" ..
-                        "Coins: " .. coins .. "\nGems: " .. gems .. "\nBubbles: " .. bubbles .. "\n\n" ..
-                        "**Hatch Rate**\nPer Minute: " .. perMin .. "\nPer Hour: " .. perHour .. "\n\n" ..
-                        "**Fragments**\n" .. fragmentText .. "\n\n" ..
-                        "**Stats**\n" .. debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed,
-                    color = 3447003,
-                    footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
-                }}
-            })
-            processOnline()
-        end
+        table.insert(onlineQueue, {
+            embeds = {{
+                title = "Still Online!",
+                description =
+                    "**" .. player.Name .. "** is still online!\n\n" ..
+                    "Online: " .. hours .. "h " .. minutes .. "m\n" ..
+                    "Coins: " .. coins .. "\nGems: " .. gems .. "\nBubbles: " .. bubbles .. "\n\n" ..
+                    "**Fragments**\n" .. fragmentText .. "\n\n" ..
+                    "**Stats**\n" .. debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed,
+                color = 3447003,
+                footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
+            }}
+        })
+        processOnline()
     end
 end)
 
@@ -662,7 +675,7 @@ WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Egg")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes")
-WebhookTab:CreateLabel("Stuck detection: Auto rejoin if hatch rate = 0")
+WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min of no hatches")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
