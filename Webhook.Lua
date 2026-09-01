@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (BUFFERED STUCK DETECTION + AUTO REJOIN)
+-- WEBHOOK TAB (HATCH RATE + STUCK DETECTION + AUTO REJOIN)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -274,7 +274,7 @@ local function processOnline() if not onlineProcessing then onlineProcessing = t
 -- ======================================
 -- STUCK DETECTION (EVERY 2 MIN + 6 MIN BUFFER)
 -- ======================================
-local lastHatches = 0
+local lastHatchesForStuck = 0
 local zeroHatchCount = 0
 local stuckNotified = false
 local isRejoining = false
@@ -283,7 +283,7 @@ local ZERO_WINDOW_THRESHOLD = 3
 local leaderstats = player:FindFirstChild("leaderstats")
 if leaderstats then
     for _, stat in ipairs(leaderstats:GetChildren()) do
-        if stat.Name:find("Hatches") then lastHatches = tonumber(stat.Value) or 0 end
+        if stat.Name:find("Hatches") then lastHatchesForStuck = tonumber(stat.Value) or 0 end
     end
 end
 
@@ -301,8 +301,8 @@ task.spawn(function()
             end
         end
         
-        local hatchesInWindow = currentHatches - lastHatches
-        lastHatches = currentHatches
+        local hatchesInWindow = currentHatches - lastHatchesForStuck
+        lastHatchesForStuck = currentHatches
         
         if hatchesInWindow == 0 then
             zeroHatchCount = zeroHatchCount + 1
@@ -345,9 +345,18 @@ task.spawn(function()
 end)
 
 -- ======================================
--- REGULAR ONLINE PING (EVERY 30 MIN)
+-- REGULAR ONLINE PING (EVERY 30 MIN - WITH HATCH RATE)
 -- ======================================
 local startTime = os.time()
+local lastPingTime = os.time()
+local lastHatchesForPing = 0
+
+local leaderstats2 = player:FindFirstChild("leaderstats")
+if leaderstats2 then
+    for _, stat in ipairs(leaderstats2:GetChildren()) do
+        if stat.Name:find("Hatches") then lastHatchesForPing = tonumber(stat.Value) or 0 end
+    end
+end
 
 task.spawn(function()
     while true do
@@ -363,11 +372,20 @@ task.spawn(function()
         local gems = data and formatNum(data.Gems or 0) or "0"
         local leaderstats = player:FindFirstChild("leaderstats")
         local bubbles = "0"
+        local currentHatches = 0
         if leaderstats then
             for _, stat in ipairs(leaderstats:GetChildren()) do
                 if stat.Name:find("Bubble") then bubbles = formatNum(stat.Value) end
+                if stat.Name:find("Hatches") then currentHatches = tonumber(stat.Value) or 0 end
             end
         end
+        
+        local timeSinceLastPing = (os.time() - lastPingTime) / 60
+        local hatchesSinceLastPing = currentHatches - lastHatchesForPing
+        local perMin = timeSinceLastPing > 0 and math.floor(hatchesSinceLastPing / timeSinceLastPing) or 0
+        local perHour = perMin * 60
+        lastHatchesForPing = currentHatches
+        lastPingTime = os.time()
         
         local debugStats = getDebugStats()
         
@@ -388,6 +406,7 @@ task.spawn(function()
                     "**" .. player.Name .. "** is still online!\n\n" ..
                     "Online: " .. hours .. "h " .. minutes .. "m\n" ..
                     "Coins: " .. coins .. "\nGems: " .. gems .. "\nBubbles: " .. bubbles .. "\n\n" ..
+                    "**Hatch Rate**\nPer Minute: " .. perMin .. "\nPer Hour: " .. perHour .. "\n\n" ..
                     "**Fragments**\n" .. fragmentText .. "\n\n" ..
                     "**Stats**\n" .. debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed,
                 color = 3447003,
@@ -674,7 +693,7 @@ WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Egg")
-WebhookTab:CreateLabel("Online ping: Every 30 minutes")
+WebhookTab:CreateLabel("Online ping: Every 30 minutes (with Hatch Rate)")
 WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min of no hatches")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
