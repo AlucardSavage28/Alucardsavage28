@@ -272,13 +272,13 @@ local function processPublic() if not publicProcessing then publicProcessing = t
 local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
--- STUCK DETECTION (EVERY 2 MIN + BUFFER)
+-- STUCK DETECTION (EVERY 2 MIN + 6 MIN BUFFER)
 -- ======================================
 local lastHatches = 0
 local zeroHatchCount = 0
 local stuckNotified = false
 local isRejoining = false
-local ZERO_WINDOW_THRESHOLD = 3 -- Rejoin after 3 windows (6 min)
+local ZERO_WINDOW_THRESHOLD = 3
 
 local leaderstats = player:FindFirstChild("leaderstats")
 if leaderstats then
@@ -289,7 +289,7 @@ end
 
 task.spawn(function()
     while true do
-        task.wait(120) -- 2 minutes
+        task.wait(120)
         if ONLINE_WEBHOOK_URL == "" then continue end
         if isRejoining then continue end
         
@@ -313,9 +313,9 @@ task.spawn(function()
                 
                 local pingMsg = ""
                 if DISCORD_USER_ID ~= "" then
-                    pingMsg = "<@" .. DISCORD_USER_ID .. ">, Trying to rejoining but Please Still Check on your Roblox!"
+                    pingMsg = "<@" .. DISCORD_USER_ID .. "> Trying to rejoin, Please Still keep an eye on your roblox!"
                 else
-                    pingMsg = "Trying to rejoining but Please Still Check on your Roblox!"
+                    pingMsg = "Trying to rejoin, Please Still keep an eye on your roblox!"
                 end
                 
                 table.insert(onlineQueue, {
