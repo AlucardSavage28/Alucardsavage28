@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (DELTA - DUAL STUCK DETECTION)
+-- WEBHOOK TAB (DELTA - TOGGLE CONTROLS STUCK DETECTION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -273,7 +273,7 @@ local function processPublic() if not publicProcessing then publicProcessing = t
 local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
--- STUCK DETECTION + REJOIN (EVERY 2 MIN - WITH TOGGLE)
+-- STUCK DETECTION + REJOIN (EVERY 2 MIN - TOGGLE CONTROLLED)
 -- ======================================
 local lastHatchesForStuck = 0
 local zeroHatchCount = 0
@@ -293,7 +293,7 @@ task.spawn(function()
         task.wait(120)
         if ONLINE_WEBHOOK_URL == "" then continue end
         if isRejoining then continue end
-        if not autoRejoinEnabled then continue end
+        if not autoRejoinEnabled then continue end -- Toggle OFF = skip
         
         local currentHatches = 0
         local leaderstats = player:FindFirstChild("leaderstats")
@@ -347,7 +347,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- REGULAR ONLINE PING (EVERY 30 MIN - PINGS IF STUCK)
+-- REGULAR ONLINE PING (EVERY 30 MIN - PINGS IF TOGGLE ON AND STUCK)
 -- ======================================
 local startTime = os.time()
 local lastPingTime = os.time()
@@ -402,8 +402,12 @@ task.spawn(function()
                 "Rainbow: " .. (fragData.Rainbow or 0) .. "/250"
         end
 
-        -- Check if stuck (no hatches in 30 min window)
-        local isStuck = (perMin == 0 and perHour == 0)
+        -- Check if stuck (ONLY if toggle is ON)
+        local isStuck = false
+        if autoRejoinEnabled then
+            isStuck = (perMin == 0 and perHour == 0)
+        end
+        
         local pingMsg = ""
         local embedColor = 3447003
         
@@ -725,8 +729,8 @@ WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Egg")
-WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings if stuck)")
-WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (if enabled)")
+WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings if stuck + toggle ON)")
+WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (toggle ON)")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
