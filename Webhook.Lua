@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (DELTA - STUCK DETECTION + BACKUP PING)
+-- WEBHOOK TAB (DELTA - DUAL STUCK DETECTION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -43,6 +43,7 @@ end
 local hideUsername = settings.webhook.hideUsername or false
 local rareEggNotify = settings.webhook.rareEggNotify
 if rareEggNotify == nil then rareEggNotify = true end
+local autoRejoinEnabled = settings.webhook.autoRejoin or false
 
 -- ======================================
 -- FILTER
@@ -147,7 +148,7 @@ local function getVariantText(v)
 end
 
 -- ======================================
--- IMAGE (BG.SI CDN)
+-- IMAGE
 -- ======================================
 local function getImage(petName, ex)
     local n = petName:lower():gsub("%s+", "-"):gsub("[^%w%-]", "")
@@ -214,7 +215,7 @@ local function getBuffTimesForEmbed()
 end
 
 -- ======================================
--- DEBUG STATS EXTRACTION
+-- DEBUG STATS
 -- ======================================
 local function getDebugStats()
     local stats = {
@@ -272,7 +273,7 @@ local function processPublic() if not publicProcessing then publicProcessing = t
 local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
--- STUCK DETECTION (EVERY 2 MIN + 6 MIN BUFFER)
+-- STUCK DETECTION + REJOIN (EVERY 2 MIN - WITH TOGGLE)
 -- ======================================
 local lastHatchesForStuck = 0
 local zeroHatchCount = 0
@@ -292,6 +293,7 @@ task.spawn(function()
         task.wait(120)
         if ONLINE_WEBHOOK_URL == "" then continue end
         if isRejoining then continue end
+        if not autoRejoinEnabled then continue end
         
         local currentHatches = 0
         local leaderstats = player:FindFirstChild("leaderstats")
@@ -345,11 +347,12 @@ task.spawn(function()
 end)
 
 -- ======================================
--- REGULAR ONLINE PING (EVERY 30 MIN - WITH BACKUP PING)
+-- REGULAR ONLINE PING (EVERY 30 MIN - PINGS IF STUCK)
 -- ======================================
 local startTime = os.time()
 local lastPingTime = os.time()
 local lastHatchesForPing = 0
+local regularStuckNotified = false
 
 local leaderstats2 = player:FindFirstChild("leaderstats")
 if leaderstats2 then
@@ -399,24 +402,35 @@ task.spawn(function()
                 "Rainbow: " .. (fragData.Rainbow or 0) .. "/250"
         end
 
-        -- Backup ping: Always ping user ID in regular online ping
-        local backupPingMsg = ""
-        if DISCORD_USER_ID ~= "" then
-            backupPingMsg = "<@" .. DISCORD_USER_ID .. "> "
+        -- Check if stuck (no hatches in 30 min window)
+        local isStuck = (perMin == 0 and perHour == 0)
+        local pingMsg = ""
+        local embedColor = 3447003
+        
+        if isStuck and not regularStuckNotified then
+            if DISCORD_USER_ID ~= "" then
+                pingMsg = "<@" .. DISCORD_USER_ID .. "> Please check your roblox!"
+            else
+                pingMsg = "⚠️ Please check your roblox!"
+            end
+            embedColor = 0xFF0000
+            regularStuckNotified = true
+        elseif not isStuck then
+            regularStuckNotified = false
         end
 
         table.insert(onlineQueue, {
-            content = backupPingMsg,
+            content = pingMsg,
             embeds = {{
-                title = "Still Online!",
+                title = isStuck and "⚠️ STUCK DETECTED!" or "Still Online!",
                 description =
-                    "**" .. player.Name .. "** is still online!\n\n" ..
+                    "**" .. player.Name .. "** is " .. (isStuck and "STUCK!" or "still online!") .. "\n\n" ..
                     "Online: " .. hours .. "h " .. minutes .. "m\n" ..
                     "Coins: " .. coins .. "\nGems: " .. gems .. "\nBubbles: " .. bubbles .. "\n\n" ..
                     "**Hatch Rate**\nPer Minute: " .. perMin .. "\nPer Hour: " .. perHour .. "\n\n" ..
                     "**Fragments**\n" .. fragmentText .. "\n\n" ..
                     "**Stats**\n" .. debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed,
-                color = 3447003,
+                color = embedColor,
                 footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
             }}
         })
@@ -696,12 +710,23 @@ WebhookTab:CreateToggle({
     end
 })
 
+WebhookTab:CreateToggle({
+    Name = "Auto Rejoin When Stuck",
+    CurrentValue = autoRejoinEnabled,
+    Callback = function(v)
+        autoRejoinEnabled = v
+        settings.webhook.autoRejoin = v
+        getgenv().HubSettings.webhook = settings.webhook
+        saveHubSettings()
+    end
+})
+
 WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Egg")
-WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings you)")
-WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min of no hatches")
+WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings if stuck)")
+WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (if enabled)")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
