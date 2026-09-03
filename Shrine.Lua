@@ -1,3 +1,6 @@
+-- ================================================
+-- SHRINE TAB (DELTA - POTION DROPDOWN LVL 1-3)
+-- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 
@@ -29,12 +32,24 @@ local bubbleThread = nil
 local dreamerThread = nil
 local permThread = nil
 
+-- Potion options (Levels 1-3)
+local POTION_TYPES = {"Lucky", "Speed", "Coins", "Mythic", "Tickets"}
+local POTION_LEVELS = {1, 2, 3}
+
+local potionOptions = {}
+for _, name in ipairs(POTION_TYPES) do
+    for _, level in ipairs(POTION_LEVELS) do
+        table.insert(potionOptions, name .. " " .. level)
+    end
+end
+
 local BUBBLE = {
     Level = 1,
     Type = "Potion",
-    Name = shrineSettings.bubbleType or "Lucky",
+    Name = shrineSettings.bubbleType or "Lucky 1",
     Amount = shrineSettings.bubbleAmount or 500
 }
+
 local DREAMER_AMOUNT = shrineSettings.dreamerAmount or 15
 local permEgg = "Common Egg"
 local permTargetBuff = "Luck"
@@ -116,6 +131,17 @@ end
 -- SHRINE FUNCTIONS
 -- ======================================
 local function bubble()
+    -- Parse potion name and level
+    local parts = {}
+    for part in string.gmatch(BUBBLE.Name, "%S+") do
+        table.insert(parts, part)
+    end
+    local potionName = table.concat(parts, " ", 1, #parts - 1)
+    local level = tonumber(parts[#parts]) or 1
+    
+    BUBBLE.Level = level
+    BUBBLE.Name = potionName
+    
     pcall(function() Remote:InvokeServer("DonateToShrine", BUBBLE) end)
 end
 
@@ -142,9 +168,9 @@ end
 ShrineTab:CreateSection("Bubble Shrine")
 
 ShrineTab:CreateDropdown({
-    Name = "Potion Type",
-    CurrentOption = BUBBLE.Name,
-    Options = {"Lucky", "Speed", "Coin", "Mythic"},
+    Name = "Potion Type (Level 1-3)",
+    CurrentOption = {BUBBLE.Name},
+    Options = potionOptions,
     Callback = function(v)
         BUBBLE.Name = v
         shrineSettings.bubbleType = v
@@ -247,7 +273,7 @@ ShrineTab:CreateToggle({
 })
 
 -- ======================================
--- PERM SHRINE (NO SAVE/LOAD - Manual only, Remote-only)
+-- PERM SHRINE
 -- ======================================
 ShrineTab:CreateSection("Perm Shrine")
 
@@ -316,7 +342,6 @@ ShrineTab:CreateToggle({
                     if currentBuff:lower():find(permTargetBuff:lower()) then
                         getgenv().ActivityStatus.current = "Perm Shrine: Got " .. currentBuff .. " (no rerolls needed)"
                         getgenv().ActivityStatus.trigger = true
-                        print("[Shrine] Perm buff already correct: " .. currentBuff)
                     else
                         getgenv().ActivityStatus.current = "Rerolling Perm Shrine for " .. permTargetBuff .. " buff on " .. permEgg
                         getgenv().ActivityStatus.trigger = true
@@ -331,7 +356,6 @@ ShrineTab:CreateToggle({
                         if permEnabled then
                             getgenv().ActivityStatus.current = "Perm Shrine done! " .. currentBuff .. " (" .. rerolls .. " rerolls)"
                             getgenv().ActivityStatus.trigger = true
-                            print("[Shrine] Perm buff set to " .. currentBuff .. " after " .. rerolls .. " rerolls")
                         end
                     end
                     
@@ -347,7 +371,7 @@ ShrineTab:CreateToggle({
 })
 
 -- ======================================
--- AUTO-START SAVED TOGGLES (Bubble + Dreamer only)
+-- AUTO-START SAVED TOGGLES
 -- ======================================
 if shrineSettings.autoBubble then
     bubbleEnabled = true
