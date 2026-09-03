@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (HATCH RATE + STUCK DETECTION + AUTO REJOIN)
+-- WEBHOOK TAB (DELTA - STUCK DETECTION + BACKUP PING)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -345,7 +345,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- REGULAR ONLINE PING (EVERY 30 MIN - WITH HATCH RATE)
+-- REGULAR ONLINE PING (EVERY 30 MIN - WITH BACKUP PING)
 -- ======================================
 local startTime = os.time()
 local lastPingTime = os.time()
@@ -399,7 +399,14 @@ task.spawn(function()
                 "Rainbow: " .. (fragData.Rainbow or 0) .. "/250"
         end
 
+        -- Backup ping: Always ping user ID in regular online ping
+        local backupPingMsg = ""
+        if DISCORD_USER_ID ~= "" then
+            backupPingMsg = "<@" .. DISCORD_USER_ID .. "> "
+        end
+
         table.insert(onlineQueue, {
+            content = backupPingMsg,
             embeds = {{
                 title = "Still Online!",
                 description =
@@ -693,7 +700,7 @@ WebhookTab:CreateSection("Status")
 WebhookTab:CreateLabel("Webhook is Running!")
 WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
 WebhookTab:CreateLabel("Alerts: 4x Egg")
-WebhookTab:CreateLabel("Online ping: Every 30 minutes (with Hatch Rate)")
+WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings you)")
 WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min of no hatches")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
