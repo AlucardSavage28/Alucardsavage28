@@ -1,5 +1,5 @@
 -- ================================================
--- PETS TAB (DELTA - BULK DELETE)
+-- PETS TAB (DELTA - BULK DELETE - NO ACTIVITY SPAM)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -168,14 +168,13 @@ local function fusionLoop()
 end
 
 -- ======================================
--- UI - AUTO DELETE PET (BULK VERSION)
+-- UI - AUTO DELETE PET (BULK - SILENT)
 -- ======================================
 PetTab:CreateSection("Auto delete Pet")
 
 PetTab:CreateLabel("Note: First toggle only deletes T3 Legendary from perm egg THAT CAN be Super legendary (Safe Tested many time🔥)")
-PetTab:CreateLabel("Bulk delete: Deletes ALL copies of a pet at once!")
 
--- Toggle 1: Auto Delete T3 Legendary (BULK)
+-- Toggle 1: Auto Delete T3 Legendary (BULK - SILENT)
 PetTab:CreateToggle({
     Name = "Auto Delete T3 Legendary",
     CurrentValue = autoDeleteT3Enabled,
@@ -191,31 +190,19 @@ PetTab:CreateToggle({
                     local data = LocalData:Get()
                     
                     if data and data.Pets then
-                        local deletedCount = 0
-                        
                         for _, pet in pairs(data.Pets) do
                             if not autoDeleteT3Enabled then break end
                             
                             local info = Pets[pet.Name]
                             if isT3Legendary(pet, info) then
                                 local amount = pet.Amount or 1
-                                
-                                getgenv().ActivityStatus.current = "Deleting " .. amount .. "x " .. pet.Name
-                                getgenv().ActivityStatus.trigger = true
-                                
                                 deletePet(pet.Id, amount)
-                                deletedCount = deletedCount + 1
-                                task.wait(0.5)  -- Small delay between different pet types
+                                task.wait(0.5)
                             end
-                        end
-                        
-                        if deletedCount > 0 then
-                            getgenv().ActivityStatus.current = "Deleted " .. deletedCount .. " T3 Legendary pet types!"
-                            getgenv().ActivityStatus.trigger = true
                         end
                     end
                     
-                    task.wait(10)  -- Check every 10 seconds
+                    task.wait(10)
                 end
             end)
         else
@@ -224,7 +211,7 @@ PetTab:CreateToggle({
     end
 })
 
--- Toggle 2: Auto Delete Rarity (BULK)
+-- Toggle 2: Auto Delete Rarity (BULK - SILENT)
 PetTab:CreateToggle({
     Name = "Auto Delete Rarity (Common, Unique, Rare, Epic, Legendary)",
     CurrentValue = autoDeleteRarityEnabled,
@@ -240,31 +227,19 @@ PetTab:CreateToggle({
                     local data = LocalData:Get()
                     
                     if data and data.Pets then
-                        local deletedCount = 0
-                        
                         for _, pet in pairs(data.Pets) do
                             if not autoDeleteRarityEnabled then break end
                             
                             local info = Pets[pet.Name]
                             if shouldDeleteByRarity(pet, info) then
                                 local amount = pet.Amount or 1
-                                
-                                getgenv().ActivityStatus.current = "Deleting " .. amount .. "x " .. pet.Name
-                                getgenv().ActivityStatus.trigger = true
-                                
                                 deletePet(pet.Id, amount)
-                                deletedCount = deletedCount + 1
-                                task.wait(0.5)  -- Small delay between different pet types
+                                task.wait(0.5)
                             end
-                        end
-                        
-                        if deletedCount > 0 then
-                            getgenv().ActivityStatus.current = "Deleted " .. deletedCount .. " pet types!"
-                            getgenv().ActivityStatus.trigger = true
                         end
                     end
                     
-                    task.wait(10)  -- Check every 10 seconds
+                    task.wait(10)
                 end
             end)
         else
@@ -423,7 +398,7 @@ PetTab:CreateToggle({
 })
 
 -- ======================================
--- AUTO-START
+-- AUTO-START (SILENT)
 -- ======================================
 if autoDeleteT3Enabled then
     autoDeleteT3Thread = task.spawn(function()
@@ -471,4 +446,4 @@ if autoDeleteRarityEnabled then
     end)
 end
 
-print("[Pets] Loaded!")
+print("[Pets] Loaded!)")
