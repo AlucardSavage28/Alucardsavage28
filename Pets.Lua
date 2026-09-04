@@ -1,3 +1,6 @@
+-- ================================================
+-- PETS TAB (DELTA - AUTO DELETE T3 + BY RARITY)
+-- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 
@@ -8,6 +11,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 local Pets = require(ReplicatedStorage.Shared.Data.Pets)
+local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 
 local NetworkRemote = ReplicatedStorage:WaitForChild("Shared")
     :WaitForChild("Framework")
@@ -16,7 +20,72 @@ local NetworkRemote = ReplicatedStorage:WaitForChild("Shared")
     :WaitForChild("RemoteFunction")
 
 -- ======================================
--- SETTINGS
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.pets then settings.pets = {} end
+local petSettings = settings.pets
+
+-- ======================================
+-- DELETE FUNCTIONS
+-- ======================================
+local function deletePet(petId)
+    pcall(function()
+        RE:FireServer("DeletePet", petId, 1, false)
+    end)
+end
+
+-- ======================================
+-- AUTO DELETE T3 LEGENDARY (SPECIFIC EGGS)
+-- ======================================
+local autoDeleteT3Enabled = petSettings.autoDeleteT3 or false
+local autoDeleteT3Thread = nil
+
+local TARGET_EGGS = {
+    "Void Egg",
+    "Neon Egg",
+    "Lava Egg",
+    "Vine Egg",
+    "Atlantis Egg",
+    "Classic Egg",
+}
+
+local function isT3Legendary(pet, info)
+    if not info or not info.Egg then return false end
+    if not table.find(TARGET_EGGS, info.Egg) then return false end
+    if pet.Super then return false end
+    if pet.Locked then return false end
+    if not info.Rarity then return false end
+    if not info.Rarity:find("Legendary") then return false end
+    if info.Rarity:find("Super") then return false end
+    return true
+end
+
+-- ======================================
+-- AUTO DELETE BY RARITY
+-- ======================================
+local RARITY_OPTIONS = {
+    "Common",
+    "Uncommon",
+    "Unique",
+    "Rare",
+    "Epic",
+    "Legendary",
+}
+
+local selectedRarity = petSettings.deleteRarity or "Common"
+local deleteByRarityEnabled = petSettings.deleteByRarity or false
+local deleteByRarityThread = nil
+
+local function matchesSelectedRarity(pet, info)
+    if not info or not info.Rarity then return false end
+    if pet.Super then return false end -- NEVER delete Super Legendary
+    if pet.Locked then return false end -- Skip locked pets
+    return info.Rarity == selectedRarity
+end
+
+-- ======================================
+-- SETTINGS (Rebirth Machine)
 -- ======================================
 local fuserActive = false
 local loopThread = nil
@@ -26,9 +95,6 @@ local selectedVariant = "Normal"
 local fuseAllActive = false
 local fuseAllThread = nil
 
--- ======================================
--- FUNCTIONS
--- ======================================
 local function isCorrectVariant(pet)
     if selectedVariant == "Shiny Mythic" then
         return (pet.Shiny and pet.Mythic)
@@ -97,7 +163,98 @@ local function fusionLoop()
 end
 
 -- ======================================
--- UI
+-- UI - AUTO DELETE PET (TOP)
+-- ======================================
+PetTab:CreateSection("Auto delete Pet")
+
+PetTab:CreateLabel("Auto Deleting all tier 3 legendary that CAN be super legendary")
+
+PetTab:CreateToggle({
+    Name = "Auto Delete T3 Legendary",
+    CurrentValue = autoDeleteT3Enabled,
+    Callback = function(v)
+        autoDeleteT3Enabled = v
+        petSettings.autoDeleteT3 = v
+        getgenv().HubSettings.pets = petSettings
+        saveHubSettings()
+        
+        if v then
+            autoDeleteT3Thread = task.spawn(function()
+                while autoDeleteT3Enabled do
+                    local data = LocalData:Get()
+                    
+                    if data and data.Pets then
+                        for _, pet in pairs(data.Pets) do
+                            if not autoDeleteT3Enabled then break end
+                            
+                            local info = Pets[pet.Name]
+                            if isT3Legendary(pet, info) then
+                                deletePet(pet.Id)
+                                task.wait(0.3)
+                            end
+                        end
+                    end
+                    
+                    task.wait(30)
+                end
+            end)
+        else
+            if autoDeleteT3Thread then task.cancel(autoDeleteT3Thread) end
+        end
+    end
+})
+
+PetTab:CreateSection("Auto Delete by Rarity")
+
+PetTab:CreateDropdown({
+    Name = "Select Rarity",
+    Options = RARITY_OPTIONS,
+    CurrentOption = {selectedRarity},
+    Callback = function(v)
+        selectedRarity = v[1]
+        petSettings.deleteRarity = v[1]
+        getgenv().HubSettings.pets = petSettings
+        saveHubSettings()
+    end
+})
+
+PetTab:CreateToggle({
+    Name = "Auto Delete by Rarity",
+    CurrentValue = deleteByRarityEnabled,
+    Callback = function(v)
+        deleteByRarityEnabled = v
+        petSettings.deleteByRarity = v
+        getgenv().HubSettings.pets = petSettings
+        saveHubSettings()
+        
+        if v then
+            deleteByRarityThread = task.spawn(function()
+                while deleteByRarityEnabled do
+                    local data = LocalData:Get()
+                    
+                    if data and data.Pets then
+                        for _, pet in pairs(data.Pets) do
+                            if not deleteByRarityEnabled then break end
+                            
+                            local info = Pets[pet.Name]
+                            if matchesSelectedRarity(pet, info) then
+                                deletePet(pet.Id)
+                                task.wait(0.3)
+                            end
+                        end
+                    end
+                    
+                    task.wait(30)
+                end
+            end)
+        else
+            if deleteByRarityThread then task.cancel(deleteByRarityThread) end
+        end
+    end
+})
+
+-- ======================================
+-- UI - REBIRTH MACHINE
 -- ======================================
 PetTab:CreateSection("Rebirth Machine")
 
@@ -224,7 +381,6 @@ PetTab:CreateToggle({
                                 getgenv().ActivityStatus.trigger = true
                                 wasActive = true
                                 lastPrint = text
-                                print("[Rebirth] " .. text)
                             end
                         else
                             wasActive = false
@@ -245,5 +401,52 @@ PetTab:CreateToggle({
         end
     end,
 })
+
+-- ======================================
+-- AUTO-START
+-- ======================================
+if autoDeleteT3Enabled then
+    autoDeleteT3Thread = task.spawn(function()
+        while autoDeleteT3Enabled do
+            local data = LocalData:Get()
+            
+            if data and data.Pets then
+                for _, pet in pairs(data.Pets) do
+                    if not autoDeleteT3Enabled then break end
+                    
+                    local info = Pets[pet.Name]
+                    if isT3Legendary(pet, info) then
+                        deletePet(pet.Id)
+                        task.wait(0.3)
+                    end
+                end
+            end
+            
+            task.wait(30)
+        end
+    end)
+end
+
+if deleteByRarityEnabled then
+    deleteByRarityThread = task.spawn(function()
+        while deleteByRarityEnabled do
+            local data = LocalData:Get()
+            
+            if data and data.Pets then
+                for _, pet in pairs(data.Pets) do
+                    if not deleteByRarityEnabled then break end
+                    
+                    local info = Pets[pet.Name]
+                    if matchesSelectedRarity(pet, info) then
+                        deletePet(pet.Id)
+                        task.wait(0.3)
+                    end
+                end
+            end
+            
+            task.wait(30)
+        end
+    end)
+end
 
 print("[Pets] Loaded!")
