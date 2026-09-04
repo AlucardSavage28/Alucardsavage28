@@ -1,5 +1,5 @@
 -- ================================================
--- PETS TAB (DELTA - AUTO DELETE T3 + BY RARITY)
+-- PETS TAB (DELTA - BULK DELETE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -27,16 +27,16 @@ if not settings.pets then settings.pets = {} end
 local petSettings = settings.pets
 
 -- ======================================
--- DELETE FUNCTION
+-- DELETE FUNCTION (BULK)
 -- ======================================
-local function deletePet(petId)
+local function deletePet(petId, amount)
     pcall(function()
-        RE:FireServer("DeletePet", petId, 1, false)
+        RE:FireServer("DeletePet", petId, amount, false)
     end)
 end
 
 -- ======================================
--- AUTO DELETE T3 LEGENDARY
+-- AUTO DELETE T3 LEGENDARY (BULK VERSION)
 -- ======================================
 local autoDeleteT3Enabled = petSettings.autoDeleteT3 or false
 local autoDeleteT3Thread = nil
@@ -62,7 +62,7 @@ local function isT3Legendary(pet, info)
 end
 
 -- ======================================
--- AUTO DELETE BY RARITY (FIXED LIST)
+-- AUTO DELETE BY RARITY (BULK VERSION)
 -- ======================================
 local autoDeleteRarityEnabled = petSettings.autoDeleteRarity or false
 local autoDeleteRarityThread = nil
@@ -77,10 +77,9 @@ local DELETE_RARITIES = {
 
 local function shouldDeleteByRarity(pet, info)
     if not info or not info.Rarity then return false end
-    if pet.Super then return false end -- NEVER delete Super Legendary
-    if pet.Locked then return false end -- Skip locked pets
+    if pet.Super then return false end
+    if pet.Locked then return false end
     
-    -- Check if rarity is in the delete list
     for _, rarity in ipairs(DELETE_RARITIES) do
         if info.Rarity == rarity then
             return true
@@ -169,13 +168,14 @@ local function fusionLoop()
 end
 
 -- ======================================
--- UI - AUTO DELETE PET (TOP)
+-- UI - AUTO DELETE PET (BULK VERSION)
 -- ======================================
 PetTab:CreateSection("Auto delete Pet")
 
 PetTab:CreateLabel("Note: First toggle only deletes T3 Legendary from perm egg THAT CAN be Super legendary (Safe Tested many time🔥)")
+PetTab:CreateLabel("Bulk delete: Deletes ALL copies of a pet at once!")
 
--- Toggle 1: Auto Delete T3 Legendary
+-- Toggle 1: Auto Delete T3 Legendary (BULK)
 PetTab:CreateToggle({
     Name = "Auto Delete T3 Legendary",
     CurrentValue = autoDeleteT3Enabled,
@@ -191,18 +191,31 @@ PetTab:CreateToggle({
                     local data = LocalData:Get()
                     
                     if data and data.Pets then
+                        local deletedCount = 0
+                        
                         for _, pet in pairs(data.Pets) do
                             if not autoDeleteT3Enabled then break end
                             
                             local info = Pets[pet.Name]
                             if isT3Legendary(pet, info) then
-                                deletePet(pet.Id)
-                                task.wait(0.3)
+                                local amount = pet.Amount or 1
+                                
+                                getgenv().ActivityStatus.current = "Deleting " .. amount .. "x " .. pet.Name
+                                getgenv().ActivityStatus.trigger = true
+                                
+                                deletePet(pet.Id, amount)
+                                deletedCount = deletedCount + 1
+                                task.wait(0.5)  -- Small delay between different pet types
                             end
+                        end
+                        
+                        if deletedCount > 0 then
+                            getgenv().ActivityStatus.current = "Deleted " .. deletedCount .. " T3 Legendary pet types!"
+                            getgenv().ActivityStatus.trigger = true
                         end
                     end
                     
-                    task.wait(30)
+                    task.wait(10)  -- Check every 10 seconds
                 end
             end)
         else
@@ -211,7 +224,7 @@ PetTab:CreateToggle({
     end
 })
 
--- Toggle 2: Auto Delete Rarity (no dropdown)
+-- Toggle 2: Auto Delete Rarity (BULK)
 PetTab:CreateToggle({
     Name = "Auto Delete Rarity (Common, Unique, Rare, Epic, Legendary)",
     CurrentValue = autoDeleteRarityEnabled,
@@ -227,18 +240,31 @@ PetTab:CreateToggle({
                     local data = LocalData:Get()
                     
                     if data and data.Pets then
+                        local deletedCount = 0
+                        
                         for _, pet in pairs(data.Pets) do
                             if not autoDeleteRarityEnabled then break end
                             
                             local info = Pets[pet.Name]
                             if shouldDeleteByRarity(pet, info) then
-                                deletePet(pet.Id)
-                                task.wait(0.3)
+                                local amount = pet.Amount or 1
+                                
+                                getgenv().ActivityStatus.current = "Deleting " .. amount .. "x " .. pet.Name
+                                getgenv().ActivityStatus.trigger = true
+                                
+                                deletePet(pet.Id, amount)
+                                deletedCount = deletedCount + 1
+                                task.wait(0.5)  -- Small delay between different pet types
                             end
+                        end
+                        
+                        if deletedCount > 0 then
+                            getgenv().ActivityStatus.current = "Deleted " .. deletedCount .. " pet types!"
+                            getgenv().ActivityStatus.trigger = true
                         end
                     end
                     
-                    task.wait(30)
+                    task.wait(10)  -- Check every 10 seconds
                 end
             end)
         else
@@ -248,7 +274,7 @@ PetTab:CreateToggle({
 })
 
 -- ======================================
--- UI - REBIRTH MACHINE
+-- UI - REBIRTH MACHINE (UNCHANGED)
 -- ======================================
 PetTab:CreateSection("Rebirth Machine")
 
@@ -410,13 +436,14 @@ if autoDeleteT3Enabled then
                     
                     local info = Pets[pet.Name]
                     if isT3Legendary(pet, info) then
-                        deletePet(pet.Id)
-                        task.wait(0.3)
+                        local amount = pet.Amount or 1
+                        deletePet(pet.Id, amount)
+                        task.wait(0.5)
                     end
                 end
             end
             
-            task.wait(30)
+            task.wait(10)
         end
     end)
 end
@@ -432,13 +459,14 @@ if autoDeleteRarityEnabled then
                     
                     local info = Pets[pet.Name]
                     if shouldDeleteByRarity(pet, info) then
-                        deletePet(pet.Id)
-                        task.wait(0.3)
+                        local amount = pet.Amount or 1
+                        deletePet(pet.Id, amount)
+                        task.wait(0.5)
                     end
                 end
             end
             
-            task.wait(30)
+            task.wait(10)
         end
     end)
 end
