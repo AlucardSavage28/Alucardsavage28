@@ -27,7 +27,7 @@ if not settings.pets then settings.pets = {} end
 local petSettings = settings.pets
 
 -- ======================================
--- DELETE FUNCTIONS
+-- DELETE FUNCTION
 -- ======================================
 local function deletePet(petId)
     pcall(function()
@@ -36,7 +36,7 @@ local function deletePet(petId)
 end
 
 -- ======================================
--- AUTO DELETE T3 LEGENDARY (SPECIFIC EGGS)
+-- AUTO DELETE T3 LEGENDARY
 -- ======================================
 local autoDeleteT3Enabled = petSettings.autoDeleteT3 or false
 local autoDeleteT3Thread = nil
@@ -62,26 +62,32 @@ local function isT3Legendary(pet, info)
 end
 
 -- ======================================
--- AUTO DELETE BY RARITY
+-- AUTO DELETE BY RARITY (FIXED LIST)
 -- ======================================
-local RARITY_OPTIONS = {
+local autoDeleteRarityEnabled = petSettings.autoDeleteRarity or false
+local autoDeleteRarityThread = nil
+
+local DELETE_RARITIES = {
     "Common",
-    "Uncommon",
     "Unique",
     "Rare",
     "Epic",
     "Legendary",
 }
 
-local selectedRarity = petSettings.deleteRarity or "Common"
-local deleteByRarityEnabled = petSettings.deleteByRarity or false
-local deleteByRarityThread = nil
-
-local function matchesSelectedRarity(pet, info)
+local function shouldDeleteByRarity(pet, info)
     if not info or not info.Rarity then return false end
     if pet.Super then return false end -- NEVER delete Super Legendary
     if pet.Locked then return false end -- Skip locked pets
-    return info.Rarity == selectedRarity
+    
+    -- Check if rarity is in the delete list
+    for _, rarity in ipairs(DELETE_RARITIES) do
+        if info.Rarity == rarity then
+            return true
+        end
+    end
+    
+    return false
 end
 
 -- ======================================
@@ -167,8 +173,9 @@ end
 -- ======================================
 PetTab:CreateSection("Auto delete Pet")
 
-PetTab:CreateLabel("Auto Deleting all tier 3 legendary that CAN be super legendary")
+PetTab:CreateLabel("Note: First toggle only deletes T3 Legendary from perm egg THAT CAN be Super legendary (Safe Tested many time🔥)")
 
+-- Toggle 1: Auto Delete T3 Legendary
 PetTab:CreateToggle({
     Name = "Auto Delete T3 Legendary",
     CurrentValue = autoDeleteT3Enabled,
@@ -204,40 +211,27 @@ PetTab:CreateToggle({
     end
 })
 
-PetTab:CreateSection("Auto Delete by Rarity")
-
-PetTab:CreateDropdown({
-    Name = "Select Rarity",
-    Options = RARITY_OPTIONS,
-    CurrentOption = {selectedRarity},
-    Callback = function(v)
-        selectedRarity = v[1]
-        petSettings.deleteRarity = v[1]
-        getgenv().HubSettings.pets = petSettings
-        saveHubSettings()
-    end
-})
-
+-- Toggle 2: Auto Delete Rarity (no dropdown)
 PetTab:CreateToggle({
-    Name = "Auto Delete by Rarity",
-    CurrentValue = deleteByRarityEnabled,
+    Name = "Auto Delete Rarity (Common, Unique, Rare, Epic, Legendary)",
+    CurrentValue = autoDeleteRarityEnabled,
     Callback = function(v)
-        deleteByRarityEnabled = v
-        petSettings.deleteByRarity = v
+        autoDeleteRarityEnabled = v
+        petSettings.autoDeleteRarity = v
         getgenv().HubSettings.pets = petSettings
         saveHubSettings()
         
         if v then
-            deleteByRarityThread = task.spawn(function()
-                while deleteByRarityEnabled do
+            autoDeleteRarityThread = task.spawn(function()
+                while autoDeleteRarityEnabled do
                     local data = LocalData:Get()
                     
                     if data and data.Pets then
                         for _, pet in pairs(data.Pets) do
-                            if not deleteByRarityEnabled then break end
+                            if not autoDeleteRarityEnabled then break end
                             
                             local info = Pets[pet.Name]
-                            if matchesSelectedRarity(pet, info) then
+                            if shouldDeleteByRarity(pet, info) then
                                 deletePet(pet.Id)
                                 task.wait(0.3)
                             end
@@ -248,7 +242,7 @@ PetTab:CreateToggle({
                 end
             end)
         else
-            if deleteByRarityThread then task.cancel(deleteByRarityThread) end
+            if autoDeleteRarityThread then task.cancel(autoDeleteRarityThread) end
         end
     end
 })
@@ -427,17 +421,17 @@ if autoDeleteT3Enabled then
     end)
 end
 
-if deleteByRarityEnabled then
-    deleteByRarityThread = task.spawn(function()
-        while deleteByRarityEnabled do
+if autoDeleteRarityEnabled then
+    autoDeleteRarityThread = task.spawn(function()
+        while autoDeleteRarityEnabled do
             local data = LocalData:Get()
             
             if data and data.Pets then
                 for _, pet in pairs(data.Pets) do
-                    if not deleteByRarityEnabled then break end
+                    if not autoDeleteRarityEnabled then break end
                     
                     local info = Pets[pet.Name]
-                    if matchesSelectedRarity(pet, info) then
+                    if shouldDeleteByRarity(pet, info) then
                         deletePet(pet.Id)
                         task.wait(0.3)
                     end
