@@ -1,5 +1,5 @@
 -- ================================================
--- SHRINE TAB (DELTA - FIXED PERM SHRINE)
+-- SHRINE TAB (DELTA - FIXED PERM SHRINE + HARDCODED DROPDOWNS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -53,20 +53,13 @@ local BUBBLE = {
 
 local DREAMER_AMOUNT = shrineSettings.dreamerAmount or 15
 
--- PERM SHRINE SETTINGS (NEW)
-local PERM_LEVEL6_POTIONS = {"Lucky 6", "Speed 6", "Coins 6", "Mythic 6", "Tickets 6"}
-local PERM_EGGS = {
-    "Common Egg", "Cyber Egg", "Nightmare Egg", "Neon Egg", "Atlantis Egg",
-    "Lava Egg", "Icy Egg", "Rainbow Egg", "Mining Egg", "Vine Egg", "Classic Egg"
-}
-local PERM_BUFFS = {"Luck", "Secret", "Infinity", "Mythic", "Shiny"}
-
+-- PERM SHRINE SETTINGS
 local permSelectedPotion = shrineSettings.permPotion or "Lucky 6"
 local permSelectedEgg = shrineSettings.permEgg or "Cyber Egg"
 local permTargetBuff = shrineSettings.permTargetBuff or "Luck"
 local permRerollEnabled = shrineSettings.permReroll or false
 
-local permRerollNotified = false -- Track if we already sent webhook
+local permRerollNotified = false
 
 -- ======================================
 -- TIMER CHECK FUNCTIONS
@@ -101,7 +94,7 @@ local function isBuffExpired(buffName)
 end
 
 -- ======================================
--- PERM SHRINE FUNCTIONS (NEW)
+-- PERM SHRINE FUNCTIONS
 -- ======================================
 local function getPermShrineData()
     local data = LocalData:Get()
@@ -124,7 +117,6 @@ local function getPermShrineRemaining()
 end
 
 local function donatePermShrine(potionName)
-    -- Parse potion name and level
     local parts = {}
     for part in string.gmatch(potionName, "%S+") do
         table.insert(parts, part)
@@ -136,13 +128,11 @@ local function donatePermShrine(potionName)
     local currentXP = data and data.PermanentShrine and data.PermanentShrine.XPOffered or 0
     local neededXP = 1000000 - currentXP
     
-    if neededXP <= 0 then return true end -- Already full
+    if neededXP <= 0 then return true end
     
-    -- Calculate how many potions needed
-    local xpPerPotion = 2500 -- Each Level 6 potion gives 2500 XP
+    local xpPerPotion = 2500
     local amountNeeded = math.ceil(neededXP / xpPerPotion)
     
-    -- Check if we have enough potions
     if data and data.Potions then
         for _, potion in pairs(data.Potions) do
             if potion.Name == name and potion.Level == level then
@@ -161,7 +151,6 @@ local function donatePermShrine(potionName)
         task.wait(1)
     end
     
-    -- Check if we reached 1M XP
     data = LocalData:Get()
     local newXP = data and data.PermanentShrine and data.PermanentShrine.XPOffered or 0
     return newXP >= 1000000
@@ -209,7 +198,7 @@ local function dreamer()
 end
 
 -- ======================================
--- BUBBLE SHRINE (UNCHANGED)
+-- BUBBLE SHRINE
 -- ======================================
 ShrineTab:CreateSection("Bubble Shrine")
 
@@ -270,7 +259,7 @@ ShrineTab:CreateToggle({
 })
 
 -- ======================================
--- DREAMER SHRINE (UNCHANGED)
+-- DREAMER SHRINE
 -- ======================================
 ShrineTab:CreateSection("Dreamer Shrine")
 
@@ -319,13 +308,12 @@ ShrineTab:CreateToggle({
 })
 
 -- ======================================
--- PERM SHRINE (UPDATED)
+-- PERM SHRINE (FIXED)
 -- ======================================
 ShrineTab:CreateSection("Perm Shrine (Fixed)")
 
 local permInfoLabel = ShrineTab:CreateLabel("Buff: None | Egg: None | XP: 0/1M")
 
--- Update info label
 task.spawn(function()
     while true do
         task.wait(10)
@@ -353,7 +341,7 @@ end)
 
 ShrineTab:CreateDropdown({
     Name = "Donate Potion (Level 6 Only)",
-    Options = PERM_LEVEL6_POTIONS,
+    Options = {"Lucky 6", "Speed 6", "Coins 6", "Mythic 6", "Tickets 6"},
     CurrentOption = {permSelectedPotion},
     Callback = function(v)
         permSelectedPotion = v[1]
@@ -365,7 +353,7 @@ ShrineTab:CreateDropdown({
 
 ShrineTab:CreateDropdown({
     Name = "Egg",
-    Options = PERM_EGGS,
+    Options = {"Common Egg", "Cyber Egg", "Nightmare Egg", "Neon Egg", "Atlantis Egg", "Lava Egg", "Icy Egg", "Rainbow Egg", "Mining Egg", "Vine Egg", "Classic Egg"},
     CurrentOption = {permSelectedEgg},
     Callback = function(v)
         permSelectedEgg = v[1]
@@ -377,7 +365,7 @@ ShrineTab:CreateDropdown({
 
 ShrineTab:CreateDropdown({
     Name = "Target Buff",
-    Options = PERM_BUFFS,
+    Options = {"Luck", "Secret", "Infinity", "Mythic", "Shiny"},
     CurrentOption = {permTargetBuff},
     Callback = function(v)
         permTargetBuff = v[1]
@@ -396,7 +384,7 @@ ShrineTab:CreateToggle({
         getgenv().HubSettings.shrine = shrineSettings
         saveHubSettings()
         if not v then
-            permRerollNotified = false -- Reset notification when toggled off
+            permRerollNotified = false
         end
     end
 })
@@ -411,7 +399,7 @@ ShrineTab:CreateToggle({
         saveHubSettings()
         
         if v then
-            permRerollNotified = false -- Reset notification on start
+            permRerollNotified = false
             
             permThread = task.spawn(function()
                 while permEnabled do
@@ -426,7 +414,7 @@ ShrineTab:CreateToggle({
                     local xp = shrine.XPOffered or 0
                     local remaining = getPermShrineRemaining()
                     
-                    -- Check if we need to donate
+                    -- STEP 1: Donate if XP < 1M and buff expired
                     if xp < 1000000 and remaining <= 0 then
                         getgenv().ActivityStatus.current = "Donating " .. permSelectedPotion .. " to Perm Shrine"
                         getgenv().ActivityStatus.trigger = true
@@ -434,15 +422,18 @@ ShrineTab:CreateToggle({
                         local success = donatePermShrine(permSelectedPotion)
                         
                         if success then
+                            task.wait(1)
+                            
+                            -- STEP 2: Claim buff with selected egg
                             getgenv().ActivityStatus.current = "Claiming Perm Shrine buff for " .. permSelectedEgg
                             getgenv().ActivityStatus.trigger = true
                             
                             claimPermShrineBuff(permSelectedEgg)
-                            task.wait(2)
+                            task.wait(3)
                         end
                     end
                     
-                    -- Check if reroll is needed
+                    -- STEP 3: Reroll if needed
                     if permRerollEnabled and remaining > 0 then
                         local currentBuff = getPermShrineBuff()
                         
@@ -453,12 +444,10 @@ ShrineTab:CreateToggle({
                             rerollPermShrine()
                             task.wait(3)
                             
-                            -- Check if reroll worked
                             local newBuff = getPermShrineBuff()
                             local newRemaining = getPermShrineRemaining()
                             
                             if newRemaining <= 0 then
-                                -- Ran out of rerolls
                                 if not permRerollNotified then
                                     permRerollNotified = true
                                     
@@ -476,9 +465,8 @@ ShrineTab:CreateToggle({
                             getgenv().ActivityStatus.current = "Perm Shrine got target buff: " .. currentBuff .. "!"
                             getgenv().ActivityStatus.trigger = true
                             
-                            -- Wait for buff to expire before next cycle
                             task.wait(getPermShrineRemaining() + 5)
-                            permRerollNotified = false -- Reset for next cycle
+                            permRerollNotified = false
                         end
                     end
                     
@@ -528,4 +516,77 @@ if shrineSettings.autoDreamer then
     end)
 end
 
-print("[Shrine] Loaded!")
+if shrineSettings.autoPermShrine then
+    permEnabled = true
+    permRerollNotified = false
+    
+    permThread = task.spawn(function()
+        while permEnabled do
+            local data = LocalData:Get()
+            local shrine = data and data.PermanentShrine
+            
+            if not shrine then
+                task.wait(5)
+                continue
+            end
+            
+            local xp = shrine.XPOffered or 0
+            local remaining = getPermShrineRemaining()
+            
+            if xp < 1000000 and remaining <= 0 then
+                getgenv().ActivityStatus.current = "Donating " .. permSelectedPotion .. " to Perm Shrine"
+                getgenv().ActivityStatus.trigger = true
+                
+                local success = donatePermShrine(permSelectedPotion)
+                
+                if success then
+                    task.wait(1)
+                    getgenv().ActivityStatus.current = "Claiming Perm Shrine buff for " .. permSelectedEgg
+                    getgenv().ActivityStatus.trigger = true
+                    claimPermShrineBuff(permSelectedEgg)
+                    task.wait(3)
+                end
+            end
+            
+            if permRerollEnabled and remaining > 0 then
+                local currentBuff = getPermShrineBuff()
+                
+                if currentBuff ~= permTargetBuff then
+                    getgenv().ActivityStatus.current = "Rerolling Perm Shrine for " .. permTargetBuff .. " (current: " .. currentBuff .. ")"
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    rerollPermShrine()
+                    task.wait(3)
+                    
+                    local newBuff = getPermShrineBuff()
+                    local newRemaining = getPermShrineRemaining()
+                    
+                    if newRemaining <= 0 then
+                        if not permRerollNotified then
+                            permRerollNotified = true
+                            
+                            local discordID = settings.activity and settings.activity.userId or ""
+                            local pingMsg = ""
+                            if discordID ~= "" then
+                                pingMsg = "<@" .. discordID .. "> "
+                            end
+                            
+                            getgenv().ActivityStatus.current = pingMsg .. "Perm Shrine ran out of rerolls! Current buff: " .. newBuff
+                            getgenv().ActivityStatus.trigger = true
+                        end
+                    end
+                else
+                    getgenv().ActivityStatus.current = "Perm Shrine got target buff: " .. currentBuff .. "!"
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    task.wait(getPermShrineRemaining() + 5)
+                    permRerollNotified = false
+                end
+            end
+            
+            task.wait(5)
+        end
+    end)
+end
+
+print("[Shrine] Loaded! - Perm Shrine Fixed")
