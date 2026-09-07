@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (DELTA - TOGGLE CONTROLS STUCK DETECTION)
+-- WEBHOOK TAB (DELTA - ODDS THRESHOLD + ORIGIN)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -45,6 +45,9 @@ local rareEggNotify = settings.webhook.rareEggNotify
 if rareEggNotify == nil then rareEggNotify = true end
 local autoRejoinEnabled = settings.webhook.autoRejoin or false
 
+-- ODDS THRESHOLD SETTINGS
+local oddsThresholdInput = settings.webhook.oddsThreshold or ""
+
 -- ======================================
 -- FILTER
 -- ======================================
@@ -55,6 +58,82 @@ local TRACKED_RARITIES = {
     ["Void"] = true,
     ["Super Legendary"] = true,
 }
+
+-- ======================================
+-- ODDS THRESHOLD PARSER
+-- ======================================
+local function parseOddsInput(input)
+    if not input or input == "" then return nil end
+    
+    local text = string.lower(string.gsub(input, "%s+", ""))
+    local num, suffix = text:match("^(%d+%.?%d*)([bmtk]?)$")
+    
+    if not num then return nil end
+    
+    num = tonumber(num)
+    
+    if suffix == "t" then
+        return num * 1e12
+    elseif suffix == "b" then
+        return num * 1e9
+    elseif suffix == "m" then
+        return num * 1e6
+    elseif suffix == "k" then
+        return num * 1e3
+    else
+        return num
+    end
+end
+
+local function getOneInX(chance)
+    if not chance then return math.huge end
+    local chanceNum = tonumber(chance) or 0
+    if chanceNum > 0 then
+        return 100 / chanceNum
+    end
+    return math.huge
+end
+
+local function getThreshold()
+    return parseOddsInput(oddsThresholdInput)
+end
+
+-- ======================================
+-- ORIGIN DETECTOR
+-- ======================================
+local function getPetOrigin(info)
+    if not info then return "Unknown" end
+    
+    local egg = info.Egg or ""
+    local tag = info.Tag or ""
+    
+    -- Check Tag first for special origins
+    if tag:find("Rebirth Machine") then
+        return "Rebirth Machine"
+    elseif tag:find("Leaderboard") then
+        return "Leaderboard"
+    elseif tag:find("Season") or tag:find("Mega Shop") then
+        return "Season Pass"
+    elseif tag:find("Competitive") or tag:find("Comp") then
+        return "Competitive"
+    elseif tag:find("Global") or tag:find("Incentive") then
+        return "Global Incentive"
+    elseif tag:find("Admin") or info.AdminAbuse then
+        return "Admin Abuse Egg"
+    end
+    
+    -- Check Egg field
+    if egg and egg ~= "" and egg ~= "Unknown" then
+        return egg
+    end
+    
+    -- Check Egg field for special eggs
+    if egg:find("4x Luck") then
+        return egg
+    end
+    
+    return "Unknown"
+end
 
 -- ======================================
 -- ENCHANT DISPLAY NAMES
@@ -293,7 +372,7 @@ task.spawn(function()
         task.wait(120)
         if ONLINE_WEBHOOK_URL == "" then continue end
         if isRejoining then continue end
-        if not autoRejoinEnabled then continue end -- Toggle OFF = skip
+        if not autoRejoinEnabled then continue end
         
         local currentHatches = 0
         local leaderstats = player:FindFirstChild("leaderstats")
@@ -402,7 +481,6 @@ task.spawn(function()
                 "Rainbow: " .. (fragData.Rainbow or 0) .. "/250"
         end
 
-        -- Check if stuck (ONLY if toggle is ON)
         local isStuck = false
         if autoRejoinEnabled then
             isStuck = (perMin == 0 and perHour == 0)
@@ -443,7 +521,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER
+-- FULL INVENTORY SCANNER (WITH ODDS THRESHOLD + ORIGIN)
 -- ======================================
 local knownPets = {}
 
@@ -491,6 +569,20 @@ task.spawn(function()
                         if isSuper then rarity = "Super Legendary" end
                         knownPets[pet.Id] = true
                         
+                        -- CHECK ODDS THRESHOLD FOR PRIVATE WEBHOOK
+                        local threshold = getThreshold()
+                        local shouldSendPrivate = true
+                        
+                        if threshold and not isSuper and not isXL then
+                            local oneInX = getOneInX(info and info.Chance)
+                            if oneInX <= threshold then
+                                shouldSendPrivate = false
+                            end
+                        end
+                        
+                        -- GET ORIGIN
+                        local origin = getPetOrigin(info)
+                        
                         local debugStats = getDebugStats()
                         local statsStr = debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed
                         local buffStr = getBuffTimesForEmbed()
@@ -513,22 +605,24 @@ task.spawn(function()
                             local coins = formatNum(data.Coins or 0)
                             local gems = formatNum(data.Gems or 0)
                             
-                            local embed = {
-                                title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
-                                color = 0x1E90FF,
-                                fields = {
-                                    {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems, inline = false},
-                                    {name = "Ultra Legendary Enchant", value = displayStr, inline = false},
-                                    {name = "Stats", value = statsStr, inline = false},
-                                    {name = "Buff Time Left", value = buffStr, inline = false}
-                                },
-                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                            }
-                            local pingMsg = "<@"..DISCORD_USER_ID..">"
-                            if displayStr ~= "None" then pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!" end
-                            
-                            table.insert(hatchQueue, {content = DISCORD_USER_ID ~= "" and pingMsg or nil, embeds = {embed}})
-                            processHatch()
+                            if shouldSendPrivate then
+                                local embed = {
+                                    title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
+                                    color = 0x1E90FF,
+                                    fields = {
+                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems, inline = false},
+                                        {name = "Ultra Legendary Enchant", value = displayStr, inline = false},
+                                        {name = "Stats", value = statsStr, inline = false},
+                                        {name = "Buff Time Left", value = buffStr, inline = false}
+                                    },
+                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                }
+                                local pingMsg = "<@"..DISCORD_USER_ID..">"
+                                if displayStr ~= "None" then pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!" end
+                                
+                                table.insert(hatchQueue, {content = DISCORD_USER_ID ~= "" and pingMsg or nil, embeds = {embed}})
+                                processHatch()
+                            end
                             
                             local publicEmbed = {
                                 title = "Congrats You Hatched A "..variant.." Super Legendary "..pet.Name.."!",
@@ -562,31 +656,33 @@ task.spawn(function()
                             local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variant:gsub("^XL ", "")) or nil)
                             local displayRarity = isXL and ("XL " .. rarity) or rarity
                             
-                            local embed = {
-                                title = "Congrats You Hatched A "..variant.." "..displayRarity.." "..pet.Name.."!",
-                                color = color,
-                                fields = {
-                                    {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
-                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false},
-                                    {name = "Stats", value = statsStr, inline = false},
-                                    {name = "Buff Time Left", value = buffStr, inline = false}
-                                },
-                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
-                            }
-                            if img then embed.thumbnail = {url = img} end
-                            
-                            table.insert(hatchQueue, {
-                                content = (rarity:find("Secret") and DISCORD_USER_ID ~= "") and "<@"..DISCORD_USER_ID..">" or nil,
-                                embeds = {embed}
-                            })
-                            processHatch()
+                            if shouldSendPrivate then
+                                local embed = {
+                                    title = "Congrats You Hatched A "..variant.." "..displayRarity.." "..pet.Name.."!",
+                                    color = color,
+                                    fields = {
+                                        {name = "* User Info", value = "Name : "..displayName.."\nCoin : "..coins.."\nGems : "..gems.."\nEgg Hatched : "..opened, inline = false},
+                                        {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr.."\nOrigin : "..origin, inline = false},
+                                        {name = "Stats", value = statsStr, inline = false},
+                                        {name = "Buff Time Left", value = buffStr, inline = false}
+                                    },
+                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                }
+                                if img then embed.thumbnail = {url = img} end
+                                
+                                table.insert(hatchQueue, {
+                                    content = (rarity:find("Secret") and DISCORD_USER_ID ~= "") and "<@"..DISCORD_USER_ID..">" or nil,
+                                    embeds = {embed}
+                                })
+                                processHatch()
+                            end
                             
                             local publicEmbed = {
                                 title = "Congrats You Hatched A "..variant.." "..displayRarity.." "..pet.Name.."!",
                                 color = color,
                                 fields = {
                                     {name = "* User Info", value = "Name : Hidden", inline = false},
-                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr, inline = false},
+                                    {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr.."\nOrigin : "..origin, inline = false},
                                     {name = "Stats", value = statsStr, inline = false}
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
@@ -690,6 +786,26 @@ WebhookTab:CreateInput({
     end
 })
 
+WebhookTab:CreateSection("Odds Threshold (Private Only)")
+
+WebhookTab:CreateLabel("Only sends private webhook if pet is RARER than this")
+WebhookTab:CreateLabel("Format: 10B = 1/10B, 100M = 1/100M, 1T = 1/1T")
+WebhookTab:CreateLabel("Leave empty to send ALL pets")
+WebhookTab:CreateLabel("Does NOT affect: Super Legendary & XL pets (always sends)")
+
+WebhookTab:CreateInput({
+    Name = "Only Notify Above (e.g., 10B)",
+    CurrentValue = oddsThresholdInput,
+    PlaceholderText = "10B / 100M / 1T (empty = off)",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(v)
+        oddsThresholdInput = v
+        settings.webhook.oddsThreshold = v
+        getgenv().HubSettings.webhook = settings.webhook
+        saveHubSettings()
+    end
+})
+
 WebhookTab:CreateSection("Settings")
 
 WebhookTab:CreateToggle({
@@ -732,6 +848,8 @@ WebhookTab:CreateLabel("Alerts: 4x Egg")
 WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings if stuck + toggle ON)")
 WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (toggle ON)")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
+WebhookTab:CreateLabel("Odds Threshold: Private only, XL & Super exempt")
+WebhookTab:CreateLabel("Origin: Shows where pet came from")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
 print("Webhook Is Online, Good Luck Hatching Guys! Me (Renoa The Finest) Wishing for our luck")
