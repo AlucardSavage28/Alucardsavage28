@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (DELTA - SIMPLE ENDLESS SHOP)
+-- EVENT TAB (DELTA - CELESTIAL PRIORITY TOGGLE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -236,33 +236,59 @@ local function sendSummonWebhook(success)
 end
 
 -- ======================================
--- SKY ALTAR FUNCTIONS
+-- TRUE SECRET DETECTION
+-- ======================================
+local function isTrueSecret(info)
+    if not info then return false end
+    if info.Rarity ~= "Secret" then return false end
+    if info.Celestial then return false end
+    if info.Infinity then return false end
+    if info.Void then return false end
+    return true
+end
+
+-- ======================================
+-- SKY ALTAR FUNCTIONS (WITH CELESTIAL PRIORITY)
 -- ======================================
 local function getSkyAltarPets()
-    local groups = {ShinyMythic = {}, Mythic = {}, Shiny = {}, Normal = {}}
+    local groups = {
+        Celestial = {ShinyMythic = {}, Mythic = {}, Shiny = {}, Normal = {}},
+        Secret = {ShinyMythic = {}, Mythic = {}, Shiny = {}, Normal = {}},
+    }
     
     local data = LocalData:Get()
     if data and data.Pets then
         for _, pet in pairs(data.Pets) do
-            if not pet.Locked and pet.Name == "Empyrean Bolt" then
-                if pet.Shiny and pet.Mythic then
-                    table.insert(groups.ShinyMythic, pet)
-                elseif pet.Mythic then
-                    table.insert(groups.Mythic, pet)
-                elseif pet.Shiny then
-                    table.insert(groups.Shiny, pet)
-                else
-                    table.insert(groups.Normal, pet)
+            if not pet.Locked then
+                local info = Pets[pet.Name]
+                if info and info.Egg == "Stratus Egg" then
+                    if info.Celestial then
+                        if pet.Shiny and pet.Mythic then
+                            table.insert(groups.Celestial.ShinyMythic, pet)
+                        elseif pet.Mythic then
+                            table.insert(groups.Celestial.Mythic, pet)
+                        elseif pet.Shiny then
+                            table.insert(groups.Celestial.Shiny, pet)
+                        else
+                            table.insert(groups.Celestial.Normal, pet)
+                        end
+                    elseif isTrueSecret(info) then
+                        if pet.Shiny and pet.Mythic then
+                            table.insert(groups.Secret.ShinyMythic, pet)
+                        elseif pet.Mythic then
+                            table.insert(groups.Secret.Mythic, pet)
+                        elseif pet.Shiny then
+                            table.insert(groups.Secret.Shiny, pet)
+                        else
+                            table.insert(groups.Secret.Normal, pet)
+                        end
+                    end
                 end
             end
         end
     end
     
-    if #groups.ShinyMythic >= 3 then return groups.ShinyMythic end
-    if #groups.Mythic >= 3 then return groups.Mythic end
-    if #groups.Shiny >= 3 then return groups.Shiny end
-    if #groups.Normal >= 3 then return groups.Normal end
-    return {}
+    return groups
 end
 
 local function getCooldownText()
@@ -358,10 +384,10 @@ end)
 EventTab:CreateDropdown({
     Name = "Select Event",
     Options = EVENTS,
-    CurrentOption = {selectedEvent},
+    CurrentOption = selectedEvent,
     Callback = function(v)
-        selectedEvent = v[1]
-        eventSettings.selectedEvent = v[1]
+        selectedEvent = v
+        eventSettings.selectedEvent = v
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
     end
@@ -624,14 +650,24 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT ALTAR
+-- UI - EVENT ALTAR (WITH CELESTIAL PRIORITY TOGGLE)
 -- ======================================
 EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
 
-EventTab:CreateLabel("Uses SkyAltar with Empyrean Bolt (3 pets)")
-EventTab:CreateLabel("Priority: Shiny Mythic > Mythic > Shiny > Normal")
+EventTab:CreateLabel("Uses SkyAltar with Stratus Egg pets")
+EventTab:CreateLabel("Priority: Celestial (Rainshine) > Secret (Empyrean Bolt)")
 
 local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
+
+EventTab:CreateToggle({
+    Name = "Use Stratus Celestial First (Special)",
+    CurrentValue = eventSettings.altarCelestialPriority or false,
+    Callback = function(v)
+        eventSettings.altarCelestialPriority = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+    end
+})
 
 EventTab:CreateToggle({
     Name = "Auto Event Altar",
@@ -650,15 +686,50 @@ EventTab:CreateToggle({
                         pcall(function() altarTrackerLabel:SetText("Cooldown: " .. cooldownText) end)
                         task.wait(math.min(cooldownSeconds + 5, 60))
                     else
-                        local pets = getSkyAltarPets()
-                        if #pets >= 3 then
-                            pcall(function() altarTrackerLabel:SetText("Converting...") end)
-                            useSkyAltar(pets)
-                            getgenv().ActivityStatus.current = "Event Altar used"
+                        local groups = getSkyAltarPets()
+                        local selectedPets = {}
+                        local mode = ""
+                        
+                        if eventSettings.altarCelestialPriority then
+                            if #groups.Celestial.Normal >= 3 then
+                                selectedPets = groups.Celestial.Normal
+                                mode = "Celestial"
+                            elseif #groups.Celestial.Shiny >= 3 then
+                                selectedPets = groups.Celestial.Shiny
+                                mode = "Celestial Shiny"
+                            elseif #groups.Celestial.Mythic >= 3 then
+                                selectedPets = groups.Celestial.Mythic
+                                mode = "Celestial Mythic"
+                            elseif #groups.Celestial.ShinyMythic >= 3 then
+                                selectedPets = groups.Celestial.ShinyMythic
+                                mode = "Celestial Shiny Mythic"
+                            end
+                        end
+                        
+                        if #selectedPets < 3 then
+                            if #groups.Secret.Normal >= 3 then
+                                selectedPets = groups.Secret.Normal
+                                mode = "Secret"
+                            elseif #groups.Secret.Shiny >= 3 then
+                                selectedPets = groups.Secret.Shiny
+                                mode = "Secret Shiny"
+                            elseif #groups.Secret.Mythic >= 3 then
+                                selectedPets = groups.Secret.Mythic
+                                mode = "Secret Mythic"
+                            elseif #groups.Secret.ShinyMythic >= 3 then
+                                selectedPets = groups.Secret.ShinyMythic
+                                mode = "Secret Shiny Mythic"
+                            end
+                        end
+                        
+                        if #selectedPets >= 3 then
+                            pcall(function() altarTrackerLabel:SetText("Converting: " .. mode .. "...") end)
+                            useSkyAltar(selectedPets)
+                            getgenv().ActivityStatus.current = "Event Altar used (" .. mode .. ")"
                             getgenv().ActivityStatus.trigger = true
                             task.wait(10)
                         else
-                            pcall(function() altarTrackerLabel:SetText("Not enough Empyrean Bolts") end)
+                            pcall(function() altarTrackerLabel:SetText("Not enough pets") end)
                             task.wait(60)
                         end
                     end
@@ -798,10 +869,45 @@ if eventSettings.autoSkyAltar then
                 pcall(function() altarTrackerLabel:SetText("Cooldown: " .. cooldownText) end)
                 task.wait(math.min(cooldownSeconds + 5, 60))
             else
-                local pets = getSkyAltarPets()
-                if #pets >= 3 then
-                    useSkyAltar(pets)
-                    getgenv().ActivityStatus.current = "Event Altar used"
+                local groups = getSkyAltarPets()
+                local selectedPets = {}
+                local mode = ""
+                
+                if eventSettings.altarCelestialPriority then
+                    if #groups.Celestial.Normal >= 3 then
+                        selectedPets = groups.Celestial.Normal
+                        mode = "Celestial"
+                    elseif #groups.Celestial.Shiny >= 3 then
+                        selectedPets = groups.Celestial.Shiny
+                        mode = "Celestial Shiny"
+                    elseif #groups.Celestial.Mythic >= 3 then
+                        selectedPets = groups.Celestial.Mythic
+                        mode = "Celestial Mythic"
+                    elseif #groups.Celestial.ShinyMythic >= 3 then
+                        selectedPets = groups.Celestial.ShinyMythic
+                        mode = "Celestial Shiny Mythic"
+                    end
+                end
+                
+                if #selectedPets < 3 then
+                    if #groups.Secret.Normal >= 3 then
+                        selectedPets = groups.Secret.Normal
+                        mode = "Secret"
+                    elseif #groups.Secret.Shiny >= 3 then
+                        selectedPets = groups.Secret.Shiny
+                        mode = "Secret Shiny"
+                    elseif #groups.Secret.Mythic >= 3 then
+                        selectedPets = groups.Secret.Mythic
+                        mode = "Secret Mythic"
+                    elseif #groups.Secret.ShinyMythic >= 3 then
+                        selectedPets = groups.Secret.ShinyMythic
+                        mode = "Secret Shiny Mythic"
+                    end
+                end
+                
+                if #selectedPets >= 3 then
+                    useSkyAltar(selectedPets)
+                    getgenv().ActivityStatus.current = "Event Altar used (" .. mode .. ")"
                     getgenv().ActivityStatus.trigger = true
                     task.wait(10)
                 else
