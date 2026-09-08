@@ -1,5 +1,5 @@
 -- ================================================
--- PETS TAB (DELTA - BULK DELETE - NO ACTIVITY SPAM)
+-- PETS TAB (DELTA - BULK DELETE + TRUE SECRET ONLY)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -33,6 +33,18 @@ local function deletePet(petId, amount)
     pcall(function()
         RE:FireServer("DeletePet", petId, amount, false)
     end)
+end
+
+-- ======================================
+-- TRUE SECRET DETECTION
+-- ======================================
+local function isTrueSecret(info)
+    if not info then return false end
+    if info.Rarity ~= "Secret" then return false end
+    if info.Celestial then return false end
+    if info.Infinity then return false end
+    if info.Void then return false end
+    return true
 end
 
 -- ======================================
@@ -265,9 +277,9 @@ PetTab:CreateInput({
 PetTab:CreateDropdown({
     Name = "Variant",
     Options = {"Normal","Shiny","Mythic","Shiny Mythic"},
-    CurrentOption = {"Normal"},
+    CurrentOption = "Normal",
     Callback = function(V)
-        selectedVariant = V[1]
+        selectedVariant = V
     end,
 })
 
@@ -288,9 +300,13 @@ PetTab:CreateToggle({
     end,
 })
 
+-- ======================================
+-- REBIRTH MACHINE (ALL UNLOCKED) - TRUE SECRET ONLY
+-- ======================================
 PetTab:CreateSection("Rebirth Machine (All Unlocked)")
 
 PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
+PetTab:CreateLabel("Only uses TRUE Secret pets (NOT Celestial, Infinity, Void)")
 
 local trackerLabel = PetTab:CreateLabel("Last Used: None")
 
@@ -317,7 +333,7 @@ PetTab:CreateToggle({
                     for _, pet in pairs(data.Pets) do
                         if not pet.Locked then
                             local info = Pets[pet.Name]
-                            if info and info.Rarity and info.Rarity:find("Secret") then
+                            if isTrueSecret(info) then  -- FIXED: Only TRUE Secret
                                 if pet.Shiny and pet.Mythic then
                                     table.insert(groups.ShinyMythic, pet)
                                 elseif pet.Shiny then
@@ -446,4 +462,4 @@ if autoDeleteRarityEnabled then
     end)
 end
 
-print("[Pets] Loaded!)")
+print("[Pets] Loaded!")
