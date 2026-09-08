@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (DELTA - ODDS THRESHOLD + ORIGIN)
+-- WEBHOOK TAB (DELTA - TRUE RARITY DETECTION + FINAL COLORS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -49,15 +49,37 @@ local autoRejoinEnabled = settings.webhook.autoRejoin or false
 local oddsThresholdInput = settings.webhook.oddsThreshold or ""
 
 -- ======================================
--- FILTER
+-- TRUE RARITY DETECTION
 -- ======================================
-local TRACKED_RARITIES = {
-    ["Secret"] = true,
-    ["Celestial"] = true,
-    ["Infinity"] = true,
-    ["Void"] = true,
-    ["Super Legendary"] = true,
-}
+local function getTrueRarity(info)
+    if not info then return "Unknown" end
+    
+    if info.Void then
+        return "Void"
+    elseif info.Infinity then
+        return "Infinity"
+    elseif info.Celestial then
+        return "Celestial"
+    elseif info.Rarity then
+        return info.Rarity
+    end
+    
+    return "Unknown"
+end
+
+local function isTrackedRarity(info)
+    local rarity = getTrueRarity(info)
+    if not rarity then return false end
+    
+    if rarity == "Void" or rarity == "Infinity" or rarity == "Celestial" then
+        return true
+    end
+    
+    if rarity:find("Secret") then return true end
+    if rarity:find("Super Legendary") then return true end
+    
+    return false
+end
 
 -- ======================================
 -- ODDS THRESHOLD PARSER
@@ -107,7 +129,6 @@ local function getPetOrigin(info)
     local egg = info.Egg or ""
     local tag = info.Tag or ""
     
-    -- Check Tag first for special origins
     if tag:find("Rebirth Machine") then
         return "Rebirth Machine"
     elseif tag:find("Leaderboard") then
@@ -122,13 +143,7 @@ local function getPetOrigin(info)
         return "Admin Abuse Egg"
     end
     
-    -- Check Egg field
     if egg and egg ~= "" and egg ~= "Unknown" then
-        return egg
-    end
-    
-    -- Check Egg field for special eggs
-    if egg:find("4x Luck") then
         return egg
     end
     
@@ -149,14 +164,14 @@ local ENCHANT_NAMES = {
 }
 
 -- ======================================
--- COLORS
+-- COLORS (FINAL)
 -- ======================================
 local COLORS = {
-    Secret = {Normal=0xFF0000,Shiny=0xFFD700,Mythic=0x8B00FF,ShinyMythic=0x00FF00},
-    Celestial = {Normal=0xFF0000,Shiny=0xFFD700,Mythic=0x8B00FF,ShinyMythic=0x00FF00},
-    Infinity = {Normal=0xFF0000,Shiny=0xFFB84D,Mythic=0x7D3CFF,ShinyMythic=0x00E6A8},
-    Void = {Normal=0x0D0D0D,Shiny=0x3AA0FF},
-    ["Super Legendary"] = {Normal=0x1E90FF,Shiny=0xFFD700,Mythic=0x8B00FF,ShinyMythic=0x00FF00}
+    Secret = {Normal=0xFF0000, Shiny=0xFFD700, Mythic=0x8B00FF, ShinyMythic=0x00FF00},
+    Celestial = {Normal=0x00BFFF, Shiny=0x00FFFF, Mythic=0x87CEEB, ShinyMythic=0xE0FFFF},  -- Neon Blue
+    Infinity = {Normal=0x000080, Shiny=0x0000CD, Mythic=0x191970, ShinyMythic=0x4169E1},  -- Navy Blue
+    Void = {Normal=0x8A2BE2, Shiny=0x9400D3, Mythic=0x4B0082, ShinyMythic=0xDA70D6},  -- Andromeda Galaxy
+    ["Super Legendary"] = {Normal=0x1E90FF, Shiny=0xFFD700, Mythic=0x8B00FF, ShinyMythic=0x00FF00}
 }
 
 -- ======================================
@@ -521,7 +536,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (WITH ODDS THRESHOLD + ORIGIN)
+-- FULL INVENTORY SCANNER (WITH TRUE RARITY DETECTION)
 -- ======================================
 local knownPets = {}
 
@@ -531,10 +546,8 @@ if initData and initData.Pets then
         if pet.Super then knownPets[pet.Id] = true
         else
             local info = Pets[pet.Name]
-            if info and info.Rarity then
-                for r in pairs(TRACKED_RARITIES) do
-                    if info.Rarity:find(r) then knownPets[pet.Id] = true; break end
-                end
+            if info and isTrackedRarity(info) then
+                knownPets[pet.Id] = true
             end
         end
     end
@@ -558,15 +571,12 @@ task.spawn(function()
                     
                     local shouldTrack = false
                     if isSuper then shouldTrack = true
-                    elseif info and info.Rarity then
-                        for r in pairs(TRACKED_RARITIES) do
-                            if info.Rarity:find(r) then shouldTrack = true; break end
-                        end
+                    elseif info and isTrackedRarity(info) then
+                        shouldTrack = true
                     end
                     
                     if shouldTrack then
-                        local rarity = info and info.Rarity or "Super Legendary"
-                        if isSuper then rarity = "Super Legendary" end
+                        local rarity = isSuper and "Super Legendary" or getTrueRarity(info)
                         knownPets[pet.Id] = true
                         
                         -- CHECK ODDS THRESHOLD FOR PRIVATE WEBHOOK
@@ -850,6 +860,8 @@ WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (toggle
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Odds Threshold: Private only, XL & Super exempt")
 WebhookTab:CreateLabel("Origin: Shows where pet came from")
+WebhookTab:CreateLabel("Rarity: Correctly detects Celestial, Infinity, Void")
+WebhookTab:CreateLabel("Colors: Celestial=Neon Blue, Infinity=Navy, Void=Andromeda")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
 print("Webhook Is Online, Good Luck Hatching Guys! Me (Renoa The Finest) Wishing for our luck")
