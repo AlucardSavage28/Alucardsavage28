@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (DELTA - HARDCODED CELESTIAL + UI CLOSE FIX)
+-- EVENT TAB (DELTA - VARIANT GROUPING FIX)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -248,12 +248,24 @@ local function isTrueSecret(info)
 end
 
 -- ======================================
--- SKY ALTAR FUNCTIONS (HARDCODED CELESTIAL PRIORITY)
+-- SKY ALTAR FUNCTIONS (VARIANT GROUPING FIX)
 -- ======================================
 local function getSkyAltarPets()
     local groups = {
-        Celestial = {},
-        Secret = {},
+        Celestial = {
+            Normal = {},
+            Shiny = {},
+            Mythic = {},
+            ShinyMythic = {},
+            XL = {},
+        },
+        Secret = {
+            Normal = {},
+            Shiny = {},
+            Mythic = {},
+            ShinyMythic = {},
+            XL = {},
+        },
     }
     
     local data = LocalData:Get()
@@ -262,31 +274,26 @@ local function getSkyAltarPets()
             if not pet.Locked then
                 local info = Pets[pet.Name]
                 if info and info.Egg == "Stratus Egg" then
+                    local variantGroup = "Normal"
+                    if pet.XL then
+                        variantGroup = "XL"
+                    elseif pet.Shiny and pet.Mythic then
+                        variantGroup = "ShinyMythic"
+                    elseif pet.Mythic then
+                        variantGroup = "Mythic"
+                    elseif pet.Shiny then
+                        variantGroup = "Shiny"
+                    end
+                    
                     if info.Celestial then
-                        table.insert(groups.Celestial, pet)
+                        table.insert(groups.Celestial[variantGroup], pet)
                     elseif isTrueSecret(info) then
-                        table.insert(groups.Secret, pet)
+                        table.insert(groups.Secret[variantGroup], pet)
                     end
                 end
             end
         end
     end
-    
-    -- Sort: Normal > Shiny > Mythic > Shiny Mythic
-    local function sortPets(pets)
-        table.sort(pets, function(a, b)
-            local function priority(p)
-                if p.Shiny and p.Mythic then return 4
-                elseif p.Mythic then return 3
-                elseif p.Shiny then return 2
-                else return 1 end
-            end
-            return priority(a) < priority(b)
-        end)
-    end
-    
-    sortPets(groups.Celestial)
-    sortPets(groups.Secret)
     
     return groups
 end
@@ -653,12 +660,13 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT ALTAR
+-- UI - EVENT ALTAR (VARIANT GROUPING FIX)
 -- ======================================
 EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
 
 EventTab:CreateLabel("⚠️ Make sure to LOCK your Rainshine if you don't want it to be used!")
 EventTab:CreateLabel("Auto priority: Celestial (Rainshine) > Secret (Empyrean Bolt)")
+EventTab:CreateLabel("Groups by variant: Normal, Shiny, Mythic, Shiny Mythic, XL")
 
 local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
@@ -683,13 +691,38 @@ EventTab:CreateToggle({
                         local selectedPets = {}
                         local mode = ""
                         
-                        -- AUTO: Celestial first if 3+ unlocked
-                        if #groups.Celestial >= 3 then
-                            selectedPets = groups.Celestial
-                            mode = "Celestial"
-                        elseif #groups.Secret >= 3 then
-                            selectedPets = groups.Secret
-                            mode = "Secret"
+                        -- Celestial priority (grouped by variant)
+                        if #groups.Celestial.Normal >= 3 then
+                            selectedPets = groups.Celestial.Normal
+                            mode = "Celestial Normal"
+                        elseif #groups.Celestial.Shiny >= 3 then
+                            selectedPets = groups.Celestial.Shiny
+                            mode = "Celestial Shiny"
+                        elseif #groups.Celestial.Mythic >= 3 then
+                            selectedPets = groups.Celestial.Mythic
+                            mode = "Celestial Mythic"
+                        elseif #groups.Celestial.ShinyMythic >= 3 then
+                            selectedPets = groups.Celestial.ShinyMythic
+                            mode = "Celestial Shiny Mythic"
+                        elseif #groups.Celestial.XL >= 3 then
+                            selectedPets = groups.Celestial.XL
+                            mode = "Celestial XL"
+                        -- Secret fallback (grouped by variant)
+                        elseif #groups.Secret.Normal >= 3 then
+                            selectedPets = groups.Secret.Normal
+                            mode = "Secret Normal"
+                        elseif #groups.Secret.Shiny >= 3 then
+                            selectedPets = groups.Secret.Shiny
+                            mode = "Secret Shiny"
+                        elseif #groups.Secret.Mythic >= 3 then
+                            selectedPets = groups.Secret.Mythic
+                            mode = "Secret Mythic"
+                        elseif #groups.Secret.ShinyMythic >= 3 then
+                            selectedPets = groups.Secret.ShinyMythic
+                            mode = "Secret Shiny Mythic"
+                        elseif #groups.Secret.XL >= 3 then
+                            selectedPets = groups.Secret.XL
+                            mode = "Secret XL"
                         end
                         
                         if #selectedPets >= 3 then
@@ -703,7 +736,7 @@ EventTab:CreateToggle({
                                 task.wait(5)
                             end
                         else
-                            pcall(function() altarTrackerLabel:SetText("Not enough pets") end)
+                            pcall(function() altarTrackerLabel:SetText("Not enough pets (same variant)") end)
                             task.wait(60)
                         end
                     end
@@ -847,12 +880,36 @@ if eventSettings.autoSkyAltar then
                 local selectedPets = {}
                 local mode = ""
                 
-                if #groups.Celestial >= 3 then
-                    selectedPets = groups.Celestial
-                    mode = "Celestial"
-                elseif #groups.Secret >= 3 then
-                    selectedPets = groups.Secret
-                    mode = "Secret"
+                if #groups.Celestial.Normal >= 3 then
+                    selectedPets = groups.Celestial.Normal
+                    mode = "Celestial Normal"
+                elseif #groups.Celestial.Shiny >= 3 then
+                    selectedPets = groups.Celestial.Shiny
+                    mode = "Celestial Shiny"
+                elseif #groups.Celestial.Mythic >= 3 then
+                    selectedPets = groups.Celestial.Mythic
+                    mode = "Celestial Mythic"
+                elseif #groups.Celestial.ShinyMythic >= 3 then
+                    selectedPets = groups.Celestial.ShinyMythic
+                    mode = "Celestial Shiny Mythic"
+                elseif #groups.Celestial.XL >= 3 then
+                    selectedPets = groups.Celestial.XL
+                    mode = "Celestial XL"
+                elseif #groups.Secret.Normal >= 3 then
+                    selectedPets = groups.Secret.Normal
+                    mode = "Secret Normal"
+                elseif #groups.Secret.Shiny >= 3 then
+                    selectedPets = groups.Secret.Shiny
+                    mode = "Secret Shiny"
+                elseif #groups.Secret.Mythic >= 3 then
+                    selectedPets = groups.Secret.Mythic
+                    mode = "Secret Mythic"
+                elseif #groups.Secret.ShinyMythic >= 3 then
+                    selectedPets = groups.Secret.ShinyMythic
+                    mode = "Secret Shiny Mythic"
+                elseif #groups.Secret.XL >= 3 then
+                    selectedPets = groups.Secret.XL
+                    mode = "Secret XL"
                 end
                 
                 if #selectedPets >= 3 then
@@ -872,4 +929,4 @@ if eventSettings.autoSkyAltar then
     end)
 end
 
-print("[Event] Loaded!")
+print("[Event] Loaded! - Variant Grouping Fix")
