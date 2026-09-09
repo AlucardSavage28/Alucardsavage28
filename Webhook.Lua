@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (DELTA - TRUE RARITY DETECTION + FINAL COLORS)
+-- WEBHOOK TAB (DELTA - ORIGIN BYPASS + PING FIX)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -82,6 +82,72 @@ local function isTrackedRarity(info)
 end
 
 -- ======================================
+-- ORIGIN DETECTOR
+-- ======================================
+local function getPetOrigin(info)
+    if not info then return "Unknown" end
+    
+    local egg = info.Egg or ""
+    local tag = info.Tag or ""
+    
+    -- Check Tag first
+    if tag:find("Rebirth Machine") then
+        return "Rebirth Machine"
+    elseif tag:find("Secret Bounty") then
+        return "Bounty"
+    elseif tag:find("Leaderboard") then
+        return "Leaderboard"
+    elseif tag:find("Season") or tag:find("Mega Shop") then
+        return "Season Pass"
+    elseif tag:find("Competitive") or tag:find("Comp") then
+        return "Competitive"
+    elseif tag:find("Global") or tag:find("Incentive") then
+        return "Global Incentive"
+    elseif tag:find("Admin") or info.AdminAbuse then
+        return "Admin Abuse Egg"
+    end
+    
+    -- Check Egg field
+    if egg and egg ~= "" and egg ~= "Unknown" then
+        return egg
+    end
+    
+    return "Unknown"
+end
+
+-- ======================================
+-- CHECK IF ORIGIN BYPASSES THRESHOLD
+-- ======================================
+local function isOriginBypass(origin, rarity)
+    -- Celestial and Infinity from Rebirth Machine
+    if origin == "Rebirth Machine" and (rarity == "Celestial" or rarity == "Infinity") then
+        return true
+    end
+    
+    -- Secret, Celestial, Infinity, Void from Bounty
+    if origin == "Bounty" then
+        return true
+    end
+    
+    -- Season Egg origin
+    if origin == "Season Pass" then
+        return true
+    end
+    
+    -- Comp origin
+    if origin == "Competitive" then
+        return true
+    end
+    
+    -- Leaderboard origin
+    if origin == "Leaderboard" then
+        return true
+    end
+    
+    return false
+end
+
+-- ======================================
 -- ODDS THRESHOLD PARSER
 -- ======================================
 local function parseOddsInput(input)
@@ -121,36 +187,6 @@ local function getThreshold()
 end
 
 -- ======================================
--- ORIGIN DETECTOR
--- ======================================
-local function getPetOrigin(info)
-    if not info then return "Unknown" end
-    
-    local egg = info.Egg or ""
-    local tag = info.Tag or ""
-    
-    if tag:find("Rebirth Machine") then
-        return "Rebirth Machine"
-    elseif tag:find("Leaderboard") then
-        return "Leaderboard"
-    elseif tag:find("Season") or tag:find("Mega Shop") then
-        return "Season Pass"
-    elseif tag:find("Competitive") or tag:find("Comp") then
-        return "Competitive"
-    elseif tag:find("Global") or tag:find("Incentive") then
-        return "Global Incentive"
-    elseif tag:find("Admin") or info.AdminAbuse then
-        return "Admin Abuse Egg"
-    end
-    
-    if egg and egg ~= "" and egg ~= "Unknown" then
-        return egg
-    end
-    
-    return "Unknown"
-end
-
--- ======================================
 -- ENCHANT DISPLAY NAMES
 -- ======================================
 local ENCHANT_NAMES = {
@@ -168,9 +204,9 @@ local ENCHANT_NAMES = {
 -- ======================================
 local COLORS = {
     Secret = {Normal=0xFF0000, Shiny=0xFFD700, Mythic=0x8B00FF, ShinyMythic=0x00FF00},
-    Celestial = {Normal=0x00BFFF, Shiny=0x00FFFF, Mythic=0x87CEEB, ShinyMythic=0xE0FFFF},  -- Neon Blue
-    Infinity = {Normal=0x000080, Shiny=0x0000CD, Mythic=0x191970, ShinyMythic=0x4169E1},  -- Navy Blue
-    Void = {Normal=0x8A2BE2, Shiny=0x9400D3, Mythic=0x4B0082, ShinyMythic=0xDA70D6},  -- Andromeda Galaxy
+    Celestial = {Normal=0x00BFFF, Shiny=0x00FFFF, Mythic=0x87CEEB, ShinyMythic=0xE0FFFF},
+    Infinity = {Normal=0x000080, Shiny=0x0000CD, Mythic=0x191970, ShinyMythic=0x4169E1},
+    Void = {Normal=0x8A2BE2, Shiny=0x9400D3, Mythic=0x4B0082, ShinyMythic=0xDA70D6},
     ["Super Legendary"] = {Normal=0x1E90FF, Shiny=0xFFD700, Mythic=0x8B00FF, ShinyMythic=0x00FF00}
 }
 
@@ -536,7 +572,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (WITH TRUE RARITY DETECTION)
+-- FULL INVENTORY SCANNER (WITH ORIGIN BYPASS + PING FIX)
 -- ======================================
 local knownPets = {}
 
@@ -579,19 +615,22 @@ task.spawn(function()
                         local rarity = isSuper and "Super Legendary" or getTrueRarity(info)
                         knownPets[pet.Id] = true
                         
+                        -- GET ORIGIN
+                        local origin = getPetOrigin(info)
+                        
                         -- CHECK ODDS THRESHOLD FOR PRIVATE WEBHOOK
                         local threshold = getThreshold()
                         local shouldSendPrivate = true
                         
                         if threshold and not isSuper and not isXL then
-                            local oneInX = getOneInX(info and info.Chance)
-                            if oneInX <= threshold then
-                                shouldSendPrivate = false
+                            -- Check if origin bypasses threshold
+                            if not isOriginBypass(origin, rarity) then
+                                local oneInX = getOneInX(info and info.Chance)
+                                if oneInX <= threshold then
+                                    shouldSendPrivate = false
+                                end
                             end
                         end
-                        
-                        -- GET ORIGIN
-                        local origin = getPetOrigin(info)
                         
                         local debugStats = getDebugStats()
                         local statsStr = debugStats.TotalLuck .. "\n" .. debugStats.InfinityLuck .. "\n" .. debugStats.SecretLuck .. "\n" .. debugStats.HatchSpeed
@@ -680,8 +719,14 @@ task.spawn(function()
                                 }
                                 if img then embed.thumbnail = {url = img} end
                                 
+                                -- FIXED PING: Ping for ALL tracked rarities, not just Secret
+                                local pingContent = nil
+                                if DISCORD_USER_ID ~= "" then
+                                    pingContent = "<@"..DISCORD_USER_ID..">"
+                                end
+                                
                                 table.insert(hatchQueue, {
-                                    content = (rarity:find("Secret") and DISCORD_USER_ID ~= "") and "<@"..DISCORD_USER_ID..">" or nil,
+                                    content = pingContent,
                                     embeds = {embed}
                                 })
                                 processHatch()
@@ -802,6 +847,7 @@ WebhookTab:CreateLabel("Only sends private webhook if pet is RARER than this")
 WebhookTab:CreateLabel("Format: 10B = 1/10B, 100M = 1/100M, 1T = 1/1T")
 WebhookTab:CreateLabel("Leave empty to send ALL pets")
 WebhookTab:CreateLabel("Does NOT affect: Super Legendary & XL pets (always sends)")
+WebhookTab:CreateLabel("Bypass: Rebirth Machine (Celestial+Infinity), Bounty, Season, Comp, Leaderboard")
 
 WebhookTab:CreateInput({
     Name = "Only Notify Above (e.g., 10B)",
@@ -859,8 +905,8 @@ WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings if stuck + toggle O
 WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (toggle ON)")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Odds Threshold: Private only, XL & Super exempt")
-WebhookTab:CreateLabel("Origin: Shows where pet came from")
-WebhookTab:CreateLabel("Rarity: Correctly detects Celestial, Infinity, Void")
+WebhookTab:CreateLabel("Origin Bypass: Rebirth(Cel+Inf), Bounty, Season, Comp, Leaderboard")
+WebhookTab:CreateLabel("Ping: ALL tracked rarities now ping User ID")
 WebhookTab:CreateLabel("Colors: Celestial=Neon Blue, Infinity=Navy, Void=Andromeda")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
