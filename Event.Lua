@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (DELTA - VARIANT GROUPING FIX)
+-- EVENT TAB (DELTA - NO AUTO-START / NO SAVE SETTINGS)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -20,22 +20,15 @@ local RemoteFunction = RemoteContainer.RemoteFunction
 local request = http_request or request or (syn and syn.request)
 
 -- ======================================
--- LOAD SAVED SETTINGS
+-- SETTINGS (NO SAVE/LOAD - DEFAULT VALUES ONLY)
 -- ======================================
-local settings = getgenv().HubSettings or {}
-if not settings.event then settings.event = {} end
-local eventSettings = settings.event
-
--- ======================================
--- SETTINGS
--- ======================================
-local selectedEvent = eventSettings.selectedEvent or "Luck Event"
+local selectedEvent = "Luck Event"
 local eventRunning = false
 local eventThread = nil
 
-local autoHatchRiftEnabled = eventSettings.autoHatchRift or false
+local autoHatchRiftEnabled = false
 local autoHatchRiftThread = nil
-local autoSummonRiftEnabled = eventSettings.autoSummonRift or false
+local autoSummonRiftEnabled = false
 local autoSummonRiftThread = nil
 
 local HATCH_AMOUNT = 12
@@ -47,6 +40,9 @@ local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
     "Secret Event", "Infinity Event", "XL Event", "Super Palooza"
 }
+
+-- Event Shop toggles (no save)
+local shopToggles = {}
 
 -- ======================================
 -- EVENT BOARD READER
@@ -193,8 +189,8 @@ end
 local lastSummonState = ""
 
 local function sendSummonWebhook(success)
-    local webhookURL = settings.activity.webhookURL or ""
-    local discordID = settings.activity.userId or ""
+    local webhookURL = getgenv().HubSettings and getgenv().HubSettings.activity and getgenv().HubSettings.activity.webhookURL or ""
+    local discordID = getgenv().HubSettings and getgenv().HubSettings.activity and getgenv().HubSettings.activity.userId or ""
     
     if webhookURL == "" then return end
     if not request then return end
@@ -248,7 +244,7 @@ local function isTrueSecret(info)
 end
 
 -- ======================================
--- SKY ALTAR FUNCTIONS (VARIANT GROUPING FIX)
+-- SKY ALTAR FUNCTIONS (VARIANT GROUPING)
 -- ======================================
 local function getSkyAltarPets()
     local groups = {
@@ -347,7 +343,6 @@ local function useSkyAltar(pets)
         
         task.wait(2)
         
-        -- FORCE CLOSE UI
         skyAltar.Visible = false
         
         return ok
@@ -356,7 +351,7 @@ local function useSkyAltar(pets)
 end
 
 -- ======================================
--- EVENT SHOP BUY ALL (SIMPLE - NO UI OPEN)
+-- EVENT SHOP BUY ALL
 -- ======================================
 local function buyAllItems(itemNumbers)
     for _, itemNum in ipairs(itemNumbers) do
@@ -397,20 +392,14 @@ EventTab:CreateDropdown({
     CurrentOption = selectedEvent,
     Callback = function(v)
         selectedEvent = v
-        eventSettings.selectedEvent = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Add Event",
-    CurrentValue = eventSettings.autoAddEvent or false,
+    CurrentValue = false,
     Callback = function(v)
         eventRunning = v
-        eventSettings.autoAddEvent = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
         if v then
             eventThread = task.spawn(function()
                 while eventRunning do
@@ -431,12 +420,9 @@ EventTab:CreateSection("Spawnable Special Rift")
 
 EventTab:CreateToggle({
     Name = "Auto Hatch",
-    CurrentValue = autoHatchRiftEnabled,
+    CurrentValue = false,
     Callback = function(v)
         autoHatchRiftEnabled = v
-        eventSettings.autoHatchRift = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
         if v then
             autoHatchRiftThread = task.spawn(function()
                 local wasActive = false
@@ -507,12 +493,9 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Summon",
-    CurrentValue = autoSummonRiftEnabled,
+    CurrentValue = false,
     Callback = function(v)
         autoSummonRiftEnabled = v
-        eventSettings.autoSummonRift = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
         if v then
             autoSummonRiftThread = task.spawn(function()
                 while autoSummonRiftEnabled do
@@ -538,129 +521,111 @@ EventTab:CreateToggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP (SIMPLE ENDLESS)
+-- UI - EVENT SHOP
 -- ======================================
 EventTab:CreateSection("Event Shop")
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Event Egg (1)",
-    CurrentValue = eventSettings.autoShop1 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop1 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[1] = v
         if v then
-            task.spawn(function() while v do buyAllItems({1}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[1] do buyAllItems({1}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Boost Crystal (2)",
-    CurrentValue = eventSettings.autoShop2 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop2 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[2] = v
         if v then
-            task.spawn(function() while v do buyAllItems({2}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[2] do buyAllItems({2}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Event Elixir (3)",
-    CurrentValue = eventSettings.autoShop3 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop3 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[3] = v
         if v then
-            task.spawn(function() while v do buyAllItems({3}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[3] do buyAllItems({3}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Infinity Elixir (4,5,6,7)",
-    CurrentValue = eventSettings.autoShop4 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop4 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[4] = v
         if v then
-            task.spawn(function() while v do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[4] do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Infinity Luck/Mythic/Gold (8,9,10)",
-    CurrentValue = eventSettings.autoShop5 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop5 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[5] = v
         if v then
-            task.spawn(function() while v do buyAllItems({8, 9, 10}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[5] do buyAllItems({8, 9, 10}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Normal Pet (11)",
-    CurrentValue = eventSettings.autoShop6 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop6 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[6] = v
         if v then
-            task.spawn(function() while v do buyAllItems({11}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[6] do buyAllItems({11}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All XL Pet (12)",
-    CurrentValue = eventSettings.autoShop7 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop7 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[7] = v
         if v then
-            task.spawn(function() while v do buyAllItems({12}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[7] do buyAllItems({12}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Green & Blue Fragment (13,14)",
-    CurrentValue = eventSettings.autoShop8 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop8 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[8] = v
         if v then
-            task.spawn(function() while v do buyAllItems({13, 14}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[8] do buyAllItems({13, 14}) task.wait(5) end end)
         end
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Purple & Rainbow Fragment (15,16)",
-    CurrentValue = eventSettings.autoShop9 or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoShop9 = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
+        shopToggles[9] = v
         if v then
-            task.spawn(function() while v do buyAllItems({15, 16}) task.wait(5) end end)
+            task.spawn(function() while shopToggles[9] do buyAllItems({15, 16}) task.wait(5) end end)
         end
     end
 })
 
 -- ======================================
--- UI - EVENT ALTAR (VARIANT GROUPING FIX)
+-- UI - EVENT ALTAR
 -- ======================================
 EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
 
@@ -672,11 +637,8 @@ local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
 
 EventTab:CreateToggle({
     Name = "Auto Event Altar",
-    CurrentValue = eventSettings.autoSkyAltar or false,
+    CurrentValue = false,
     Callback = function(v)
-        eventSettings.autoSkyAltar = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
         if v then
             task.spawn(function()
                 while v do
@@ -691,7 +653,6 @@ EventTab:CreateToggle({
                         local selectedPets = {}
                         local mode = ""
                         
-                        -- Celestial priority (grouped by variant)
                         if #groups.Celestial.Normal >= 3 then
                             selectedPets = groups.Celestial.Normal
                             mode = "Celestial Normal"
@@ -707,7 +668,6 @@ EventTab:CreateToggle({
                         elseif #groups.Celestial.XL >= 3 then
                             selectedPets = groups.Celestial.XL
                             mode = "Celestial XL"
-                        -- Secret fallback (grouped by variant)
                         elseif #groups.Secret.Normal >= 3 then
                             selectedPets = groups.Secret.Normal
                             mode = "Secret Normal"
@@ -746,187 +706,4 @@ EventTab:CreateToggle({
     end
 })
 
--- ======================================
--- AUTO-START
--- ======================================
-if eventSettings.autoAddEvent then
-    eventRunning = true
-    eventThread = task.spawn(function()
-        while eventRunning do
-            pcall(function() RE:FireServer("PurchaseEventBoard", selectedEvent) end)
-            task.wait(900)
-        end
-    end)
-end
-
-if autoHatchRiftEnabled then
-    autoHatchRiftThread = task.spawn(function()
-        local wasActive = false
-        local currentLuck = 0
-        local lastCheckTime = 0
-        local riftExists = false
-        
-        while autoHatchRiftEnabled do
-            while getgenv().questActive and autoHatchRiftEnabled do
-                wasActive = false
-                task.wait(0.5)
-            end
-            
-            local higherPriorityActive = false
-            if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") or isRiftExists("shadow-rift") or isRiftExists("doodle-rift") then
-                higherPriorityActive = true
-            end
-            
-            if higherPriorityActive then
-                wasActive = false
-                riftExists = false
-                task.wait(1)
-                continue
-            end
-            
-            local now = tick()
-            if now - lastCheckTime >= 5 then
-                lastCheckTime = now
-                riftExists = isRiftExists(riftName)
-                if riftExists then
-                    currentLuck = teleportToBestRift(riftName)
-                end
-            end
-            
-            if riftExists then
-                if getgenv().questActive then continue end
-                
-                getgenv().questActive = true
-                getgenv().questEgg = riftEgg
-                
-                if not wasActive then
-                    getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
-                    getgenv().ActivityStatus.trigger = true
-                    wasActive = true
-                end
-                
-                pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
-                task.wait(0.05)
-            else
-                if wasActive then
-                    getgenv().ActivityStatus.current = "Rift gone, waiting..."
-                    getgenv().ActivityStatus.trigger = true
-                    wasActive = false
-                end
-                getgenv().questActive = false
-                getgenv().questEgg = nil
-                task.wait(1)
-            end
-        end
-    end)
-end
-
-if autoSummonRiftEnabled then
-    autoSummonRiftThread = task.spawn(function()
-        while autoSummonRiftEnabled do
-            summonRift()
-            task.wait(5)
-            
-            if isRiftExists(riftName) then
-                sendSummonWebhook(true)
-            else
-                sendSummonWebhook(false)
-            end
-            
-            task.wait(3300)
-        end
-    end)
-end
-
-if eventSettings.autoShop1 then
-    task.spawn(function() while eventSettings.autoShop1 do buyAllItems({1}) task.wait(5) end end)
-end
-if eventSettings.autoShop2 then
-    task.spawn(function() while eventSettings.autoShop2 do buyAllItems({2}) task.wait(5) end end)
-end
-if eventSettings.autoShop3 then
-    task.spawn(function() while eventSettings.autoShop3 do buyAllItems({3}) task.wait(5) end end)
-end
-if eventSettings.autoShop4 then
-    task.spawn(function() while eventSettings.autoShop4 do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
-end
-if eventSettings.autoShop5 then
-    task.spawn(function() while eventSettings.autoShop5 do buyAllItems({8, 9, 10}) task.wait(5) end end)
-end
-if eventSettings.autoShop6 then
-    task.spawn(function() while eventSettings.autoShop6 do buyAllItems({11}) task.wait(5) end end)
-end
-if eventSettings.autoShop7 then
-    task.spawn(function() while eventSettings.autoShop7 do buyAllItems({12}) task.wait(5) end end)
-end
-if eventSettings.autoShop8 then
-    task.spawn(function() while eventSettings.autoShop8 do buyAllItems({13, 14}) task.wait(5) end end)
-end
-if eventSettings.autoShop9 then
-    task.spawn(function() while eventSettings.autoShop9 do buyAllItems({15, 16}) task.wait(5) end end)
-end
-
-if eventSettings.autoSkyAltar then
-    task.spawn(function()
-        while eventSettings.autoSkyAltar do
-            local cooldownText = getCooldownText()
-            local cooldownSeconds = parseCooldown(cooldownText)
-            
-            if cooldownSeconds and cooldownSeconds > 0 then
-                pcall(function() altarTrackerLabel:SetText("Cooldown: " .. cooldownText) end)
-                task.wait(math.min(cooldownSeconds + 5, 60))
-            else
-                local groups = getSkyAltarPets()
-                local selectedPets = {}
-                local mode = ""
-                
-                if #groups.Celestial.Normal >= 3 then
-                    selectedPets = groups.Celestial.Normal
-                    mode = "Celestial Normal"
-                elseif #groups.Celestial.Shiny >= 3 then
-                    selectedPets = groups.Celestial.Shiny
-                    mode = "Celestial Shiny"
-                elseif #groups.Celestial.Mythic >= 3 then
-                    selectedPets = groups.Celestial.Mythic
-                    mode = "Celestial Mythic"
-                elseif #groups.Celestial.ShinyMythic >= 3 then
-                    selectedPets = groups.Celestial.ShinyMythic
-                    mode = "Celestial Shiny Mythic"
-                elseif #groups.Celestial.XL >= 3 then
-                    selectedPets = groups.Celestial.XL
-                    mode = "Celestial XL"
-                elseif #groups.Secret.Normal >= 3 then
-                    selectedPets = groups.Secret.Normal
-                    mode = "Secret Normal"
-                elseif #groups.Secret.Shiny >= 3 then
-                    selectedPets = groups.Secret.Shiny
-                    mode = "Secret Shiny"
-                elseif #groups.Secret.Mythic >= 3 then
-                    selectedPets = groups.Secret.Mythic
-                    mode = "Secret Mythic"
-                elseif #groups.Secret.ShinyMythic >= 3 then
-                    selectedPets = groups.Secret.ShinyMythic
-                    mode = "Secret Shiny Mythic"
-                elseif #groups.Secret.XL >= 3 then
-                    selectedPets = groups.Secret.XL
-                    mode = "Secret XL"
-                end
-                
-                if #selectedPets >= 3 then
-                    local success = useSkyAltar(selectedPets)
-                    if success then
-                        getgenv().ActivityStatus.current = "Event Altar used (" .. mode .. ")"
-                        getgenv().ActivityStatus.trigger = true
-                        task.wait(10)
-                    else
-                        task.wait(5)
-                    end
-                else
-                    task.wait(60)
-                end
-            end
-        end
-    end)
-end
-
-print("[Event] Loaded! - Variant Grouping Fix")
+print("[Event] Loaded!")
