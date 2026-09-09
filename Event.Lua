@@ -706,4 +706,4 @@ EventTab:CreateToggle({
     end
 })
 
-print("[Event] Loaded!")
+print("[Event] Loaded! - No Save Settings")
