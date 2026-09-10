@@ -1,5 +1,5 @@
 -- ================================================
--- QUEST TAB (SEASON + GLOBAL + CLAIM)
+-- QUEST TAB (DELTA - SEASON CLAIM WITH PREMIUM PET WATCHER)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -10,9 +10,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
+local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 local constants = require(ReplicatedStorage.Shared.Constants)
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
+local HttpService = game:GetService("HttpService")
+
+local request = http_request or request or (syn and syn.request)
 
 -- ======================================
 -- LOAD SAVED SETTINGS
@@ -265,7 +269,6 @@ local function completeQuest(quest)
                 
                 restorePosition(prevPos)
             else
-                -- Add to skipped list so it doesn't retry
                 skippedQuests[quest.id] = true
                 getgenv().questActive = false
                 getgenv().questEgg = nil
@@ -434,6 +437,86 @@ local function questLoop(filter)
 end
 
 -- ======================================
+-- SEASON CLAIM FUNCTIONS (PREMIUM PET WATCHER)
+-- ======================================
+local function getPetTrueRarity(petName)
+    local info = Pets[petName]
+    if not info then return nil end
+    if info.Void then return "Void"
+    elseif info.Infinity then return "Infinity"
+    elseif info.Celestial then return "Celestial"
+    end
+    return nil
+end
+
+local function checkSeasonPremiumPet()
+    local data = LocalData:Get()
+    if not data or not data.Season then return nil end
+    
+    -- If player HAS Premium, never stop
+    if data.Season.Premium then
+        return nil
+    end
+    
+    local currentLevel = data.Season.Level
+    
+    if data.Season.InfinityTiers then
+        for _, tier in ipairs(data.Season.InfinityTiers) do
+            if tier.Tier == currentLevel and tier.Premium and tier.Premium.Type == "Pet" then
+                local rarity = getPetTrueRarity(tier.Premium.Name)
+                if rarity then
+                    return {
+                        name = tier.Premium.Name,
+                        rarity = rarity,
+                        xl = tier.Premium.XL,
+                        tier = tier.Tier,
+                    }
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+local function sendSeasonPremiumWebhook(premiumPet)
+    local webhookURL = settings.activity and settings.activity.webhookURL or ""
+    local discordID = settings.activity and settings.activity.userId or ""
+    
+    if webhookURL == "" then return end
+    if not request then return end
+    
+    local rarityText = premiumPet.rarity
+    if premiumPet.xl then rarityText = rarityText .. " XL" end
+    
+    local pingMsg = ""
+    if discordID ~= "" then
+        pingMsg = "<@" .. discordID .. "> "
+    end
+    
+    pcall(function()
+        request({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                content = pingMsg .. "🚨 STOP! Premium Season Pet Found!",
+                embeds = {{
+                    title = "🚨 PREMIUM SEASON PET FOUND!",
+                    description = "**Auto Claim has STOPPED!**\n\n" ..
+                                  "**Pet:** " .. premiumPet.name .. "\n" ..
+                                  "**Rarity:** " .. rarityText .. "\n" ..
+                                  "**Tier:** " .. premiumPet.tier .. "\n\n" ..
+                                  "⚠️ Buy the Premium Pass before claiming to get this pet!",
+                    color = 0xFF0000,
+                    footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
+                }}
+            })
+        })
+    end)
+end
+
+-- ======================================
 -- UI
 -- ======================================
 QuestTab:CreateSection("Season Pass")
@@ -473,27 +556,58 @@ QuestTab:CreateToggle({
     end
 })
 
+QuestTab:CreateLabel("Note: Auto Claim will STOP if there's a Celestial/Infinity/Void pet on Premium side!")
+QuestTab:CreateLabel("(Only works if you DON'T have Premium Pass)")
+
+local seasonStatusLabel = QuestTab:CreateLabel("Season Auto Claim: OFF")
+
 QuestTab:CreateToggle({
     Name = "Auto Claim Season Pass",
-    CurrentValue = questSettings.autoClaimSeason or false,
+    CurrentValue = false,
     Callback = function(v)
         claimRunning = v
-        questSettings.autoClaimSeason = v
-        getgenv().HubSettings.quest = questSettings
-        saveHubSettings()
         if v then
+            pcall(function()
+                seasonStatusLabel:SetText("Season Auto Claim: ON")
+            end)
+            
             claimThread = task.spawn(function()
                 while claimRunning do
-                    pcall(function() Remote:FireServer("ClaimSeason") end)
-                    task.wait(5)
+                    local premiumPet = checkSeasonPremiumPet()
+                    
+                    if premiumPet then
+                        claimRunning = false
+                        
+                        local rarityText = premiumPet.rarity
+                        if premiumPet.xl then rarityText = rarityText .. " XL" end
+                        
+                        getgenv().ActivityStatus.current = "🚨 Season Premium Pet: " .. premiumPet.name .. " [" .. rarityText .. "]!"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        pcall(function()
+                            seasonStatusLabel:SetText("🚨 STOPPED: " .. premiumPet.name .. " [" .. rarityText .. "] at Tier " .. premiumPet.tier)
+                        end)
+                        
+                        sendSeasonPremiumWebhook(premiumPet)
+                        break
+                    end
+                    
+                    pcall(function() RE:FireServer("ClaimSeason") end)
+                    task.wait(3)
                 end
             end)
         else
             if claimThread then task.cancel(claimThread) end
+            pcall(function()
+                seasonStatusLabel:SetText("Season Auto Claim: OFF")
+            end)
         end
     end
 })
 
+-- ======================================
+-- GLOBAL INCENTIVE
+-- ======================================
 QuestTab:CreateSection("Global Incentive")
 
 QuestTab:CreateToggle({
@@ -559,16 +673,6 @@ if questSettings.autoSeason then
     seasonThread = task.spawn(questLoop("challenge"))
 end
 
-if questSettings.autoClaimSeason then
-    claimRunning = true
-    claimThread = task.spawn(function()
-        while claimRunning do
-            pcall(function() Remote:FireServer("ClaimSeason") end)
-            task.wait(5)
-        end
-    end)
-end
-
 if questSettings.autoGlobal then
     globalRunning = true
     globalThread = task.spawn(function()
@@ -583,7 +687,7 @@ if questSettings.autoGlobal then
                 local questToDo = nil
                 for _, q in ipairs(quests) do
                     local curr = q.currency or ""
-                    if q.type == "Collect" and curr:lower():find("pearl") then
+                    if q.Type == "Collect" and curr:lower():find("pearl") then
                         if not skippedQuests[q.id] then
                             questToDo = q
                             break
