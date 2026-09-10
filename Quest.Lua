@@ -1,5 +1,5 @@
 -- ================================================
--- QUEST TAB (DELTA - SEASON CLAIM WITH PREMIUM PET WATCHER)
+-- QUEST TAB (DELTA - SEASON CLAIM WITH UI CLOSE FIX)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -453,7 +453,6 @@ local function checkSeasonPremiumPet()
     local data = LocalData:Get()
     if not data or not data.Season then return nil end
     
-    -- If player HAS Premium, never stop
     if data.Season.Premium then
         return nil
     end
@@ -573,6 +572,15 @@ QuestTab:CreateToggle({
             
             claimThread = task.spawn(function()
                 while claimRunning do
+                    -- Close Season UI to prevent error spam
+                    local playerGui = player:FindFirstChild("PlayerGui")
+                    local screenGui = playerGui and playerGui:FindFirstChild("ScreenGui")
+                    local seasonUI = screenGui and screenGui:FindFirstChild("Season")
+                    if seasonUI and seasonUI.Visible then
+                        seasonUI.Visible = false
+                        task.wait(1.5)
+                    end
+                    
                     local premiumPet = checkSeasonPremiumPet()
                     
                     if premiumPet then
@@ -593,7 +601,7 @@ QuestTab:CreateToggle({
                     end
                     
                     pcall(function() RE:FireServer("ClaimSeason") end)
-                    task.wait(3)
+                    task.wait(5)
                 end
             end)
         else
@@ -687,7 +695,7 @@ if questSettings.autoGlobal then
                 local questToDo = nil
                 for _, q in ipairs(quests) do
                     local curr = q.currency or ""
-                    if q.Type == "Collect" and curr:lower():find("pearl") then
+                    if q.type == "Collect" and curr:lower():find("pearl") then
                         if not skippedQuests[q.id] then
                             questToDo = q
                             break
