@@ -1,5 +1,5 @@
 -- ================================================
--- PETS TAB (DELTA - BULK DELETE + TRUE SECRET ONLY)
+-- PETS TAB (DELTA - BULK DELETE + TRUE SECRET + XL EXCLUDED)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -186,7 +186,6 @@ PetTab:CreateSection("Auto delete Pet")
 
 PetTab:CreateLabel("Note: First toggle only deletes T3 Legendary from perm egg THAT CAN be Super legendary (Safe Tested many time🔥)")
 
--- Toggle 1: Auto Delete T3 Legendary (BULK - SILENT)
 PetTab:CreateToggle({
     Name = "Auto Delete T3 Legendary",
     CurrentValue = autoDeleteT3Enabled,
@@ -223,7 +222,6 @@ PetTab:CreateToggle({
     end
 })
 
--- Toggle 2: Auto Delete Rarity (BULK - SILENT)
 PetTab:CreateToggle({
     Name = "Auto Delete Rarity (Common, Unique, Rare, Epic, Legendary)",
     CurrentValue = autoDeleteRarityEnabled,
@@ -261,7 +259,7 @@ PetTab:CreateToggle({
 })
 
 -- ======================================
--- UI - REBIRTH MACHINE (UNCHANGED)
+-- UI - REBIRTH MACHINE
 -- ======================================
 PetTab:CreateSection("Rebirth Machine")
 
@@ -279,7 +277,7 @@ PetTab:CreateDropdown({
     Options = {"Normal","Shiny","Mythic","Shiny Mythic"},
     CurrentOption = "Normal",
     Callback = function(V)
-        selectedVariant = V
+        selectedVariant = type(V) == "table" and V[1] or V
     end,
 })
 
@@ -301,12 +299,13 @@ PetTab:CreateToggle({
 })
 
 -- ======================================
--- REBIRTH MACHINE (ALL UNLOCKED) - TRUE SECRET ONLY
+-- REBIRTH MACHINE (ALL UNLOCKED) - TRUE SECRET ONLY + XL EXCLUDED
 -- ======================================
 PetTab:CreateSection("Rebirth Machine (All Unlocked)")
 
 PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
 PetTab:CreateLabel("Only uses TRUE Secret pets (NOT Celestial, Infinity, Void)")
+PetTab:CreateLabel("XL pets are EXCLUDED from Rebirth Machine")
 
 local trackerLabel = PetTab:CreateLabel("Last Used: None")
 
@@ -331,9 +330,9 @@ PetTab:CreateToggle({
                     
                     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
                     for _, pet in pairs(data.Pets) do
-                        if not pet.Locked then
+                        if not pet.Locked and not pet.XL then  -- EXCLUDE XL
                             local info = Pets[pet.Name]
-                            if isTrueSecret(info) then  -- FIXED: Only TRUE Secret
+                            if isTrueSecret(info) then
                                 if pet.Shiny and pet.Mythic then
                                     table.insert(groups.ShinyMythic, pet)
                                 elseif pet.Shiny then
@@ -462,4 +461,4 @@ if autoDeleteRarityEnabled then
     end)
 end
 
-print("[Pets] Loaded!")
+print("[Pets] Loaded! ")
