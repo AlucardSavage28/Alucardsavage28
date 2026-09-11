@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (DELTA - NO AUTO-START / NO SAVE SETTINGS)
+-- EVENT TAB (DELTA - MULTI-SELECT + QUEST PRIORITY)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -20,15 +20,26 @@ local RemoteFunction = RemoteContainer.RemoteFunction
 local request = http_request or request or (syn and syn.request)
 
 -- ======================================
--- SETTINGS (NO SAVE/LOAD - DEFAULT VALUES ONLY)
+-- LOAD SAVED SETTINGS
 -- ======================================
-local selectedEvent = "Luck Event"
+local settings = getgenv().HubSettings or {}
+if not settings.event then settings.event = {} end
+local eventSettings = settings.event
+
+-- ======================================
+-- SETTINGS
+-- ======================================
+local selectedEvents = eventSettings.selectedEvents or {"Luck Event"}
+if type(selectedEvents) == "string" then
+    selectedEvents = {selectedEvents}
+end
+
 local eventRunning = false
 local eventThread = nil
 
-local autoHatchRiftEnabled = false
+local autoHatchRiftEnabled = eventSettings.autoHatchRift or false
 local autoHatchRiftThread = nil
-local autoSummonRiftEnabled = false
+local autoSummonRiftEnabled = eventSettings.autoSummonRift or false
 local autoSummonRiftThread = nil
 
 local HATCH_AMOUNT = 12
@@ -40,9 +51,6 @@ local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
     "Secret Event", "Infinity Event", "XL Event", "Super Palooza"
 }
-
--- Event Shop toggles (no save)
-local shopToggles = {}
 
 -- ======================================
 -- EVENT BOARD READER
@@ -189,8 +197,8 @@ end
 local lastSummonState = ""
 
 local function sendSummonWebhook(success)
-    local webhookURL = getgenv().HubSettings and getgenv().HubSettings.activity and getgenv().HubSettings.activity.webhookURL or ""
-    local discordID = getgenv().HubSettings and getgenv().HubSettings.activity and getgenv().HubSettings.activity.userId or ""
+    local webhookURL = settings.activity.webhookURL or ""
+    local discordID = settings.activity.userId or ""
     
     if webhookURL == "" then return end
     if not request then return end
@@ -387,23 +395,39 @@ task.spawn(function()
 end)
 
 EventTab:CreateDropdown({
-    Name = "Select Event",
+    Name = "Select Events (Multi-Select)",
     Options = EVENTS,
-    CurrentOption = selectedEvent,
+    CurrentOption = selectedEvents,
+    MultipleOptions = true,
     Callback = function(v)
-        selectedEvent = v
+        if type(v) == "table" then
+            selectedEvents = v
+        else
+            selectedEvents = {v}
+        end
+        eventSettings.selectedEvents = selectedEvents
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
     end
 })
 
 EventTab:CreateToggle({
     Name = "Auto Add Event",
-    CurrentValue = false,
+    CurrentValue = eventSettings.autoAddEvent or false,
     Callback = function(v)
         eventRunning = v
+        eventSettings.autoAddEvent = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             eventThread = task.spawn(function()
                 while eventRunning do
-                    pcall(function() RE:FireServer("PurchaseEventBoard", selectedEvent) end)
+                    for _, eventName in ipairs(selectedEvents) do
+                        if not eventRunning then break end
+                        local value = type(eventName) == "table" and eventName[1] or eventName
+                        pcall(function() RE:FireServer("PurchaseEventBoard", value) end)
+                        task.wait(1)
+                    end
                     task.wait(900)
                 end
             end)
@@ -420,9 +444,12 @@ EventTab:CreateSection("Spawnable Special Rift")
 
 EventTab:CreateToggle({
     Name = "Auto Hatch",
-    CurrentValue = false,
+    CurrentValue = autoHatchRiftEnabled,
     Callback = function(v)
         autoHatchRiftEnabled = v
+        eventSettings.autoHatchRift = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             autoHatchRiftThread = task.spawn(function()
                 local wasActive = false
@@ -431,6 +458,7 @@ EventTab:CreateToggle({
                 local riftExists = false
                 
                 while autoHatchRiftEnabled do
+                    -- WAIT FOR QUEST (highest priority)
                     while getgenv().questActive and autoHatchRiftEnabled do
                         wasActive = false
                         task.wait(0.5)
@@ -493,9 +521,12 @@ EventTab:CreateToggle({
 
 EventTab:CreateToggle({
     Name = "Auto Summon",
-    CurrentValue = false,
+    CurrentValue = autoSummonRiftEnabled,
     Callback = function(v)
         autoSummonRiftEnabled = v
+        eventSettings.autoSummonRift = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             autoSummonRiftThread = task.spawn(function()
                 while autoSummonRiftEnabled do
@@ -524,6 +555,8 @@ EventTab:CreateToggle({
 -- UI - EVENT SHOP
 -- ======================================
 EventTab:CreateSection("Event Shop")
+
+local shopToggles = {}
 
 EventTab:CreateToggle({
     Name = "Auto Buy All Event Egg (1)",
@@ -706,4 +739,4 @@ EventTab:CreateToggle({
     end
 })
 
-print("[Event] Loaded! - No Save Settings")
+print("[Event] Loaded!")
