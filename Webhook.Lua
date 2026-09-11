@@ -1,5 +1,5 @@
 -- ================================================
--- WEBHOOK TAB (DELTA - ORIGIN BYPASS + PING FIX)
+-- WEBHOOK TAB (DELTA - FINAL COLOR SCHEME)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -90,7 +90,6 @@ local function getPetOrigin(info)
     local egg = info.Egg or ""
     local tag = info.Tag or ""
     
-    -- Check Tag first
     if tag:find("Rebirth Machine") then
         return "Rebirth Machine"
     elseif tag:find("Secret Bounty") then
@@ -107,7 +106,6 @@ local function getPetOrigin(info)
         return "Admin Abuse Egg"
     end
     
-    -- Check Egg field
     if egg and egg ~= "" and egg ~= "Unknown" then
         return egg
     end
@@ -119,31 +117,42 @@ end
 -- CHECK IF ORIGIN BYPASSES THRESHOLD
 -- ======================================
 local function isOriginBypass(origin, rarity)
-    -- Celestial and Infinity from Rebirth Machine
+    -- Rebirth Machine: ONLY Celestial/Infinity
     if origin == "Rebirth Machine" and (rarity == "Celestial" or rarity == "Infinity") then
         return true
     end
     
-    -- Secret, Celestial, Infinity, Void from Bounty
+    -- Bounty: ALL rarities
     if origin == "Bounty" then
         return true
     end
     
-    -- Season Egg origin
-    if origin == "Season Pass" then
+    -- Season Pass: ONLY Celestial/Infinity/Void
+    if origin == "Season Pass" and (rarity == "Celestial" or rarity == "Infinity" or rarity == "Void") then
         return true
     end
     
-    -- Comp origin
+    -- Competitive: ALL rarities
     if origin == "Competitive" then
         return true
     end
     
-    -- Leaderboard origin
+    -- Leaderboard: ALL rarities
     if origin == "Leaderboard" then
         return true
     end
     
+    return false
+end
+
+-- ======================================
+-- CHECK IF PET SHOULD BE SKIPPED ENTIRELY
+-- ======================================
+local function shouldSkipPet(origin, rarity)
+    -- Season Pass Secret pets are always skipped (trash)
+    if origin == "Season Pass" and rarity == "Secret" then
+        return true
+    end
     return false
 end
 
@@ -200,15 +209,64 @@ local ENCHANT_NAMES = {
 }
 
 -- ======================================
--- COLORS (FINAL)
+-- COLORS (FINAL SCHEME)
 -- ======================================
-local COLORS = {
-    Secret = {Normal=0xFF0000, Shiny=0xFFD700, Mythic=0x8B00FF, ShinyMythic=0x00FF00},
-    Celestial = {Normal=0x00BFFF, Shiny=0x00FFFF, Mythic=0x87CEEB, ShinyMythic=0xE0FFFF},
-    Infinity = {Normal=0x000080, Shiny=0x0000CD, Mythic=0x191970, ShinyMythic=0x4169E1},
-    Void = {Normal=0x8A2BE2, Shiny=0x9400D3, Mythic=0x4B0082, ShinyMythic=0xDA70D6},
-    ["Super Legendary"] = {Normal=0x1E90FF, Shiny=0xFFD700, Mythic=0x8B00FF, ShinyMythic=0x00FF00}
-}
+local function getColorForPet(rarity, variant, isXL, origin)
+    -- XL takes priority (any rarity, any variant)
+    if isXL then
+        if variant == "Normal" then return 0x808000 end         -- Olive
+        if variant == "Shiny" then return 0x87CEEB end          -- Sky Blue
+        if variant == "Mythic" then return 0x8B008B end         -- Dark Magenta
+        if variant == "ShinyMythic" then return 0x006400 end    -- Dark Green
+    end
+    
+    -- Bounty Secret (special colors)
+    if origin == "Bounty" and rarity == "Secret" then
+        if variant == "Normal" then return 0xDC143C end         -- Crimson
+        if variant == "Shiny" then return 0xFFBF00 end          -- Amber
+        if variant == "Mythic" then return 0xFF69B4 end         -- Hot Pink
+        if variant == "ShinyMythic" then return 0x50C878 end    -- Emerald
+    end
+    
+    -- Normal Secret = plain gray (all variants)
+    if rarity == "Secret" then
+        return 0x808080  -- Gray
+    end
+    
+    -- Celestial variants
+    if rarity == "Celestial" then
+        if variant == "Normal" then return 0x00BFFF end         -- Neon Blue
+        if variant == "Shiny" then return 0xFFFF00 end          -- Yellow
+        if variant == "Mythic" then return 0xFF00FF end         -- Magenta
+        if variant == "ShinyMythic" then return 0x00FF00 end    -- Lime
+    end
+    
+    -- Infinity variants
+    if rarity == "Infinity" then
+        if variant == "Normal" then return 0x000080 end         -- Navy
+        if variant == "Shiny" then return 0xFFFF00 end          -- Yellow
+        if variant == "Mythic" then return 0xFF00FF end         -- Magenta
+        if variant == "ShinyMythic" then return 0x00FF00 end    -- Lime
+    end
+    
+    -- Void variants
+    if rarity == "Void" then
+        if variant == "Normal" then return 0x8A2BE2 end         -- Andromeda Purple
+        if variant == "Shiny" then return 0xFFFF00 end          -- Yellow
+        if variant == "Mythic" then return 0xFF00FF end         -- Magenta
+        if variant == "ShinyMythic" then return 0x00FF00 end    -- Lime
+    end
+    
+    -- Super Legendary
+    if rarity == "Super Legendary" then
+        if variant == "Normal" then return 0x1E90FF end
+        if variant == "Shiny" then return 0xFFFF00 end
+        if variant == "Mythic" then return 0xFF00FF end
+        if variant == "ShinyMythic" then return 0x00FF00 end
+    end
+    
+    return 16777215  -- Default white
+end
 
 -- ======================================
 -- DATA
@@ -403,7 +461,7 @@ local function processPublic() if not publicProcessing then publicProcessing = t
 local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
 
 -- ======================================
--- STUCK DETECTION + REJOIN (EVERY 2 MIN - TOGGLE CONTROLLED)
+-- STUCK DETECTION + REJOIN
 -- ======================================
 local lastHatchesForStuck = 0
 local zeroHatchCount = 0
@@ -477,7 +535,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- REGULAR ONLINE PING (EVERY 30 MIN - PINGS IF TOGGLE ON AND STUCK)
+-- REGULAR ONLINE PING
 -- ======================================
 local startTime = os.time()
 local lastPingTime = os.time()
@@ -572,7 +630,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (WITH ORIGIN BYPASS + PING FIX)
+-- FULL INVENTORY SCANNER (FINAL COLOR SCHEME)
 -- ======================================
 local knownPets = {}
 
@@ -618,12 +676,16 @@ task.spawn(function()
                         -- GET ORIGIN
                         local origin = getPetOrigin(info)
                         
+                        -- CHECK IF SHOULD SKIP ENTIRELY
+                        if shouldSkipPet(origin, rarity) then
+                            continue
+                        end
+                        
                         -- CHECK ODDS THRESHOLD FOR PRIVATE WEBHOOK
                         local threshold = getThreshold()
                         local shouldSendPrivate = true
                         
                         if threshold and not isSuper and not isXL then
-                            -- Check if origin bypasses threshold
                             if not isOriginBypass(origin, rarity) then
                                 local oneInX = getOneInX(info and info.Chance)
                                 if oneInX <= threshold then
@@ -687,22 +749,25 @@ task.spawn(function()
                             processPublic()
                         else
                             local variant = "Normal"
-                            if isXL and pet.Shiny and pet.Mythic then variant = "XL Shiny Mythic"
-                            elseif isXL and pet.Shiny then variant = "XL Shiny"
-                            elseif isXL and pet.Mythic then variant = "XL Mythic"
-                            elseif isXL then variant = "XL"
-                            elseif pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
-                            elseif pet.Shiny then variant = "Shiny"
-                            elseif pet.Mythic then variant = "Mythic" end
-                            local color = (COLORS[rarity] and COLORS[rarity][variant:gsub("^XL ", "")]) or 16777215
-                            if isXL then color = 0xFFA500 end
+                            local variantKey = "Normal"
+                            if isXL and pet.Shiny and pet.Mythic then variant = "XL Shiny Mythic"; variantKey = "ShinyMythic"
+                            elseif isXL and pet.Shiny then variant = "XL Shiny"; variantKey = "Shiny"
+                            elseif isXL and pet.Mythic then variant = "XL Mythic"; variantKey = "Mythic"
+                            elseif isXL then variant = "XL"; variantKey = "Normal"
+                            elseif pet.Shiny and pet.Mythic then variant = "Shiny Mythic"; variantKey = "ShinyMythic"
+                            elseif pet.Shiny then variant = "Shiny"; variantKey = "Shiny"
+                            elseif pet.Mythic then variant = "Mythic"; variantKey = "Mythic" end
+                            
+                            -- USE FINAL COLOR SCHEME
+                            local color = getColorForPet(rarity, variantKey, isXL, origin)
+                            
                             local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
                             local displayName = hideUsername and "Hidden" or player.Name
                             local coins = formatNum(data.Coins or 0)
                             local gems = formatNum(data.Gems or 0)
                             local opened = formatNum(data.EggsOpened and data.EggsOpened["Common Egg"] or 0)
                             local chance = info and getPetChance(info) or "Unknown"
-                            local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variant:gsub("^XL ", "")) or nil)
+                            local existStr = getExists(pet.Name, variant ~= "Normal" and getVariantText(variantKey) or nil)
                             local displayRarity = isXL and ("XL " .. rarity) or rarity
                             
                             if shouldSendPrivate then
@@ -719,7 +784,6 @@ task.spawn(function()
                                 }
                                 if img then embed.thumbnail = {url = img} end
                                 
-                                -- FIXED PING: Ping for ALL tracked rarities, not just Secret
                                 local pingContent = nil
                                 if DISCORD_USER_ID ~= "" then
                                     pingContent = "<@"..DISCORD_USER_ID..">"
@@ -847,7 +911,7 @@ WebhookTab:CreateLabel("Only sends private webhook if pet is RARER than this")
 WebhookTab:CreateLabel("Format: 10B = 1/10B, 100M = 1/100M, 1T = 1/1T")
 WebhookTab:CreateLabel("Leave empty to send ALL pets")
 WebhookTab:CreateLabel("Does NOT affect: Super Legendary & XL pets (always sends)")
-WebhookTab:CreateLabel("Bypass: Rebirth Machine (Celestial+Infinity), Bounty, Season, Comp, Leaderboard")
+WebhookTab:CreateLabel("Bypass: Rebirth(Cel+Inf), Bounty, Season(Cel+Inf+Void), Comp, Leaderboard")
 
 WebhookTab:CreateInput({
     Name = "Only Notify Above (e.g., 10B)",
@@ -905,9 +969,9 @@ WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings if stuck + toggle O
 WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (toggle ON)")
 WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
 WebhookTab:CreateLabel("Odds Threshold: Private only, XL & Super exempt")
-WebhookTab:CreateLabel("Origin Bypass: Rebirth(Cel+Inf), Bounty, Season, Comp, Leaderboard")
-WebhookTab:CreateLabel("Ping: ALL tracked rarities now ping User ID")
-WebhookTab:CreateLabel("Colors: Celestial=Neon Blue, Infinity=Navy, Void=Andromeda")
+WebhookTab:CreateLabel("Origin Bypass: Rebirth(Cel+Inf), Bounty, Season(Cel+Inf+Void), Comp, Leaderboard")
+WebhookTab:CreateLabel("Skip: Season Pass Secret pets (never notified)")
+WebhookTab:CreateLabel("Colors: Final Scheme Applied")
 WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
 
-print("Webhook Is Online, Good Luck Hatching Guys! Me (Renoa The Finest) Wishing for our luck")
+print("Webhook Is Online,I will Steal Y'all LUCK fr fr")
