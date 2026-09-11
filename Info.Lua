@@ -1,5 +1,5 @@
 -- ================================================
--- INFO TAB
+-- INFO TAB (RENOA UI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 
