@@ -1,5 +1,5 @@
 -- ================================================
--- SHRINE TAB (DELTA - FINAL WORKING PERM SHRINE)
+-- SHRINE TAB (DELTA - LINEAR PERM SHRINE)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -310,9 +310,9 @@ ShrineTab:CreateToggle({
 })
 
 -- ======================================
--- PERM SHRINE (FINAL WORKING)
+-- PERM SHRINE (LINEAR FLOW)
 -- ======================================
-ShrineTab:CreateSection("Perm Shrine (Fixed)")
+ShrineTab:CreateSection("Perm Shrine")
 
 local permInfoLabel = ShrineTab:CreateLabel("Buff: None | Egg: None | XP: 0/1M")
 
@@ -406,53 +406,28 @@ ShrineTab:CreateToggle({
             permRerollNotified = false
             
             permThread = task.spawn(function()
-                local claimed = false
+                forceShrineUIVisible()
+                task.wait(1)
                 
                 while permEnabled do
-                    local xp = getPermShrineXP()
                     local remaining = getPermShrineRemaining()
-                    local currentEgg = getPermShrineData() and getPermShrineData().Egg or "Unknown"
                     local currentBuff = getPermShrineBuff()
+                    local currentXP = getPermShrineXP()
                     
-                    local needsNewCycle = (currentEgg ~= permSelectedEgg) or (remaining <= 0)
-                    
-                    forceShrineUIVisible()
-                    
-                    -- STEP 1: Donate if XP not full
-                    if needsNewCycle and xp < 1000000 then
-                        getgenv().ActivityStatus.current = "Donating " .. permSelectedPotion .. " to Perm Shrine"
-                        getgenv().ActivityStatus.trigger = true
-                        
-                        donatePermShrine(permSelectedPotion)
-                        task.wait(2)
-                        claimed = false
-                    end
-                    
-                    -- STEP 2: Claim if XP full and not claimed
-                    xp = getPermShrineXP()
-                    if xp >= 1000000 and not claimed then
-                        getgenv().ActivityStatus.current = "Claiming Perm Shrine for " .. permSelectedEgg
-                        getgenv().ActivityStatus.trigger = true
-                        
-                        claimPermShrineBuff(permSelectedEgg)
-                        task.wait(3)
-                        claimed = true
-                    end
-                    
-                    -- STEP 3: Reroll logic
-                    if permRerollEnabled and claimed then
-                        remaining = getPermShrineRemaining()
-                        currentBuff = getPermShrineBuff()
-                        
-                        if remaining > 0 and currentBuff ~= permTargetBuff then
+                    -- BUFF ACTIVE (timer > 0)
+                    if remaining > 0 then
+                        if permRerollEnabled and currentBuff ~= permTargetBuff then
+                            -- Reroll
                             getgenv().ActivityStatus.current = "Rerolling for " .. permTargetBuff .. " (current: " .. currentBuff .. ")"
                             getgenv().ActivityStatus.trigger = true
                             
+                            forceShrineUIVisible()
                             rerollPermShrine()
                             task.wait(3)
                             
                             local newBuff = getPermShrineBuff()
                             if newBuff == currentBuff then
+                                -- Reroll failed (out of tickets)
                                 if not permRerollNotified then
                                     permRerollNotified = true
                                     
@@ -465,22 +440,50 @@ ShrineTab:CreateToggle({
                                     getgenv().ActivityStatus.current = pingMsg .. "Perm Shrine: Out of rerolls! Final buff: " .. currentBuff
                                     getgenv().ActivityStatus.trigger = true
                                 end
-                                claimed = false
                                 task.wait(30)
                             end
                         elseif currentBuff == permTargetBuff then
                             getgenv().ActivityStatus.current = "Perm Shrine got target buff: " .. currentBuff .. "!"
                             getgenv().ActivityStatus.trigger = true
                             
-                            task.wait(remaining + 5)
+                            task.wait(math.min(remaining + 5, 300))
                             permRerollNotified = false
-                            claimed = false
+                        else
+                            -- No reroll, just wait
+                            task.wait(math.min(remaining + 5, 300))
                         end
-                    elseif not permRerollEnabled and remaining > 0 then
-                        task.wait(math.min(remaining + 5, 300))
+                    else
+                        -- BUFF EXPIRED - LINEAR FLOW: Donate → Claim → Wait
+                        getgenv().ActivityStatus.current = "Perm Shrine: Starting new cycle"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        forceShrineUIVisible()
+                        task.wait(1)
+                        
+                        -- STEP 1: Donate
+                        local xp = getPermShrineXP()
+                        if xp < 1000000 then
+                            getgenv().ActivityStatus.current = "Donating " .. permSelectedPotion .. " to Perm Shrine"
+                            getgenv().ActivityStatus.trigger = true
+                            
+                            donatePermShrine(permSelectedPotion)
+                            task.wait(3)
+                        end
+                        
+                        -- STEP 2: Claim IMMEDIATELY (no state flag)
+                        getgenv().ActivityStatus.current = "Claiming Perm Shrine for " .. permSelectedEgg
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        forceShrineUIVisible()
+                        task.wait(1)
+                        claimPermShrineBuff(permSelectedEgg)
+                        task.wait(5)
+                        
+                        -- Reset notification for next cycle
+                        permRerollNotified = false
                     end
                     
-                    task.wait(3)
+                    task.wait(2)
                 end
             end)
         else
