@@ -1,10 +1,11 @@
 -- ================================================
--- OTHER TAB (STATS TRACKER + AUTO BUY SHOP + EFFECTS)
+-- MISC / OTHER TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local OtherTab = Window:CreateTab("Misc", nil)
+local OtherTab = Window:Tab({ Title = "Misc", Icon = "settings" })
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -389,11 +390,12 @@ end
 -- ======================================
 -- UI
 -- ======================================
-OtherTab:CreateSection("Stats Tracker")
+OtherTab:Section({ Title = "Stats Tracker" })
 
-OtherTab:CreateToggle({
-    Name = "Show Stats UI",
-    CurrentValue = false,
+OtherTab:Toggle({
+    Title = "Show Stats UI",
+    Desc = "Shows a draggable stats overlay (Hatched, Rate, Time, Best Hatch)",
+    Value = false,
     Callback = function(v)
         statsEnabled = v
         if v then
@@ -409,23 +411,27 @@ OtherTab:CreateToggle({
         else
             destroyStatsUI()
         end
-    end
+    end,
 })
 
-OtherTab:CreateSection("Auto Buy Shop")
+-- ======================================
+-- UI - AUTO BUY SHOP
+-- ======================================
+OtherTab:Section({ Title = "Auto Buy Shop" })
 
-OtherTab:CreateDropdown({
-    Name = "Select Shop",
-    Options = {"shadow-shop", "alien-shop", "shard-shop", "dice-shop", "traveling-merchant"},
-    CurrentOption = {selectedShop},
+OtherTab:Dropdown({
+    Title = "Select Shop",
+    Values = {"shadow-shop", "alien-shop", "shard-shop", "dice-shop", "traveling-merchant"},
+    Value = selectedShop,
     Callback = function(v)
-        selectedShop = v[1]
-    end
+        selectedShop = v
+    end,
 })
 
-OtherTab:CreateToggle({
-    Name = "Auto Buy Selected Shop",
-    CurrentValue = false,
+OtherTab:Toggle({
+    Title = "Auto Buy Selected Shop",
+    Desc = "Buys all items from selected shop every 1 sec",
+    Value = false,
     Callback = function(v)
         shopRunning = v
         if v then
@@ -438,12 +444,13 @@ OtherTab:CreateToggle({
         else
             if shopThread then task.cancel(shopThread) end
         end
-    end
+    end,
 })
 
-OtherTab:CreateToggle({
-    Name = "Auto Buy All Shop",
-    CurrentValue = false,
+OtherTab:Toggle({
+    Title = "Auto Buy All Shop",
+    Desc = "Buys all items from ALL shops every 1 sec",
+    Value = false,
     Callback = function(v)
         buyAllRunning = v
         if v then
@@ -458,60 +465,70 @@ OtherTab:CreateToggle({
         else
             if buyAllThread then task.cancel(buyAllThread) end
         end
-    end
+    end,
 })
 
-OtherTab:CreateButton({
-    Name = "Reroll Shadow Shop Stock",
+OtherTab:Button({
+    Title = "Reroll Shadow Shop Stock",
+    Desc = "Free reroll of Shadow Shop",
     Callback = function()
         pcall(function() RE:FireServer("ShopFreeReroll", "shadow-shop") end)
         print("[Shop] Shadow Shop rerolled!")
-    end
+    end,
 })
 
-OtherTab:CreateButton({
-    Name = "Reroll Traveling Merchant Stock",
+OtherTab:Button({
+    Title = "Reroll Traveling Merchant Stock",
+    Desc = "Free reroll of Traveling Merchant",
     Callback = function()
         pcall(function() RE:FireServer("ShopFreeReroll", "traveling-merchant") end)
         print("[Shop] Traveling Merchant rerolled!")
-    end
+    end,
 })
 
-OtherTab:CreateSection("Effects")
+-- ======================================
+-- UI - EFFECTS
+-- ======================================
+OtherTab:Section({ Title = "Effects" })
 
-OtherTab:CreateButton({
-    Name = "JMX FPS Boost (Aggressive)",
+OtherTab:Button({
+    Title = "JMX FPS Boost (Aggressive)",
+    Desc = "Maximum FPS boost — removes shadows, meshes, particles",
     Callback = function()
         fpsJMX()
-    end
+    end,
 })
 
-OtherTab:CreateButton({
-    Name = "Disable Particles & Materials",
+OtherTab:Button({
+    Title = "Disable Particles & Materials",
+    Desc = "Removes particles, effects, and forces SmoothPlastic",
     Callback = function()
         fps1_DisableParticles()
-    end
+    end,
 })
 
-OtherTab:CreateButton({
-    Name = "Hide Pets & Effects",
+OtherTab:Button({
+    Title = "Hide Pets & Effects",
+    Desc = "Hides all pet models and effects",
     Callback = function()
         fps2_HidePets()
-    end
+    end,
 })
 
-OtherTab:CreateButton({
-    Name = "Remove Shadows & Textures",
+OtherTab:Button({
+    Title = "Remove Shadows & Textures",
+    Desc = "Removes all decals, textures, and shadows",
     Callback = function()
         fps3_RemoveTextures()
-    end
+    end,
 })
 
-OtherTab:CreateButton({
-    Name = "Click for Brightness",
+OtherTab:Button({
+    Title = "Click for Brightness",
+    Desc = "Fullbright — makes everything visible",
     Callback = function()
         fullBright()
-    end
+    end,
 })
 
 print("[Misc] Loaded!")
