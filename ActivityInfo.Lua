@@ -119,4 +119,16 @@ ActivityTab:Toggle({
     end,
 })
 
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+task.spawn(function()
+    task.wait(1)
+    
+    if activityEnabled then
+        activityEnabled = true
+        lastSent = ""
+    end
+end)
+
 print("[Activity Info] Loaded!")
