@@ -1,10 +1,11 @@
 -- ================================================
--- TRADE TAB - Fixed with case-insensitive search
+-- TRADE TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local TradeTab = Window:CreateTab("Trade", nil)
+local TradeTab = Window:Tab({ Title = "Trade", Icon = "arrow-left-right" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -32,11 +33,9 @@ local movePetThread = nil
 local function findPlayer(name)
     if name == "" then return nil end
     
-    -- Try exact match first
     local exact = Players:FindFirstChild(name)
     if exact then return exact end
     
-    -- Case-insensitive search
     local lowerName = name:lower()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.Name:lower() == lowerName then
@@ -44,7 +43,6 @@ local function findPlayer(name)
         end
     end
     
-    -- Partial match search
     for _, p in ipairs(Players:GetPlayers()) do
         if p.Name:lower():find(lowerName) then
             return p
@@ -55,41 +53,33 @@ local function findPlayer(name)
 end
 
 local function getTargetPlayerName()
-    -- Try callback value first
     if targetPlayer ~= "" then return targetPlayer end
-    
-    -- Try reading from input object
-    if targetPlayerInput then
-        pcall(function()
-            if targetPlayerInput.CurrentValue and targetPlayerInput.CurrentValue ~= "" then
-                targetPlayer = targetPlayerInput.CurrentValue
-            end
-        end)
-    end
-    
     return targetPlayer
 end
 
 -- ======================================
 -- UI
 -- ======================================
-TradeTab:CreateSection("Trade")
+TradeTab:Section({ Title = "Trade" })
 
-TradeTab:CreateLabel("Only 1 player can be input, and send/accept trade only can with the player name you input")
-
-targetPlayerInput = TradeTab:CreateInput({
-    Name = "Target Player Name",
-    PlaceholderText = "PlayerName123",
-    CurrentValue = "",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(v)
-        targetPlayer = v
-    end
+TradeTab:Paragraph({
+    Title = "Info",
+    Desc = "Only 1 player can be input, and send/accept trade only works with the player name you input.",
 })
 
-TradeTab:CreateToggle({
-    Name = "Send Trade",
-    CurrentValue = false,
+TradeTab:Input({
+    Title = "Target Player Name",
+    Value = "",
+    Placeholder = "PlayerName123",
+    Callback = function(v)
+        targetPlayer = v
+    end,
+})
+
+TradeTab:Toggle({
+    Title = "Send Trade",
+    Desc = "Sends trade request to target player",
+    Value = false,
     Callback = function(v)
         sendRunning = v
         if v then
@@ -111,12 +101,13 @@ TradeTab:CreateToggle({
         else
             if sendThread then task.cancel(sendThread) end
         end
-    end
+    end,
 })
 
-TradeTab:CreateToggle({
-    Name = "Accept Trade",
-    CurrentValue = false,
+TradeTab:Toggle({
+    Title = "Accept Trade",
+    Desc = "Accepts trade request from target player",
+    Value = false,
     Callback = function(v)
         acceptRunning = v
         if v then
@@ -138,12 +129,13 @@ TradeTab:CreateToggle({
         else
             if acceptThread then task.cancel(acceptThread) end
         end
-    end
+    end,
 })
 
-TradeTab:CreateToggle({
-    Name = "Accept And Confirm",
-    CurrentValue = false,
+TradeTab:Toggle({
+    Title = "Accept And Confirm",
+    Desc = "Accepts and confirms trade automatically",
+    Value = false,
     Callback = function(v)
         confirmRunning = v
         if v then
@@ -165,16 +157,19 @@ TradeTab:CreateToggle({
         else
             if confirmThread then task.cancel(confirmThread) end
         end
-    end
+    end,
 })
 
-TradeTab:CreateSection("Auto Move Pet")
+TradeTab:Section({ Title = "Auto Move Pet" })
 
-TradeTab:CreateLabel("This Will add all your pet in inventory to the trade")
+TradeTab:Paragraph({
+    Title = "Auto Move Pet",
+    Desc = "Adds all pets from your inventory to the trade (12 max).",
+})
 
-TradeTab:CreateToggle({
-    Name = "Auto Move Pet",
-    CurrentValue = false,
+TradeTab:Toggle({
+    Title = "Auto Move Pet",
+    Value = false,
     Callback = function(v)
         movePetRunning = v
         if v then
@@ -218,7 +213,7 @@ TradeTab:CreateToggle({
         else
             if movePetThread then task.cancel(movePetThread) end
         end
-    end
+    end,
 })
 
 print("[Trade] Loaded!")
