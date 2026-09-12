@@ -487,4 +487,129 @@ ShrineTab:Toggle({
     end,
 })
 
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+task.spawn(function()
+    task.wait(1.5)
+    
+    -- Auto Bubble
+    if shrineSettings.autoBubble then
+        bubbleEnabled = true
+        getgenv().ActivityStatus.current = "Bubble Shrine Activated"
+        getgenv().ActivityStatus.trigger = true
+        bubble()
+        bubbleThread = task.spawn(function()
+            while bubbleEnabled do
+                task.wait(60)
+                if isBuffExpired("ShrineBlessing") then
+                    getgenv().ActivityStatus.current = "Bubble Shrine Activated"
+                    getgenv().ActivityStatus.trigger = true
+                    bubble()
+                end
+            end
+        end)
+    end
+    
+    -- Auto Dreamer
+    if shrineSettings.autoDreamer then
+        dreamerEnabled = true
+        getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
+        getgenv().ActivityStatus.trigger = true
+        dreamer()
+        dreamerThread = task.spawn(function()
+            while dreamerEnabled do
+                task.wait(60)
+                if isBuffExpired("DreamerBlessing") then
+                    getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
+                    getgenv().ActivityStatus.trigger = true
+                    dreamer()
+                end
+            end
+        end)
+    end
+    
+    -- Auto Perm Shrine
+    if shrineSettings.autoPermShrine then
+        permEnabled = true
+        permRerollNotified = false
+        
+        permThread = task.spawn(function()
+            forceShrineUIVisible()
+            task.wait(1)
+            
+            while permEnabled do
+                local remaining = getPermShrineRemaining()
+                local currentBuff = getPermShrineBuff()
+                local currentXP = getPermShrineXP()
+                
+                if remaining > 0 then
+                    if permRerollEnabled and currentBuff ~= permTargetBuff then
+                        getgenv().ActivityStatus.current = "Rerolling for " .. permTargetBuff .. " (current: " .. currentBuff .. ")"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        forceShrineUIVisible()
+                        rerollPermShrine()
+                        task.wait(3)
+                        
+                        local newBuff = getPermShrineBuff()
+                        if newBuff == currentBuff then
+                            if not permRerollNotified then
+                                permRerollNotified = true
+                                
+                                local discordID = settings.activity and settings.activity.userId or ""
+                                local pingMsg = ""
+                                if discordID ~= "" then
+                                    pingMsg = "<@" .. discordID .. "> "
+                                end
+                                
+                                getgenv().ActivityStatus.current = pingMsg .. "Perm Shrine: Out of rerolls! Final buff: " .. currentBuff
+                                getgenv().ActivityStatus.trigger = true
+                            end
+                            task.wait(30)
+                        end
+                    elseif currentBuff == permTargetBuff then
+                        getgenv().ActivityStatus.current = "Perm Shrine got target buff: " .. currentBuff .. "!"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        task.wait(math.min(remaining + 5, 300))
+                        permRerollNotified = false
+                    else
+                        task.wait(math.min(remaining + 5, 300))
+                    end
+                else
+                    getgenv().ActivityStatus.current = "Perm Shrine: Starting new cycle"
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    forceShrineUIVisible()
+                    task.wait(1)
+                    
+                    local xp = getPermShrineXP()
+                    if xp < 1000000 then
+                        getgenv().ActivityStatus.current = "Donating " .. permSelectedPotion .. " to Perm Shrine"
+                        getgenv().ActivityStatus.trigger = true
+                        
+                        donatePermShrine(permSelectedPotion)
+                        task.wait(3)
+                    end
+                    
+                    getgenv().ActivityStatus.current = "Claiming Perm Shrine for " .. permSelectedEgg
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    forceShrineUIVisible()
+                    task.wait(1)
+                    claimPermShrineBuff(permSelectedEgg)
+                    task.wait(5)
+                    
+                    permRerollNotified = false
+                end
+                
+                task.wait(2)
+            end
+        end)
+    end
+    
+    print("[Shrine] Auto-started saved toggles!")
+end)
+
 print("[Shrine] Loaded!")
