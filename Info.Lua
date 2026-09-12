@@ -1,24 +1,28 @@
 -- ================================================
--- INFO TAB (RENOA UI VERSION)
+-- INFO TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
-
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
+
+local InfoTab = Window:Tab({ Title = "Info", Icon = "info" })
+
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local player = Players.LocalPlayer
 
-local InfoTab = Window:CreateTab("Info")
+local request = http_request or request or (syn and syn.request)
 
 -- ======================================
--- WELCOME SECTION
+-- WELCOME + SESSION TIMER
 -- ======================================
 local startTime = os.clock()
 
-InfoTab:CreateLabel("Hello " .. player.Name .. "! Welcome back")
-
-local sessionLabel = InfoTab:CreateLabel("Session: 00:00")
+local welcomeParagraph = InfoTab:Paragraph({
+    Title = "Hello " .. player.Name .. "! Welcome back",
+    Desc = "Session: 00:00",
+})
 
 task.spawn(function()
     while true do
@@ -27,21 +31,24 @@ task.spawn(function()
             local elapsed = os.clock() - startTime
             local minutes = math.floor(elapsed / 60)
             local seconds = math.floor(elapsed % 60)
-            sessionLabel.Text = string.format("Session: %02d:%02d", minutes, seconds)
+            welcomeParagraph:SetDesc(string.format("Session: %02d:%02d", minutes, seconds))
         end)
     end
 end)
 
 -- ======================================
--- DISCORD SECTION
+-- DISCORD
 -- ======================================
-InfoTab:CreateSection("Discord")
+InfoTab:Section({ Title = "Discord" })
 
-InfoTab:CreateLabel("Join our Discord community!")
-InfoTab:CreateLabel("discord.gg/GfjXmXkG4E")
+InfoTab:Paragraph({
+    Title = "Join our Discord community!",
+    Desc = "discord.gg/GfjXmXkG4E",
+})
 
-InfoTab:CreateButton({
-    Name = "Copy Discord Invite",
+InfoTab:Button({
+    Title = "Copy Discord Invite",
+    Desc = "Copies invite link to clipboard",
     Callback = function()
         pcall(function()
             setclipboard("https://discord.gg/GfjXmXkG4E")
@@ -51,49 +58,47 @@ InfoTab:CreateButton({
 })
 
 -- ======================================
--- DONATION SECTION (EMPTY)
+-- DONATION
 -- ======================================
-InfoTab:CreateSection("Donation")
+InfoTab:Section({ Title = "Donation" })
 
-InfoTab:CreateLabel("Support Renoa Hub development!")
-InfoTab:CreateLabel("Donation links coming soon!")
+InfoTab:Paragraph({
+    Title = "Support Renoa Hub development!",
+    Desc = "Donation links coming soon!",
+})
 
-InfoTab:CreateButton({
-    Name = "Copy Donation Link",
+InfoTab:Button({
+    Title = "Copy Donation Link",
+    Desc = "Coming soon",
     Callback = function()
-        -- Empty for now
         print("[Info] Donation link coming soon!")
     end,
 })
 
 -- ======================================
--- SUGGESTION SECTION
+-- SUGGESTION
 -- ======================================
-InfoTab:CreateSection("Suggestion")
+InfoTab:Section({ Title = "Suggestion" })
 
-InfoTab:CreateLabel("Send your suggestion directly to us!")
-InfoTab:CreateLabel("We read every single message.")
+InfoTab:Paragraph({
+    Title = "Send your suggestion directly to us!",
+    Desc = "We read every single message.",
+})
 
-local suggestionInput = InfoTab:CreateInput({
-    Name = "Your Suggestion",
-    CurrentValue = "",
-    PlaceholderText = "Type your suggestion here...",
-    RemoveTextAfterFocusLost = false,
+InfoTab:Input({
+    Title = "Your Suggestion",
+    Value = "",
+    Placeholder = "Type your suggestion here...",
     Callback = function(v)
         getgenv()._suggestionText = v
     end,
 })
 
-InfoTab:CreateButton({
-    Name = "Send Suggestion",
+InfoTab:Button({
+    Title = "Send Suggestion",
+    Desc = "Sends your suggestion to the team",
     Callback = function()
         local message = getgenv()._suggestionText
-        
-        if not message or message == "" then
-            if suggestionInput and suggestionInput.Text then
-                message = suggestionInput.Text
-            end
-        end
         
         if not message or message == "" then
             print("[Info] Please type a suggestion first!")
@@ -102,7 +107,6 @@ InfoTab:CreateButton({
         
         local webhookURL = "https://discord.com/api/webhooks/1545103112308523183/3s00vtdmI7pV5fw-ghjnPNDoSSUUsPWWz19Q0VVuEWdHfndl7pbR1UHeYYYRj8sutU4l"
         
-        local request = http_request or request or (syn and syn.request)
         if not request then
             print("[Info] Cannot send right now!")
             return
