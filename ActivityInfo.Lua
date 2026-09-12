@@ -1,10 +1,11 @@
 -- ================================================
--- ACTIVITY INFO TAB
+-- ACTIVITY INFO TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local ActivityTab = Window:CreateTab("Activity Info", nil)
+local ActivityTab = Window:Tab({ Title = "Activity Info", Icon = "activity" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
@@ -14,8 +15,11 @@ local player = Players.LocalPlayer
 local request = http_request or request or (syn and syn.request)
 
 if not request then
-    ActivityTab:CreateSection("Error")
-    ActivityTab:CreateLabel("Your executor doesn't support webhooks!")
+    ActivityTab:Section({ Title = "Error" })
+    ActivityTab:Paragraph({
+        Title = "Webhook Not Supported",
+        Desc = "Your executor doesn't support webhooks!",
+    })
     return
 end
 
@@ -83,34 +87,36 @@ end)
 -- ======================================
 -- UI
 -- ======================================
-ActivityTab:CreateSection("Activity Webhook")
+ActivityTab:Section({ Title = "Activity Webhook" })
 
-ActivityTab:CreateLabel("Sends webhook when your character is actively doing something")
-ActivityTab:CreateLabel("Only sends when the action is actually being performed, not on toggle")
+ActivityTab:Paragraph({
+    Title = "How It Works",
+    Desc = "Sends webhook when your character is actively doing something. Only sends when action is actually being performed, not on toggle.",
+})
 
-ActivityTab:CreateInput({
-    Name = "Activity Webhook URL",
-    CurrentValue = activityWebhookURL,
-    PlaceholderText = "https://discord.com/api/webhooks/...",
-    RemoveTextAfterFocusLost = false,
+ActivityTab:Input({
+    Title = "Activity Webhook URL",
+    Value = activityWebhookURL,
+    Placeholder = "https://discord.com/api/webhooks/...",
     Callback = function(v)
         activityWebhookURL = v
         activitySettings.webhookURL = v
         getgenv().HubSettings.activity = activitySettings
         saveHubSettings()
-    end
+    end,
 })
 
-ActivityTab:CreateToggle({
-    Name = "Turn On/Turn Off",
-    CurrentValue = activityEnabled,
+ActivityTab:Toggle({
+    Title = "Turn On/Turn Off",
+    Desc = "Enables/disables activity webhook notifications",
+    Value = activityEnabled,
     Callback = function(v)
         activityEnabled = v
         lastSent = ""
         activitySettings.enabled = v
         getgenv().HubSettings.activity = activitySettings
         saveHubSettings()
-    end
+    end,
 })
 
 print("[Activity Info] Loaded!")
