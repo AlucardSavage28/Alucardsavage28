@@ -1,10 +1,11 @@
 -- ================================================
--- POTION TAB (FASTER + FIXED ACTIVITY WEBHOOK)
+-- POTION TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local PotionTab = Window:CreateTab("Potions", nil)
+local PotionTab = Window:Tab({ Title = "Potions", Icon = "flask-conical" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -21,7 +22,7 @@ if not settings.potions then settings.potions = {} end
 local potionSettings = settings.potions
 
 -- ======================================
--- NORMAL POTION SETTINGS
+-- NORMAL POTION
 -- ======================================
 local NORMAL_POTIONS = {"Lucky", "Speed", "Mythic", "Coins", "Tickets"}
 local NORMAL_LEVELS = {1, 2, 3, 4, 5, 6, 7}
@@ -39,7 +40,7 @@ local normalRunning = false
 local normalThread = nil
 
 -- ======================================
--- SPECIAL POTION SETTINGS
+-- SPECIAL POTION
 -- ======================================
 local SPECIAL_POTIONS = {"Infinity Elixir", "Ultra Infinity Elixir", "Egg Elixir", "Star Elixir", "Secret Elixir"}
 
@@ -49,7 +50,7 @@ local specialRunning = false
 local specialThread = nil
 
 -- ======================================
--- EVENT POTION SETTINGS
+-- EVENT POTION
 -- ======================================
 local eventPotions = {}
 local selectedEvent = potionSettings.eventSelected or ""
@@ -59,7 +60,11 @@ local eventThread = nil
 
 local function getEventPotions()
     local events = {}
-    local normalSpecial = {Lucky=true, Speed=true, Mythic=true, Coins=true, Tickets=true, ["Infinity Elixir"]=true, ["Ultra Infinity Elixir"]=true, ["Egg Elixir"]=true, ["Star Elixir"]=true, ["Secret Elixir"]=true}
+    local normalSpecial = {
+        Lucky=true, Speed=true, Mythic=true, Coins=true, Tickets=true,
+        ["Infinity Elixir"]=true, ["Ultra Infinity Elixir"]=true,
+        ["Egg Elixir"]=true, ["Star Elixir"]=true, ["Secret Elixir"]=true
+    }
     local data = LocalData:Get()
     if data and data.Potions then
         for _, potion in pairs(data.Potions) do
@@ -84,25 +89,24 @@ if selectedEvent == "" then selectedEvent = eventPotions[1] or "" end
 -- ======================================
 -- UI - NORMAL POTION
 -- ======================================
-PotionTab:CreateSection("Normal Potion")
+PotionTab:Section({ Title = "Normal Potion" })
 
-PotionTab:CreateDropdown({
-    Name = "Select Potion",
-    Options = normalOptions,
-    CurrentOption = {selectedNormal},
+PotionTab:Dropdown({
+    Title = "Select Potion",
+    Values = normalOptions,
+    Value = selectedNormal,
     Callback = function(v)
-        selectedNormal = v[1]
-        potionSettings.normalSelected = v[1]
+        selectedNormal = v
+        potionSettings.normalSelected = v
         getgenv().HubSettings.potions = potionSettings
         saveHubSettings()
-    end
+    end,
 })
 
-PotionTab:CreateInput({
-    Name = "Amount (Max 250)",
-    CurrentValue = tostring(normalAmount),
-    PlaceholderText = "250",
-    RemoveTextAfterFocusLost = false,
+PotionTab:Input({
+    Title = "Amount (Max 250)",
+    Value = tostring(normalAmount),
+    Placeholder = "250",
     Callback = function(v)
         local n = tonumber(v)
         if n then
@@ -111,12 +115,13 @@ PotionTab:CreateInput({
             getgenv().HubSettings.potions = potionSettings
             saveHubSettings()
         end
-    end
+    end,
 })
 
-PotionTab:CreateToggle({
-    Name = "Auto Use Normal Potion",
-    CurrentValue = potionSettings.normalRunning or false,
+PotionTab:Toggle({
+    Title = "Auto Use Normal Potion",
+    Desc = "Uses the selected potion continuously",
+    Value = potionSettings.normalRunning or false,
     Callback = function(v)
         normalRunning = v
         potionSettings.normalRunning = v
@@ -151,7 +156,7 @@ PotionTab:CreateToggle({
                     if actualAmount > 0 then
                         pcall(function() RE:FireServer("UsePotion", potionName, level, actualAmount) end)
                     end
-                    task.wait(0.1) -- FASTER (was 0.5)
+                    task.wait(0.1)
                 end
             end)
         else
@@ -159,31 +164,30 @@ PotionTab:CreateToggle({
             getgenv().ActivityStatus.current = "Stopped Auto use " .. selectedNormal
             getgenv().ActivityStatus.trigger = true
         end
-    end
+    end,
 })
 
 -- ======================================
 -- UI - SPECIAL POTION
 -- ======================================
-PotionTab:CreateSection("Special Potion")
+PotionTab:Section({ Title = "Special Potion" })
 
-PotionTab:CreateDropdown({
-    Name = "Select Potion",
-    Options = SPECIAL_POTIONS,
-    CurrentOption = {selectedSpecial},
+PotionTab:Dropdown({
+    Title = "Select Potion",
+    Values = SPECIAL_POTIONS,
+    Value = selectedSpecial,
     Callback = function(v)
-        selectedSpecial = v[1]
-        potionSettings.specialSelected = v[1]
+        selectedSpecial = v
+        potionSettings.specialSelected = v
         getgenv().HubSettings.potions = potionSettings
         saveHubSettings()
-    end
+    end,
 })
 
-PotionTab:CreateInput({
-    Name = "Amount (Max 250)",
-    CurrentValue = tostring(specialAmount),
-    PlaceholderText = "250",
-    RemoveTextAfterFocusLost = false,
+PotionTab:Input({
+    Title = "Amount (Max 250)",
+    Value = tostring(specialAmount),
+    Placeholder = "250",
     Callback = function(v)
         local n = tonumber(v)
         if n then
@@ -192,12 +196,13 @@ PotionTab:CreateInput({
             getgenv().HubSettings.potions = potionSettings
             saveHubSettings()
         end
-    end
+    end,
 })
 
-PotionTab:CreateToggle({
-    Name = "Auto Use Special Potion",
-    CurrentValue = potionSettings.specialRunning or false,
+PotionTab:Toggle({
+    Title = "Auto Use Special Potion",
+    Desc = "Uses the selected special elixir continuously",
+    Value = potionSettings.specialRunning or false,
     Callback = function(v)
         specialRunning = v
         potionSettings.specialRunning = v
@@ -225,7 +230,7 @@ PotionTab:CreateToggle({
                     if actualAmount > 0 then
                         pcall(function() RE:FireServer("UsePotion", selectedSpecial, 1, actualAmount) end)
                     end
-                    task.wait(0.1) -- FASTER (was 0.5)
+                    task.wait(0.1)
                 end
             end)
         else
@@ -233,32 +238,31 @@ PotionTab:CreateToggle({
             getgenv().ActivityStatus.current = "Stopped Auto use " .. selectedSpecial
             getgenv().ActivityStatus.trigger = true
         end
-    end
+    end,
 })
 
 -- ======================================
 -- UI - EVENT POTION
 -- ======================================
-PotionTab:CreateSection("Event Potion")
+PotionTab:Section({ Title = "Event Potion" })
 
 if #eventPotions > 0 then
-    PotionTab:CreateDropdown({
-        Name = "Select Event Potion",
-        Options = eventPotions,
-        CurrentOption = {selectedEvent},
+    PotionTab:Dropdown({
+        Title = "Select Event Potion",
+        Values = eventPotions,
+        Value = selectedEvent,
         Callback = function(v)
-            selectedEvent = v[1]
-            potionSettings.eventSelected = v[1]
+            selectedEvent = v
+            potionSettings.eventSelected = v
             getgenv().HubSettings.potions = potionSettings
             saveHubSettings()
-        end
+        end,
     })
 
-    PotionTab:CreateInput({
-        Name = "Amount (Max 250)",
-        CurrentValue = tostring(eventAmount),
-        PlaceholderText = "250",
-        RemoveTextAfterFocusLost = false,
+    PotionTab:Input({
+        Title = "Amount (Max 250)",
+        Value = tostring(eventAmount),
+        Placeholder = "250",
         Callback = function(v)
             local n = tonumber(v)
             if n then
@@ -267,21 +271,23 @@ if #eventPotions > 0 then
                 getgenv().HubSettings.potions = potionSettings
                 saveHubSettings()
             end
-        end
+        end,
     })
 
-    PotionTab:CreateButton({
-        Name = "Re Scan Event Potions",
+    PotionTab:Button({
+        Title = "Re Scan Event Potions",
+        Desc = "Refresh the list of detected event potions",
         Callback = function()
             eventPotions = getEventPotions()
             selectedEvent = eventPotions[1] or ""
             print("[Potions] Found " .. #eventPotions .. " event potions")
-        end
+        end,
     })
 
-    PotionTab:CreateToggle({
-        Name = "Auto Use Event Potion",
-        CurrentValue = potionSettings.eventRunning or false,
+    PotionTab:Toggle({
+        Title = "Auto Use Event Potion",
+        Desc = "Uses the selected event potion continuously",
+        Value = potionSettings.eventRunning or false,
         Callback = function(v)
             eventRunning = v
             potionSettings.eventRunning = v
@@ -311,7 +317,7 @@ if #eventPotions > 0 then
                         if actualAmount > 0 then
                             pcall(function() RE:FireServer("UsePotion", selectedEvent, potionLevel, actualAmount) end)
                         end
-                        task.wait(0.1) -- FASTER (was 0.5)
+                        task.wait(0.1)
                     end
                 end)
             else
@@ -319,108 +325,22 @@ if #eventPotions > 0 then
                 getgenv().ActivityStatus.current = "Stopped Auto use " .. selectedEvent
                 getgenv().ActivityStatus.trigger = true
             end
-        end
+        end,
     })
 else
-    PotionTab:CreateLabel("No event potions detected")
-    PotionTab:CreateButton({
-        Name = "Re Scan Event Potions",
+    PotionTab:Paragraph({
+        Title = "No Event Potions Detected",
+        Desc = "Click the rescan button to look for event potions in your inventory.",
+    })
+
+    PotionTab:Button({
+        Title = "Re Scan Event Potions",
         Callback = function()
             eventPotions = getEventPotions()
             selectedEvent = eventPotions[1] or ""
             print("[Potions] Found " .. #eventPotions .. " event potions")
-        end
+        end,
     })
-end
-
--- ======================================
--- AUTO-START SAVED TOGGLES
--- ======================================
-if potionSettings.normalRunning then
-    normalRunning = true
-    getgenv().ActivityStatus.current = "Start Auto use " .. selectedNormal
-    getgenv().ActivityStatus.trigger = true
-    
-    normalThread = task.spawn(function()
-        while normalRunning do
-            local parts = {}
-            for part in string.gmatch(selectedNormal, "%S+") do
-                table.insert(parts, part)
-            end
-            local potionName = table.concat(parts, " ", 1, #parts - 1)
-            local level = tonumber(parts[#parts]) or 1
-            
-            local data = LocalData:Get()
-            local actualAmount = normalAmount
-            if data and data.Potions then
-                for _, potion in pairs(data.Potions) do
-                    if potion.Name == potionName and potion.Level == level then
-                        if potion.Amount < normalAmount then actualAmount = potion.Amount end
-                        break
-                    end
-                end
-            end
-            
-            if actualAmount > 0 then
-                pcall(function() RE:FireServer("UsePotion", potionName, level, actualAmount) end)
-            end
-            task.wait(0.1)
-        end
-    end)
-end
-
-if potionSettings.specialRunning then
-    specialRunning = true
-    getgenv().ActivityStatus.current = "Start Auto use " .. selectedSpecial
-    getgenv().ActivityStatus.trigger = true
-    
-    specialThread = task.spawn(function()
-        while specialRunning do
-            local data = LocalData:Get()
-            local actualAmount = specialAmount
-            if data and data.Potions then
-                for _, potion in pairs(data.Potions) do
-                    if potion.Name == selectedSpecial then
-                        if potion.Amount < specialAmount then actualAmount = potion.Amount end
-                        break
-                    end
-                end
-            end
-            
-            if actualAmount > 0 then
-                pcall(function() RE:FireServer("UsePotion", selectedSpecial, 1, actualAmount) end)
-            end
-            task.wait(0.1)
-        end
-    end)
-end
-
-if potionSettings.eventRunning then
-    eventRunning = true
-    getgenv().ActivityStatus.current = "Start Auto use " .. selectedEvent
-    getgenv().ActivityStatus.trigger = true
-    
-    eventThread = task.spawn(function()
-        while eventRunning do
-            local data = LocalData:Get()
-            local actualAmount = eventAmount
-            local potionLevel = 1
-            if data and data.Potions then
-                for _, potion in pairs(data.Potions) do
-                    if potion.Name == selectedEvent then
-                        potionLevel = potion.Level
-                        if potion.Amount < eventAmount then actualAmount = potion.Amount end
-                        break
-                    end
-                end
-            end
-            
-            if actualAmount > 0 then
-                pcall(function() RE:FireServer("UsePotion", selectedEvent, potionLevel, actualAmount) end)
-            end
-            task.wait(0.1)
-        end
-    end)
 end
 
 print("[Potions] Loaded!")
