@@ -572,9 +572,12 @@ local shopToggles = {}
 
 EventTab:Toggle({
     Title = "Auto Buy All Event Egg (1)",
-    Value = false,
+    Value = eventSettings.shopEgg or false,
     Callback = function(v)
         shopToggles[1] = v
+        eventSettings.shopEgg = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[1] do buyAllItems({1}) task.wait(5) end end)
         end
@@ -583,9 +586,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All Boost Crystal (2)",
-    Value = false,
+    Value = eventSettings.shopBoost or false,
     Callback = function(v)
         shopToggles[2] = v
+        eventSettings.shopBoost = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[2] do buyAllItems({2}) task.wait(5) end end)
         end
@@ -594,9 +600,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All Event Elixir (3)",
-    Value = false,
+    Value = eventSettings.shopElixir or false,
     Callback = function(v)
         shopToggles[3] = v
+        eventSettings.shopElixir = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[3] do buyAllItems({3}) task.wait(5) end end)
         end
@@ -605,9 +614,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All Infinity Elixir (4,5,6,7)",
-    Value = false,
+    Value = eventSettings.shopInfElixir or false,
     Callback = function(v)
         shopToggles[4] = v
+        eventSettings.shopInfElixir = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[4] do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
         end
@@ -616,9 +628,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All Infinity Luck/Mythic/Gold (8,9,10)",
-    Value = false,
+    Value = eventSettings.shopInfLuck or false,
     Callback = function(v)
         shopToggles[5] = v
+        eventSettings.shopInfLuck = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[5] do buyAllItems({8, 9, 10}) task.wait(5) end end)
         end
@@ -627,9 +642,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All Normal Pet (11)",
-    Value = false,
+    Value = eventSettings.shopNormalPet or false,
     Callback = function(v)
         shopToggles[6] = v
+        eventSettings.shopNormalPet = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[6] do buyAllItems({11}) task.wait(5) end end)
         end
@@ -638,9 +656,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All XL Pet (12)",
-    Value = false,
+    Value = eventSettings.shopXLPet or false,
     Callback = function(v)
         shopToggles[7] = v
+        eventSettings.shopXLPet = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[7] do buyAllItems({12}) task.wait(5) end end)
         end
@@ -649,9 +670,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All Green & Blue Fragment (13,14)",
-    Value = false,
+    Value = eventSettings.shopGBFrag or false,
     Callback = function(v)
         shopToggles[8] = v
+        eventSettings.shopGBFrag = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[8] do buyAllItems({13, 14}) task.wait(5) end end)
         end
@@ -660,9 +684,12 @@ EventTab:Toggle({
 
 EventTab:Toggle({
     Title = "Auto Buy All Purple & Rainbow Fragment (15,16)",
-    Value = false,
+    Value = eventSettings.shopPRFrag or false,
     Callback = function(v)
         shopToggles[9] = v
+        eventSettings.shopPRFrag = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
         if v then
             task.spawn(function() while shopToggles[9] do buyAllItems({15, 16}) task.wait(5) end end)
         end
@@ -689,13 +716,17 @@ local altarTrackerParagraph = EventTab:Paragraph({
     Desc = "Waiting for first conversion",
 })
 
+local altarEnabled = false
+local altarThread = nil
+
 EventTab:Toggle({
     Title = "Auto Event Altar",
     Value = false,
     Callback = function(v)
+        altarEnabled = v
         if v then
-            task.spawn(function()
-                while v do
+            altarThread = task.spawn(function()
+                while altarEnabled do
                     local cooldownText = getCooldownText()
                     local cooldownSeconds = parseCooldown(cooldownText)
                     
@@ -756,8 +787,162 @@ EventTab:Toggle({
                     end
                 end
             end)
+        else
+            if altarThread then task.cancel(altarThread) end
         end
     end,
 })
+
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+task.spawn(function()
+    task.wait(1.5)
+    
+    -- Auto Add Event
+    if eventSettings.autoAddEvent then
+        eventRunning = true
+        eventThread = task.spawn(function()
+            while eventRunning do
+                for _, eventName in ipairs(selectedEvents) do
+                    if not eventRunning then break end
+                    local value = type(eventName) == "table" and eventName[1] or eventName
+                    pcall(function() RE:FireServer("PurchaseEventBoard", value) end)
+                    task.wait(1)
+                end
+                task.wait(900)
+            end
+        end)
+    end
+    
+    -- Auto Hatch (Cloud Rift)
+    if eventSettings.autoHatchRift then
+        autoHatchRiftEnabled = true
+        autoHatchRiftThread = task.spawn(function()
+            local wasActive = false
+            local currentLuck = 0
+            local lastCheckTime = 0
+            local riftExists = false
+            
+            while autoHatchRiftEnabled do
+                while getgenv().questActive and autoHatchRiftEnabled do
+                    wasActive = false
+                    task.wait(0.5)
+                end
+                
+                local higherPriorityActive = false
+                if isRiftExists("corruptshadow-rift") or isRiftExists("overlord-rift") or isRiftExists("shadow-rift") or isRiftExists("doodle-rift") then
+                    higherPriorityActive = true
+                end
+                
+                if higherPriorityActive then
+                    wasActive = false
+                    riftExists = false
+                    task.wait(1)
+                    continue
+                end
+                
+                local now = tick()
+                if now - lastCheckTime >= 5 then
+                    lastCheckTime = now
+                    riftExists = isRiftExists(riftName)
+                    if riftExists then
+                        currentLuck = teleportToBestRift(riftName)
+                    end
+                end
+                
+                if riftExists then
+                    if getgenv().questActive then continue end
+                    
+                    getgenv().questActive = true
+                    getgenv().questEgg = riftEgg
+                    
+                    if not wasActive then
+                        getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
+                        getgenv().ActivityStatus.trigger = true
+                        wasActive = true
+                    end
+                    
+                    pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
+                    task.wait(0.05)
+                else
+                    if wasActive then
+                        getgenv().ActivityStatus.current = "Rift gone, waiting..."
+                        getgenv().ActivityStatus.trigger = true
+                        wasActive = false
+                    end
+                    getgenv().questActive = false
+                    getgenv().questEgg = nil
+                    task.wait(1)
+                end
+            end
+        end)
+    end
+    
+    -- Auto Summon (Cloud Rift)
+    if eventSettings.autoSummonRift then
+        autoSummonRiftEnabled = true
+        autoSummonRiftThread = task.spawn(function()
+            while autoSummonRiftEnabled do
+                getgenv().ActivityStatus.current = "Summoning " .. riftName
+                getgenv().ActivityStatus.trigger = true
+                
+                summonRift()
+                task.wait(5)
+                
+                if isRiftExists(riftName) then
+                    sendSummonWebhook(true)
+                else
+                    sendSummonWebhook(false)
+                end
+                
+                task.wait(3300)
+            end
+        end)
+    end
+    
+    -- Event Shop Toggles
+    if eventSettings.shopEgg then
+        shopToggles[1] = true
+        task.spawn(function() while shopToggles[1] do buyAllItems({1}) task.wait(5) end end)
+    end
+    if eventSettings.shopBoost then
+        shopToggles[2] = true
+        task.spawn(function() while shopToggles[2] do buyAllItems({2}) task.wait(5) end end)
+    end
+    if eventSettings.shopElixir then
+        shopToggles[3] = true
+        task.spawn(function() while shopToggles[3] do buyAllItems({3}) task.wait(5) end end)
+    end
+    if eventSettings.shopInfElixir then
+        shopToggles[4] = true
+        task.spawn(function() while shopToggles[4] do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
+    end
+    if eventSettings.shopInfLuck then
+        shopToggles[5] = true
+        task.spawn(function() while shopToggles[5] do buyAllItems({8, 9, 10}) task.wait(5) end end)
+    end
+    if eventSettings.shopNormalPet then
+        shopToggles[6] = true
+        task.spawn(function() while shopToggles[6] do buyAllItems({11}) task.wait(5) end end)
+    end
+    if eventSettings.shopXLPet then
+        shopToggles[7] = true
+        task.spawn(function() while shopToggles[7] do buyAllItems({12}) task.wait(5) end end)
+    end
+    if eventSettings.shopGBFrag then
+        shopToggles[8] = true
+        task.spawn(function() while shopToggles[8] do buyAllItems({13, 14}) task.wait(5) end end)
+    end
+    if eventSettings.shopPRFrag then
+        shopToggles[9] = true
+        task.spawn(function() while shopToggles[9] do buyAllItems({15, 16}) task.wait(5) end end)
+    end
+    
+    -- NOTE: Auto Event Altar is NOT persisted (Value = false, no settings save).
+    -- User must toggle it manually each session.
+    
+    print("[Event] Auto-started saved toggles!")
+end)
 
 print("[Event] Loaded!")
