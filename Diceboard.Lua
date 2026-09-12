@@ -1,10 +1,11 @@
 -- ================================================
--- DICE BOARD TAB
+-- DICE BOARD TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local DiceBoardTab = Window:CreateTab("Dice Board", nil)
+local DiceBoardTab = Window:Tab({ Title = "Dice Board", Icon = "dice-5" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -28,6 +29,9 @@ local targetTile = "Chance"
 local running = false
 local thread = nil
 
+-- ======================================
+-- FUNCTIONS
+-- ======================================
 local function getNode()
     for name, piece in pairs(Board.Pieces) do
         if name == player.Name then
@@ -141,23 +145,24 @@ end
 -- ======================================
 -- UI
 -- ======================================
-DiceBoardTab:CreateSection("Settings")
+DiceBoardTab:Section({ Title = "Settings" })
 
-DiceBoardTab:CreateDropdown({
-    Name = "Target Tile",
-    CurrentOption = {"Chance"},
-    Options = {
-        "Chance","Dice-Key","Dice","Giant-Dice","Golden-Dice",
-        "Infinity-Elixir","Special-Egg","Super-Ticket","Basic"
+DiceBoardTab:Dropdown({
+    Title = "Target Tile",
+    Values = {
+        "Chance", "Dice-Key", "Dice", "Giant-Dice", "Golden-Dice",
+        "Infinity-Elixir", "Special-Egg", "Super-Ticket", "Basic"
     },
+    Value = "Chance",
     Callback = function(v)
-        targetTile = v[1]
-    end
+        targetTile = v
+    end,
 })
 
-DiceBoardTab:CreateToggle({
-    Name = "Auto Dice Board",
-    CurrentValue = false,
+DiceBoardTab:Toggle({
+    Title = "Auto Dice Board",
+    Desc = "Automatically rolls dice to reach the target tile",
+    Value = false,
     Callback = function(v)
         running = v
         if v then
@@ -170,7 +175,7 @@ DiceBoardTab:CreateToggle({
             running = false
             if thread then task.cancel(thread) end
         end
-    end
+    end,
 })
 
-print("[DiceBoard] Loaded!")
+print("[Dice Board] Loaded!")
