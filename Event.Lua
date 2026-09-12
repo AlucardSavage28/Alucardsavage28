@@ -1,10 +1,11 @@
 -- ================================================
--- EVENT TAB (DELTA - MULTI-SELECT + QUEST PRIORITY)
+-- EVENT TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local EventTab = Window:CreateTab("Event", nil)
+local EventTab = Window:Tab({ Title = "Event", Icon = "calendar" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -197,8 +198,8 @@ end
 local lastSummonState = ""
 
 local function sendSummonWebhook(success)
-    local webhookURL = settings.activity.webhookURL or ""
-    local discordID = settings.activity.userId or ""
+    local webhookURL = settings.activity and settings.activity.webhookURL or ""
+    local discordID = settings.activity and settings.activity.userId or ""
     
     if webhookURL == "" then return end
     if not request then return end
@@ -252,23 +253,15 @@ local function isTrueSecret(info)
 end
 
 -- ======================================
--- SKY ALTAR FUNCTIONS (VARIANT GROUPING)
+-- SKY ALTAR FUNCTIONS
 -- ======================================
 local function getSkyAltarPets()
     local groups = {
         Celestial = {
-            Normal = {},
-            Shiny = {},
-            Mythic = {},
-            ShinyMythic = {},
-            XL = {},
+            Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}, XL = {},
         },
         Secret = {
-            Normal = {},
-            Shiny = {},
-            Mythic = {},
-            ShinyMythic = {},
-            XL = {},
+            Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}, XL = {},
         },
     }
     
@@ -372,15 +365,18 @@ end
 -- ======================================
 -- UI - EVENT BOARD
 -- ======================================
-EventTab:CreateSection("Event Board")
+EventTab:Section({ Title = "Event Board" })
 
-local activeEventLabel = EventTab:CreateLabel("Active: " .. getActiveEventDisplay())
+local activeEventParagraph = EventTab:Paragraph({
+    Title = "Active: " .. getActiveEventDisplay(),
+    Desc = "Updates every 30 seconds",
+})
 
 task.spawn(function()
     while true do
         task.wait(30)
         local display = getActiveEventDisplay()
-        pcall(function() activeEventLabel:SetText("Active: " .. display) end)
+        pcall(function() activeEventParagraph:SetTitle("Active: " .. display) end)
         
         if display ~= lastEventDisplay then
             lastEventDisplay = display
@@ -394,11 +390,11 @@ task.spawn(function()
     end
 end)
 
-EventTab:CreateDropdown({
-    Name = "Select Events (Multi-Select)",
-    Options = EVENTS,
-    CurrentOption = selectedEvents,
-    MultipleOptions = true,
+EventTab:Dropdown({
+    Title = "Select Events (Multi-Select)",
+    Values = EVENTS,
+    Value = selectedEvents,
+    Multi = true,
     Callback = function(v)
         if type(v) == "table" then
             selectedEvents = v
@@ -408,12 +404,13 @@ EventTab:CreateDropdown({
         eventSettings.selectedEvents = selectedEvents
         getgenv().HubSettings.event = eventSettings
         saveHubSettings()
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Add Event",
-    CurrentValue = eventSettings.autoAddEvent or false,
+EventTab:Toggle({
+    Title = "Auto Add Event",
+    Desc = "Adds selected events to the Event Board every 15 minutes",
+    Value = eventSettings.autoAddEvent or false,
     Callback = function(v)
         eventRunning = v
         eventSettings.autoAddEvent = v
@@ -434,17 +431,18 @@ EventTab:CreateToggle({
         else
             if eventThread then task.cancel(eventThread) end
         end
-    end
+    end,
 })
 
 -- ======================================
 -- UI - SPAWNABLE SPECIAL RIFT
 -- ======================================
-EventTab:CreateSection("Spawnable Special Rift")
+EventTab:Section({ Title = "Spawnable Special Rift" })
 
-EventTab:CreateToggle({
-    Name = "Auto Hatch",
-    CurrentValue = autoHatchRiftEnabled,
+EventTab:Toggle({
+    Title = "Auto Hatch",
+    Desc = "Hatches Cloudy Rift Egg automatically",
+    Value = autoHatchRiftEnabled,
     Callback = function(v)
         autoHatchRiftEnabled = v
         eventSettings.autoHatchRift = v
@@ -458,7 +456,6 @@ EventTab:CreateToggle({
                 local riftExists = false
                 
                 while autoHatchRiftEnabled do
-                    -- WAIT FOR QUEST (highest priority)
                     while getgenv().questActive and autoHatchRiftEnabled do
                         wasActive = false
                         task.wait(0.5)
@@ -516,12 +513,13 @@ EventTab:CreateToggle({
             getgenv().questActive = false
             getgenv().questEgg = nil
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Summon",
-    CurrentValue = autoSummonRiftEnabled,
+EventTab:Toggle({
+    Title = "Auto Summon",
+    Desc = "Summons Cloudy Rift every 55 minutes",
+    Value = autoSummonRiftEnabled,
     Callback = function(v)
         autoSummonRiftEnabled = v
         eventSettings.autoSummonRift = v
@@ -548,129 +546,138 @@ EventTab:CreateToggle({
         else
             if autoSummonRiftThread then task.cancel(autoSummonRiftThread) end
         end
-    end
+    end,
 })
 
 -- ======================================
 -- UI - EVENT SHOP
 -- ======================================
-EventTab:CreateSection("Event Shop")
+EventTab:Section({ Title = "Event Shop" })
 
 local shopToggles = {}
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Event Egg (1)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Event Egg (1)",
+    Value = false,
     Callback = function(v)
         shopToggles[1] = v
         if v then
             task.spawn(function() while shopToggles[1] do buyAllItems({1}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Boost Crystal (2)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Boost Crystal (2)",
+    Value = false,
     Callback = function(v)
         shopToggles[2] = v
         if v then
             task.spawn(function() while shopToggles[2] do buyAllItems({2}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Event Elixir (3)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Event Elixir (3)",
+    Value = false,
     Callback = function(v)
         shopToggles[3] = v
         if v then
             task.spawn(function() while shopToggles[3] do buyAllItems({3}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Infinity Elixir (4,5,6,7)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Infinity Elixir (4,5,6,7)",
+    Value = false,
     Callback = function(v)
         shopToggles[4] = v
         if v then
             task.spawn(function() while shopToggles[4] do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Infinity Luck/Mythic/Gold (8,9,10)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Infinity Luck/Mythic/Gold (8,9,10)",
+    Value = false,
     Callback = function(v)
         shopToggles[5] = v
         if v then
             task.spawn(function() while shopToggles[5] do buyAllItems({8, 9, 10}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Normal Pet (11)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Normal Pet (11)",
+    Value = false,
     Callback = function(v)
         shopToggles[6] = v
         if v then
             task.spawn(function() while shopToggles[6] do buyAllItems({11}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All XL Pet (12)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All XL Pet (12)",
+    Value = false,
     Callback = function(v)
         shopToggles[7] = v
         if v then
             task.spawn(function() while shopToggles[7] do buyAllItems({12}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Green & Blue Fragment (13,14)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Green & Blue Fragment (13,14)",
+    Value = false,
     Callback = function(v)
         shopToggles[8] = v
         if v then
             task.spawn(function() while shopToggles[8] do buyAllItems({13, 14}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
-EventTab:CreateToggle({
-    Name = "Auto Buy All Purple & Rainbow Fragment (15,16)",
-    CurrentValue = false,
+EventTab:Toggle({
+    Title = "Auto Buy All Purple & Rainbow Fragment (15,16)",
+    Value = false,
     Callback = function(v)
         shopToggles[9] = v
         if v then
             task.spawn(function() while shopToggles[9] do buyAllItems({15, 16}) task.wait(5) end end)
         end
-    end
+    end,
 })
 
 -- ======================================
 -- UI - EVENT ALTAR
 -- ======================================
-EventTab:CreateSection("Event Altar (Event Rebirth Machine)")
+EventTab:Section({ Title = "Event Altar (Event Rebirth Machine)" })
 
-EventTab:CreateLabel("⚠️ Make sure to LOCK your Rainshine if you don't want it to be used!")
-EventTab:CreateLabel("Auto priority: Celestial (Rainshine) > Secret (Empyrean Bolt)")
-EventTab:CreateLabel("Groups by variant: Normal, Shiny, Mythic, Shiny Mythic, XL")
+EventTab:Paragraph({
+    Title = "⚠️ Warning",
+    Desc = "Make sure to LOCK your Rainshine if you don't want it to be used!",
+})
 
-local altarTrackerLabel = EventTab:CreateLabel("Last Used: None")
+EventTab:Paragraph({
+    Title = "Priority",
+    Desc = "Celestial (Rainshine) > Secret (Empyrean Bolt). Groups by variant: Normal, Shiny, Mythic, ShinyMythic, XL.",
+})
 
-EventTab:CreateToggle({
-    Name = "Auto Event Altar",
-    CurrentValue = false,
+local altarTrackerParagraph = EventTab:Paragraph({
+    Title = "Last Used: None",
+    Desc = "Waiting for first conversion",
+})
+
+EventTab:Toggle({
+    Title = "Auto Event Altar",
+    Value = false,
     Callback = function(v)
         if v then
             task.spawn(function()
@@ -679,7 +686,7 @@ EventTab:CreateToggle({
                     local cooldownSeconds = parseCooldown(cooldownText)
                     
                     if cooldownSeconds and cooldownSeconds > 0 then
-                        pcall(function() altarTrackerLabel:SetText("Cooldown: " .. cooldownText) end)
+                        pcall(function() altarTrackerParagraph:SetDesc("Cooldown: " .. cooldownText) end)
                         task.wait(math.min(cooldownSeconds + 5, 60))
                     else
                         local groups = getSkyAltarPets()
@@ -719,7 +726,7 @@ EventTab:CreateToggle({
                         end
                         
                         if #selectedPets >= 3 then
-                            pcall(function() altarTrackerLabel:SetText("Converting: " .. mode .. "...") end)
+                            pcall(function() altarTrackerParagraph:SetTitle("Converting: " .. mode) end)
                             local success = useSkyAltar(selectedPets)
                             if success then
                                 getgenv().ActivityStatus.current = "Event Altar used (" .. mode .. ")"
@@ -729,14 +736,14 @@ EventTab:CreateToggle({
                                 task.wait(5)
                             end
                         else
-                            pcall(function() altarTrackerLabel:SetText("Not enough pets (same variant)") end)
+                            pcall(function() altarTrackerParagraph:SetDesc("Not enough pets (same variant)") end)
                             task.wait(60)
                         end
                     end
                 end
             end)
         end
-    end
+    end,
 })
 
 print("[Event] Loaded!")
