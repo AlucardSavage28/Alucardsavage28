@@ -1,10 +1,11 @@
 -- ================================================
--- ENCHANT TAB (SILENT MODE - NO PRINT SPAM)
+-- ENCHANT TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local EnchantTab = Window:CreateTab("Enchant", nil)
+local EnchantTab = Window:Tab({ Title = "Enchant", Icon = "sparkles" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -125,9 +126,6 @@ local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
     return false
 end
 
--- ======================================
--- CHECK ENCHANT STATUS (SILENT)
--- ======================================
 local function checkEnchantStatus()
     local pets = getEquippedPets()
     local missing = {slot1 = 0, slot2 = 0}
@@ -149,9 +147,6 @@ local function checkEnchantStatus()
     return missing
 end
 
--- ======================================
--- RE-ENCHANT MISSING SLOTS (SILENT)
--- ======================================
 local function reEnchantMissingSlots(missing)
     local pets = getEquippedPets()
     if #pets == 0 then return end
@@ -181,9 +176,6 @@ local function reEnchantMissingSlots(missing)
     end
 end
 
--- ======================================
--- MONITOR LOOP (SILENT)
--- ======================================
 local function startMonitor()
     while monitorRunning do
         task.wait(10)
@@ -200,38 +192,46 @@ end
 -- ======================================
 -- UI
 -- ======================================
-EnchantTab:CreateSection("Manual Enchant")
+EnchantTab:Section({ Title = "Manual Enchant" })
 
-EnchantTab:CreateLabel("Smart currency: Auto-detects Shadow Crystal or Gems")
-EnchantTab:CreateLabel("NOTE: Make sure to check your Pets Enchant. If Secret Hunter is in Slot 1 but some pets already have it on Slot 2, it will roll endlessly!")
-
-EnchantTab:CreateDropdown({
-    Name = "Slot 1 Enchant",
-    Options = ALL_ENCHANTS,
-    CurrentOption = {TARGET_ENCHANTS[1].Id},
-    Callback = function(v)
-        TARGET_ENCHANTS[1].Id = v[1]
-        enchantSettings.slot1 = v[1]
-        getgenv().HubSettings.enchant = enchantSettings
-        saveHubSettings()
-    end
+EnchantTab:Paragraph({
+    Title = "Smart Currency",
+    Desc = "Auto-detects Shadow Crystal or Gems based on enchant type.",
 })
 
-EnchantTab:CreateDropdown({
-    Name = "Slot 2 Enchant",
-    Options = ALL_ENCHANTS,
-    CurrentOption = {TARGET_ENCHANTS[2].Id},
-    Callback = function(v)
-        TARGET_ENCHANTS[2].Id = v[1]
-        enchantSettings.slot2 = v[1]
-        getgenv().HubSettings.enchant = enchantSettings
-        saveHubSettings()
-    end
+EnchantTab:Paragraph({
+    Title = "⚠️ Warning",
+    Desc = "Make sure to check your Pets Enchant. If Secret Hunter is in Slot 1 but some pets already have it on Slot 2, it will roll endlessly!",
 })
 
-EnchantTab:CreateToggle({
-    Name = "Auto Enchant All Equipped (Monitor Mode)",
-    CurrentValue = false,
+EnchantTab:Dropdown({
+    Title = "Slot 1 Enchant",
+    Values = ALL_ENCHANTS,
+    Value = TARGET_ENCHANTS[1].Id,
+    Callback = function(v)
+        TARGET_ENCHANTS[1].Id = v
+        enchantSettings.slot1 = v
+        getgenv().HubSettings.enchant = enchantSettings
+        saveHubSettings()
+    end,
+})
+
+EnchantTab:Dropdown({
+    Title = "Slot 2 Enchant",
+    Values = ALL_ENCHANTS,
+    Value = TARGET_ENCHANTS[2].Id,
+    Callback = function(v)
+        TARGET_ENCHANTS[2].Id = v
+        enchantSettings.slot2 = v
+        getgenv().HubSettings.enchant = enchantSettings
+        saveHubSettings()
+    end,
+})
+
+EnchantTab:Toggle({
+    Title = "Auto Enchant All Equipped (Monitor Mode)",
+    Desc = "Continuously monitors and re-enchants pets when enchants are lost",
+    Value = false,
     Callback = function(v)
         enchantRunning = v
         monitorRunning = v
@@ -263,15 +263,18 @@ EnchantTab:CreateToggle({
             if enchantThread then task.cancel(enchantThread) end
             if monitorThread then task.cancel(monitorThread) end
         end
-    end
+    end,
 })
 
 -- ======================================
 -- SIMPLE ENCHANT (PRESETS)
 -- ======================================
-EnchantTab:CreateSection("Simple Enchant")
+EnchantTab:Section({ Title = "Simple Enchant" })
 
-EnchantTab:CreateLabel("If you use this please wait till it finish enchanting and check ur shadow crystal")
+EnchantTab:Paragraph({
+    Title = "Presets",
+    Desc = "If you use these, wait until it finishes enchanting and check your Shadow Crystal count.",
+})
 
 local function RunEnchant(primary, secondary, item1, item2)
     getgenv().Settings = {
@@ -288,16 +291,64 @@ local function RunEnchant(primary, secondary, item1, item2)
     loadstring(game:HttpGet("https://raw.githubusercontent.com/issascripts/bgsi/refs/heads/main/coolestautoenchantintown.lua"))()
 end
 
-EnchantTab:CreateButton({Name = "Secret Hunter + Ultra Roller", Callback = function() RunEnchant({"Secret Hunter","Ultra Roller"}, {"Secret Hunter","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal") end})
-EnchantTab:CreateButton({Name = "Ultra Roller + High Roller", Callback = function() RunEnchant({"High Roller","Ultra Roller"}, {"High Roller","Ultra Roller"}, "Shadow Crystal", "Gems") end})
-EnchantTab:CreateButton({Name = "Shiny Seeker + Ultra Roller", Callback = function() RunEnchant({"Shiny Seeker","Ultra Roller"}, {"Shiny Seeker","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal") end})
+EnchantTab:Button({
+    Title = "Secret Hunter + Ultra Roller",
+    Desc = "Shadow Crystal + Shadow Crystal",
+    Callback = function()
+        RunEnchant({"Secret Hunter","Ultra Roller"}, {"Secret Hunter","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal")
+    end,
+})
 
-EnchantTab:CreateSection("Bubbler Enchanter")
-EnchantTab:CreateButton({Name = "Team Up V + Bubbler V", Callback = function() RunEnchant({"Team Up V","Bubbler V"}, {"Team Up V","Bubbler V"}, "Gems", "Gems") end})
-EnchantTab:CreateButton({Name = "Determination + Bubbler V", Callback = function() RunEnchant({"Determination","Bubbler V"}, {"Determination","Bubbler V"}, "Shadow Crystal", "Gems") end})
+EnchantTab:Button({
+    Title = "Ultra Roller + High Roller",
+    Desc = "Shadow Crystal + Gems",
+    Callback = function()
+        RunEnchant({"High Roller","Ultra Roller"}, {"High Roller","Ultra Roller"}, "Shadow Crystal", "Gems")
+    end,
+})
 
-EnchantTab:CreateSection("Currency Enchanter")
-EnchantTab:CreateButton({Name = "Team Up V + Looter V", Callback = function() RunEnchant({"Team Up V","Looter V"}, {"Team Up V","Looter V"}, "Gems", "Gems") end})
-EnchantTab:CreateButton({Name = "Determination + Looter V", Callback = function() RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems") end})
+EnchantTab:Button({
+    Title = "Shiny Seeker + Ultra Roller",
+    Desc = "Shadow Crystal + Shadow Crystal",
+    Callback = function()
+        RunEnchant({"Shiny Seeker","Ultra Roller"}, {"Shiny Seeker","Ultra Roller"}, "Shadow Crystal", "Shadow Crystal")
+    end,
+})
+
+EnchantTab:Section({ Title = "Bubbler Enchanter" })
+
+EnchantTab:Button({
+    Title = "Team Up V + Bubbler V",
+    Desc = "Gems + Gems",
+    Callback = function()
+        RunEnchant({"Team Up V","Bubbler V"}, {"Team Up V","Bubbler V"}, "Gems", "Gems")
+    end,
+})
+
+EnchantTab:Button({
+    Title = "Determination + Bubbler V",
+    Desc = "Shadow Crystal + Gems",
+    Callback = function()
+        RunEnchant({"Determination","Bubbler V"}, {"Determination","Bubbler V"}, "Shadow Crystal", "Gems")
+    end,
+})
+
+EnchantTab:Section({ Title = "Currency Enchanter" })
+
+EnchantTab:Button({
+    Title = "Team Up V + Looter V",
+    Desc = "Gems + Gems",
+    Callback = function()
+        RunEnchant({"Team Up V","Looter V"}, {"Team Up V","Looter V"}, "Gems", "Gems")
+    end,
+})
+
+EnchantTab:Button({
+    Title = "Determination + Looter V",
+    Desc = "Shadow Crystal + Gems",
+    Callback = function()
+        RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems")
+    end,
+})
 
 print("[Enchant] Loaded!")
