@@ -1,10 +1,11 @@
 -- ================================================
--- QUEST TAB (DELTA - SEASON CLAIM WITH UI CLOSE FIX)
+-- QUEST TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local QuestTab = Window:CreateTab("Quest", nil)
+local QuestTab = Window:Tab({ Title = "Quest", Icon = "scroll-text" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -28,9 +29,17 @@ local questSettings = settings.quest
 -- ======================================
 -- NOTES
 -- ======================================
-QuestTab:CreateSection("Notes")
-QuestTab:CreateLabel("Note #1: Please make sure you have 1 Pearl and 1 Ticket currency pet in your hatching team to make it easier")
-QuestTab:CreateLabel("Note #2: Make sure you have Wooden Crate, Steel Crate, Golden Crate, Classic Crate, or Galaxy Crate. BUT if you dont have any of these it's okay it will just skip the pearl collect quest and continue to next quest")
+QuestTab:Section({ Title = "Notes" })
+
+QuestTab:Paragraph({
+    Title = "Note #1",
+    Desc = "Please make sure you have 1 Pearl and 1 Ticket currency pet in your hatching team to make it easier.",
+})
+
+QuestTab:Paragraph({
+    Title = "Note #2",
+    Desc = "Make sure you have Wooden Crate, Steel Crate, Golden Crate, Classic Crate, or Galaxy Crate. BUT if you don't have any of these it's okay — it will just skip the pearl collect quest and continue to next quest.",
+})
 
 -- ======================================
 -- TELEPORT LOCATIONS
@@ -437,7 +446,7 @@ local function questLoop(filter)
 end
 
 -- ======================================
--- SEASON CLAIM FUNCTIONS (PREMIUM PET WATCHER)
+-- SEASON CLAIM FUNCTIONS
 -- ======================================
 local function getPetTrueRarity(petName)
     local info = Pets[petName]
@@ -516,15 +525,14 @@ local function sendSeasonPremiumWebhook(premiumPet)
 end
 
 -- ======================================
--- UI
+-- UI - SEASON PASS
 -- ======================================
-QuestTab:CreateSection("Season Pass")
+QuestTab:Section({ Title = "Season Pass" })
 
-QuestTab:CreateInput({
-    Name = "Hatch Amount",
-    CurrentValue = tostring(HATCH_AMOUNT),
-    PlaceholderText = "12",
-    RemoveTextAfterFocusLost = false,
+QuestTab:Input({
+    Title = "Hatch Amount",
+    Value = tostring(HATCH_AMOUNT),
+    Placeholder = "12",
     Callback = function(v)
         local n = tonumber(v)
         if n then
@@ -533,12 +541,13 @@ QuestTab:CreateInput({
             getgenv().HubSettings.quest = questSettings
             saveHubSettings()
         end
-    end
+    end,
 })
 
-QuestTab:CreateToggle({
-    Name = "Auto Season Quests",
-    CurrentValue = questSettings.autoSeason or false,
+QuestTab:Toggle({
+    Title = "Auto Season Quests",
+    Desc = "Completes season quests automatically",
+    Value = questSettings.autoSeason or false,
     Callback = function(v)
         seasonRunning = v
         questSettings.autoSeason = v
@@ -552,27 +561,32 @@ QuestTab:CreateToggle({
             getgenv().questEgg = nil
             constants.DefaultPickupRadius = originalRadius
         end
-    end
+    end,
 })
 
-QuestTab:CreateLabel("Note: Auto Claim will STOP if there's a Celestial/Infinity/Void pet on Premium side!")
-QuestTab:CreateLabel("(Only works if you DON'T have Premium Pass)")
+QuestTab:Paragraph({
+    Title = "Auto Claim Season Pass Info",
+    Desc = "Will STOP if there's a Celestial/Infinity/Void pet on Premium side! (Only works if you DON'T have Premium Pass)",
+})
 
-local seasonStatusLabel = QuestTab:CreateLabel("Season Auto Claim: OFF")
+local seasonStatusParagraph = QuestTab:Paragraph({
+    Title = "Season Auto Claim",
+    Desc = "OFF",
+})
 
-QuestTab:CreateToggle({
-    Name = "Auto Claim Season Pass",
-    CurrentValue = false,
+QuestTab:Toggle({
+    Title = "Auto Claim Season Pass",
+    Desc = "Claims season rewards automatically",
+    Value = false,
     Callback = function(v)
         claimRunning = v
         if v then
             pcall(function()
-                seasonStatusLabel:SetText("Season Auto Claim: ON")
+                seasonStatusParagraph:SetDesc("ON")
             end)
             
             claimThread = task.spawn(function()
                 while claimRunning do
-                    -- Close Season UI to prevent error spam
                     local playerGui = player:FindFirstChild("PlayerGui")
                     local screenGui = playerGui and playerGui:FindFirstChild("ScreenGui")
                     local seasonUI = screenGui and screenGui:FindFirstChild("Season")
@@ -593,7 +607,8 @@ QuestTab:CreateToggle({
                         getgenv().ActivityStatus.trigger = true
                         
                         pcall(function()
-                            seasonStatusLabel:SetText("🚨 STOPPED: " .. premiumPet.name .. " [" .. rarityText .. "] at Tier " .. premiumPet.tier)
+                            seasonStatusParagraph:SetTitle("🚨 STOPPED")
+                            seasonStatusParagraph:SetDesc(premiumPet.name .. " [" .. rarityText .. "] at Tier " .. premiumPet.tier)
                         end)
                         
                         sendSeasonPremiumWebhook(premiumPet)
@@ -607,20 +622,22 @@ QuestTab:CreateToggle({
         else
             if claimThread then task.cancel(claimThread) end
             pcall(function()
-                seasonStatusLabel:SetText("Season Auto Claim: OFF")
+                seasonStatusParagraph:SetTitle("Season Auto Claim")
+                seasonStatusParagraph:SetDesc("OFF")
             end)
         end
-    end
+    end,
 })
 
 -- ======================================
--- GLOBAL INCENTIVE
+-- UI - GLOBAL INCENTIVE
 -- ======================================
-QuestTab:CreateSection("Global Incentive")
+QuestTab:Section({ Title = "Global Incentive" })
 
-QuestTab:CreateToggle({
-    Name = "Auto Global Incentive",
-    CurrentValue = questSettings.autoGlobal or false,
+QuestTab:Toggle({
+    Title = "Auto Global Incentive",
+    Desc = "Completes global incentive quests automatically",
+    Value = questSettings.autoGlobal or false,
     Callback = function(v)
         globalRunning = v
         questSettings.autoGlobal = v
@@ -670,56 +687,7 @@ QuestTab:CreateToggle({
             getgenv().questEgg = nil
             constants.DefaultPickupRadius = originalRadius
         end
-    end
+    end,
 })
-
--- ======================================
--- AUTO-START SAVED TOGGLES
--- ======================================
-if questSettings.autoSeason then
-    seasonRunning = true
-    seasonThread = task.spawn(questLoop("challenge"))
-end
-
-if questSettings.autoGlobal then
-    globalRunning = true
-    globalThread = task.spawn(function()
-        while globalRunning do
-            local quests = getActiveQuests("global")
-            if #quests == 0 then
-                pcall(function() Remote:FireServer("ClaimGlobalIncentiveQuest") end)
-                getgenv().questActive = false
-                getgenv().questEgg = nil
-                task.wait(60)
-            else
-                local questToDo = nil
-                for _, q in ipairs(quests) do
-                    local curr = q.currency or ""
-                    if q.type == "Collect" and curr:lower():find("pearl") then
-                        if not skippedQuests[q.id] then
-                            questToDo = q
-                            break
-                        end
-                    elseif q.type == "Hatch" and not q.egg and not q.rarity then
-                    else
-                        questToDo = q
-                        break
-                    end
-                end
-                if questToDo then
-                    getgenv().ActivityStatus.current = "Doing Global Incentive..."
-                    getgenv().ActivityStatus.trigger = true
-                    completeQuest(questToDo)
-                    getgenv().ActivityStatus.current = "Global Incentive done!"
-                    getgenv().ActivityStatus.trigger = true
-                else
-                    getgenv().questActive = false
-                    getgenv().questEgg = nil
-                    task.wait(30)
-                end
-            end
-        end
-    end)
-end
 
 print("[Quest] Loaded!")
