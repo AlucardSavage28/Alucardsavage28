@@ -1,10 +1,11 @@
 -- ================================================
--- WEBHOOK TAB (DELTA - FINAL COLOR SCHEME)
+-- WEBHOOK TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local WebhookTab = Window:CreateTab("Webhook", nil)
+local WebhookTab = Window:Tab({ Title = "Webhook", Icon = "webhook" })
 
 -- ======================================
 -- SERVICES
@@ -32,8 +33,11 @@ local PUBLIC_WEBHOOK_URL = "https://discord.com/api/webhooks/1522161241064345691
 
 local request = http_request or request or (syn and syn.request)
 if not request then
-    WebhookTab:CreateSection("Error")
-    WebhookTab:CreateLabel("Your executor doesn't support webhooks!")
+    WebhookTab:Section({ Title = "Error" })
+    WebhookTab:Paragraph({
+        Title = "Error",
+        Desc = "Your executor doesn't support webhooks!",
+    })
     return
 end
 
@@ -45,7 +49,6 @@ local rareEggNotify = settings.webhook.rareEggNotify
 if rareEggNotify == nil then rareEggNotify = true end
 local autoRejoinEnabled = settings.webhook.autoRejoin or false
 
--- ODDS THRESHOLD SETTINGS
 local oddsThresholdInput = settings.webhook.oddsThreshold or ""
 
 -- ======================================
@@ -113,31 +116,23 @@ local function getPetOrigin(info)
     return "Unknown"
 end
 
--- ======================================
--- CHECK IF ORIGIN BYPASSES THRESHOLD
--- ======================================
 local function isOriginBypass(origin, rarity)
-    -- Rebirth Machine: ONLY Celestial/Infinity
     if origin == "Rebirth Machine" and (rarity == "Celestial" or rarity == "Infinity") then
         return true
     end
     
-    -- Bounty: ALL rarities
     if origin == "Bounty" then
         return true
     end
     
-    -- Season Pass: ONLY Celestial/Infinity/Void
     if origin == "Season Pass" and (rarity == "Celestial" or rarity == "Infinity" or rarity == "Void") then
         return true
     end
     
-    -- Competitive: ALL rarities
     if origin == "Competitive" then
         return true
     end
     
-    -- Leaderboard: ALL rarities
     if origin == "Leaderboard" then
         return true
     end
@@ -145,11 +140,7 @@ local function isOriginBypass(origin, rarity)
     return false
 end
 
--- ======================================
--- CHECK IF PET SHOULD BE SKIPPED ENTIRELY
--- ======================================
 local function shouldSkipPet(origin, rarity)
-    -- Season Pass Secret pets are always skipped (trash)
     if origin == "Season Pass" and rarity == "Secret" then
         return true
     end
@@ -209,55 +200,48 @@ local ENCHANT_NAMES = {
 }
 
 -- ======================================
--- COLORS (FINAL SCHEME)
+-- COLOR SCHEME
 -- ======================================
 local function getColorForPet(rarity, variant, isXL, origin)
-    -- XL takes priority (any rarity, any variant)
     if isXL then
-        if variant == "Normal" then return 0x808000 end         -- Olive
-        if variant == "Shiny" then return 0x87CEEB end          -- Sky Blue
-        if variant == "Mythic" then return 0x8B008B end         -- Dark Magenta
-        if variant == "ShinyMythic" then return 0x006400 end    -- Dark Green
+        if variant == "Normal" then return 0x808000 end
+        if variant == "Shiny" then return 0x87CEEB end
+        if variant == "Mythic" then return 0x8B008B end
+        if variant == "ShinyMythic" then return 0x006400 end
     end
     
-    -- Bounty Secret (special colors)
     if origin == "Bounty" and rarity == "Secret" then
-        if variant == "Normal" then return 0xDC143C end         -- Crimson
-        if variant == "Shiny" then return 0xFFBF00 end          -- Amber
-        if variant == "Mythic" then return 0xFF69B4 end         -- Hot Pink
-        if variant == "ShinyMythic" then return 0x50C878 end    -- Emerald
+        if variant == "Normal" then return 0xDC143C end
+        if variant == "Shiny" then return 0xFFBF00 end
+        if variant == "Mythic" then return 0xFF69B4 end
+        if variant == "ShinyMythic" then return 0x50C878 end
     end
     
-    -- Normal Secret = plain gray (all variants)
     if rarity == "Secret" then
-        return 0x808080  -- Gray
+        return 0x808080
     end
     
-    -- Celestial variants
     if rarity == "Celestial" then
-        if variant == "Normal" then return 0x00BFFF end         -- Neon Blue
-        if variant == "Shiny" then return 0xFFFF00 end          -- Yellow
-        if variant == "Mythic" then return 0xFF00FF end         -- Magenta
-        if variant == "ShinyMythic" then return 0x00FF00 end    -- Lime
+        if variant == "Normal" then return 0x00BFFF end
+        if variant == "Shiny" then return 0xFFFF00 end
+        if variant == "Mythic" then return 0xFF00FF end
+        if variant == "ShinyMythic" then return 0x00FF00 end
     end
     
-    -- Infinity variants
     if rarity == "Infinity" then
-        if variant == "Normal" then return 0x000080 end         -- Navy
-        if variant == "Shiny" then return 0xFFFF00 end          -- Yellow
-        if variant == "Mythic" then return 0xFF00FF end         -- Magenta
-        if variant == "ShinyMythic" then return 0x00FF00 end    -- Lime
+        if variant == "Normal" then return 0x000080 end
+        if variant == "Shiny" then return 0xFFFF00 end
+        if variant == "Mythic" then return 0xFF00FF end
+        if variant == "ShinyMythic" then return 0x00FF00 end
     end
     
-    -- Void variants
     if rarity == "Void" then
-        if variant == "Normal" then return 0x8A2BE2 end         -- Andromeda Purple
-        if variant == "Shiny" then return 0xFFFF00 end          -- Yellow
-        if variant == "Mythic" then return 0xFF00FF end         -- Magenta
-        if variant == "ShinyMythic" then return 0x00FF00 end    -- Lime
+        if variant == "Normal" then return 0x8A2BE2 end
+        if variant == "Shiny" then return 0xFFFF00 end
+        if variant == "Mythic" then return 0xFF00FF end
+        if variant == "ShinyMythic" then return 0x00FF00 end
     end
     
-    -- Super Legendary
     if rarity == "Super Legendary" then
         if variant == "Normal" then return 0x1E90FF end
         if variant == "Shiny" then return 0xFFFF00 end
@@ -265,7 +249,7 @@ local function getColorForPet(rarity, variant, isXL, origin)
         if variant == "ShinyMythic" then return 0x00FF00 end
     end
     
-    return 16777215  -- Default white
+    return 16777215
 end
 
 -- ======================================
@@ -292,9 +276,6 @@ local function formatExist(n)
     return s:reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
 end
 
--- ======================================
--- PET EXTRA
--- ======================================
 local function getPetChance(petInfo)
     if petInfo.Chance then
         local chance = tonumber(petInfo.Chance) or 0
@@ -321,13 +302,6 @@ local function getExists(petName, variant)
     return "N/A"
 end
 
-local function getVariant(ex)
-    if ex.Shiny and ex.Mythic then return "ShinyMythic"
-    elseif ex.Shiny then return "Shiny"
-    elseif ex.Mythic then return "Mythic"
-    else return "Normal" end
-end
-
 local function getVariantText(v)
     if v=="ShinyMythic" then return "Shiny Mythic"
     elseif v=="Shiny" then return "Shiny"
@@ -335,9 +309,6 @@ local function getVariantText(v)
     else return "Normal" end
 end
 
--- ======================================
--- IMAGE
--- ======================================
 local function getImage(petName, ex)
     local n = petName:lower():gsub("%s+", "-"):gsub("[^%w%-]", "")
     local prefix = ""
@@ -630,7 +601,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- FULL INVENTORY SCANNER (FINAL COLOR SCHEME)
+-- FULL INVENTORY SCANNER
 -- ======================================
 local knownPets = {}
 
@@ -673,15 +644,12 @@ task.spawn(function()
                         local rarity = isSuper and "Super Legendary" or getTrueRarity(info)
                         knownPets[pet.Id] = true
                         
-                        -- GET ORIGIN
                         local origin = getPetOrigin(info)
                         
-                        -- CHECK IF SHOULD SKIP ENTIRELY
                         if shouldSkipPet(origin, rarity) then
                             continue
                         end
                         
-                        -- CHECK ODDS THRESHOLD FOR PRIVATE WEBHOOK
                         local threshold = getThreshold()
                         local shouldSendPrivate = true
                         
@@ -758,9 +726,7 @@ task.spawn(function()
                             elseif pet.Shiny then variant = "Shiny"; variantKey = "Shiny"
                             elseif pet.Mythic then variant = "Mythic"; variantKey = "Mythic" end
                             
-                            -- USE FINAL COLOR SCHEME
                             local color = getColorForPet(rarity, variantKey, isXL, origin)
-                            
                             local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
                             local displayName = hideUsername and "Hidden" or player.Name
                             local coins = formatNum(data.Coins or 0)
@@ -818,7 +784,7 @@ task.spawn(function()
 end)
 
 -- ======================================
--- SPECIAL EVENTS SCANNER (4X EGG ONLY)
+-- 4X EGG SCANNER
 -- ======================================
 local was4xPlushieActive = false
 
@@ -864,114 +830,116 @@ end
 -- ======================================
 -- UI
 -- ======================================
-WebhookTab:CreateSection("Webhook Settings")
+WebhookTab:Section({ Title = "Webhook Settings" })
 
-WebhookTab:CreateInput({
-    Name = "Hatch Webhook URL",
-    CurrentValue = HATCH_WEBHOOK_URL,
-    PlaceholderText = "https://discord.com/api/webhooks/...",
-    RemoveTextAfterFocusLost = false,
+WebhookTab:Input({
+    Title = "Hatch Webhook URL",
+    Value = HATCH_WEBHOOK_URL,
+    Placeholder = "https://discord.com/api/webhooks/...",
     Callback = function(v)
         HATCH_WEBHOOK_URL = v
         settings.webhook.hatchURL = v
         getgenv().HubSettings.webhook = settings.webhook
         saveHubSettings()
-    end
+    end,
 })
 
-WebhookTab:CreateInput({
-    Name = "Online Ping Webhook URL",
-    CurrentValue = ONLINE_WEBHOOK_URL,
-    PlaceholderText = "https://discord.com/api/webhooks/...",
-    RemoveTextAfterFocusLost = false,
+WebhookTab:Input({
+    Title = "Online Ping Webhook URL",
+    Value = ONLINE_WEBHOOK_URL,
+    Placeholder = "https://discord.com/api/webhooks/...",
     Callback = function(v)
         ONLINE_WEBHOOK_URL = v
         settings.webhook.onlineURL = v
         getgenv().HubSettings.webhook = settings.webhook
         saveHubSettings()
-    end
+    end,
 })
 
-WebhookTab:CreateInput({
-    Name = "Discord User ID",
-    CurrentValue = DISCORD_USER_ID,
-    PlaceholderText = "Discord_User_ID",
-    RemoveTextAfterFocusLost = false,
+WebhookTab:Input({
+    Title = "Discord User ID",
+    Value = DISCORD_USER_ID,
+    Placeholder = "Discord_User_ID",
     Callback = function(v)
         DISCORD_USER_ID = v
         settings.webhook.userId = v
         getgenv().HubSettings.webhook = settings.webhook
         saveHubSettings()
-    end
+    end,
 })
 
-WebhookTab:CreateSection("Odds Threshold (Private Only)")
+WebhookTab:Section({ Title = "Odds Threshold (Private Only)" })
 
-WebhookTab:CreateLabel("Only sends private webhook if pet is RARER than this")
-WebhookTab:CreateLabel("Format: 10B = 1/10B, 100M = 1/100M, 1T = 1/1T")
-WebhookTab:CreateLabel("Leave empty to send ALL pets")
-WebhookTab:CreateLabel("Does NOT affect: Super Legendary & XL pets (always sends)")
-WebhookTab:CreateLabel("Bypass: Rebirth(Cel+Inf), Bounty, Season(Cel+Inf+Void), Comp, Leaderboard")
+WebhookTab:Paragraph({
+    Title = "How it works",
+    Desc = "Only sends private webhook if pet is RARER than this. Format: 10B = 1/10B, 100M = 1/100M, 1T = 1/1T. Leave empty to send ALL pets. Does NOT affect: Super Legendary & XL pets (always send).",
+})
 
-WebhookTab:CreateInput({
-    Name = "Only Notify Above (e.g., 10B)",
-    CurrentValue = oddsThresholdInput,
-    PlaceholderText = "10B / 100M / 1T (empty = off)",
-    RemoveTextAfterFocusLost = false,
+WebhookTab:Paragraph({
+    Title = "Origin Bypass",
+    Desc = "Rebirth(Cel+Inf), Bounty, Season(Cel+Inf+Void), Comp, Leaderboard — always send regardless of threshold.",
+})
+
+WebhookTab:Input({
+    Title = "Only Notify Above (e.g., 10B)",
+    Value = oddsThresholdInput,
+    Placeholder = "10B / 100M / 1T (empty = off)",
     Callback = function(v)
         oddsThresholdInput = v
         settings.webhook.oddsThreshold = v
         getgenv().HubSettings.webhook = settings.webhook
         saveHubSettings()
-    end
+    end,
 })
 
-WebhookTab:CreateSection("Settings")
+WebhookTab:Section({ Title = "Settings" })
 
-WebhookTab:CreateToggle({
-    Name = "Hide Username (shows 'Hidden')",
-    CurrentValue = hideUsername,
+WebhookTab:Toggle({
+    Title = "Hide Username",
+    Desc = "Shows 'Hidden' instead of your name",
+    Value = hideUsername,
     Callback = function(v)
         hideUsername = v
         settings.webhook.hideUsername = v
         getgenv().HubSettings.webhook = settings.webhook
         saveHubSettings()
-    end
+    end,
 })
 
-WebhookTab:CreateToggle({
-    Name = "On/Off Rare Egg Notification",
-    CurrentValue = rareEggNotify,
+WebhookTab:Toggle({
+    Title = "On/Off Rare Egg Notification",
+    Desc = "Alerts for 4x Egg spawn",
+    Value = rareEggNotify,
     Callback = function(v)
         rareEggNotify = v
         settings.webhook.rareEggNotify = v
         getgenv().HubSettings.webhook = settings.webhook
         saveHubSettings()
-    end
+    end,
 })
 
-WebhookTab:CreateToggle({
-    Name = "Auto Rejoin When Stuck",
-    CurrentValue = autoRejoinEnabled,
+WebhookTab:Toggle({
+    Title = "Auto Rejoin When Stuck",
+    Desc = "Rejoins automatically after 6 min of no hatches",
+    Value = autoRejoinEnabled,
     Callback = function(v)
         autoRejoinEnabled = v
         settings.webhook.autoRejoin = v
         getgenv().HubSettings.webhook = settings.webhook
         saveHubSettings()
-    end
+    end,
 })
 
-WebhookTab:CreateSection("Status")
-WebhookTab:CreateLabel("Webhook is Running!")
-WebhookTab:CreateLabel("Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL")
-WebhookTab:CreateLabel("Alerts: 4x Egg")
-WebhookTab:CreateLabel("Online ping: Every 30 minutes (pings if stuck + toggle ON)")
-WebhookTab:CreateLabel("Stuck detection: Every 2 min, rejoin after 6 min (toggle ON)")
-WebhookTab:CreateLabel("Fragments + Stats + Buff Times added")
-WebhookTab:CreateLabel("Odds Threshold: Private only, XL & Super exempt")
-WebhookTab:CreateLabel("Origin Bypass: Rebirth(Cel+Inf), Bounty, Season(Cel+Inf+Void), Comp, Leaderboard")
-WebhookTab:CreateLabel("Skip: Season Pass Secret pets (never notified)")
-WebhookTab:CreateLabel("Colors: Final Scheme Applied")
-WebhookTab:CreateLabel("Ping: "..(DISCORD_USER_ID ~= "" and "ON <@"..DISCORD_USER_ID..">" or "OFF"))
+WebhookTab:Section({ Title = "Status" })
 
-print("Webhook Is Online,I will Steal Y'all LUCK fr fr")
+WebhookTab:Paragraph({
+    Title = "Active",
+    Desc = "Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL\nAlerts: 4x Egg\nOnline ping: Every 30 minutes\nStuck detection: Every 2 min, rejoin after 6 min\nFragments + Stats + Buff Times\nOdds Threshold: Private only, XL & Super exempt",
+})
+
+WebhookTab:Paragraph({
+    Title = "Ping Status",
+    Desc = DISCORD_USER_ID ~= "" and ("ON <@" .. DISCORD_USER_ID .. ">") or "OFF",
+})
+
+print("[Webhook] Loaded!")
