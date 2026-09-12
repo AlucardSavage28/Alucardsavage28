@@ -158,6 +158,347 @@ local function collectAllPresents()
 end
 
 -- ======================================
+-- START/STOP FUNCTIONS
+-- ======================================
+local function startAutoPresent()
+    if presentThread then return end
+    presentEnabled = true
+    local wasCollecting = false
+    presentThread = task.spawn(function()
+        while presentEnabled do
+            if getgenv().questActive then
+                task.wait(0.5)
+                continue
+            end
+            
+            local count = collectAllPresents()
+            if count > 0 then
+                if not wasCollecting then
+                    getgenv().ActivityStatus.current = "Collecting Presents (" .. count .. " found)"
+                    getgenv().ActivityStatus.trigger = true
+                    wasCollecting = true
+                end
+            else
+                if wasCollecting then
+                    getgenv().ActivityStatus.current = "Done collecting presents"
+                    getgenv().ActivityStatus.trigger = true
+                    wasCollecting = false
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function stopAutoPresent()
+    presentEnabled = false
+    if presentThread then task.cancel(presentThread); presentThread = nil end
+end
+
+local function startAutoBubble()
+    if bubbleThread then return end
+    bubbleEnabled = true
+    bubbleThread = task.spawn(function()
+        while bubbleEnabled do
+            pcall(function() fire("BlowBubble") end)
+            task.wait(0.01)
+        end
+    end)
+end
+
+local function stopAutoBubble()
+    bubbleEnabled = false
+    if bubbleThread then task.cancel(bubbleThread); bubbleThread = nil end
+end
+
+local function startAutoSell()
+    if sellThread then return end
+    sellEnabled = true
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local returnCFrame = root and root.CFrame or nil
+    
+    sellThread = task.spawn(function()
+        local needsSell = false
+        
+        while sellEnabled do
+            local bubbles = getBubbles()
+            
+            if bubbles >= BUBBLE_CAP then
+                needsSell = true
+            elseif bubbles < 100000000 then
+                needsSell = false
+            end
+            
+            if needsSell and bubbles >= BUBBLE_CAP then
+                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                
+                if root then root.CFrame = CFrame.new(SELL_POS) end
+                task.wait(0.2)
+                
+                for i = 1, 3 do
+                    local before = getBubbles()
+                    pcall(function() fire("SellBubble") end)
+                    task.wait(0.3)
+                    local after = getBubbles()
+                    if after < before then break end
+                end
+                
+                if returnCFrame and root then
+                    root.CFrame = returnCFrame
+                    root.Velocity = Vector3.zero
+                    root.RotVelocity = Vector3.zero
+                end
+                task.wait(3)
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+local function stopAutoSell()
+    sellEnabled = false
+    if sellThread then task.cancel(sellThread); sellThread = nil end
+end
+
+local function startAutoFragment()
+    if fragThread then return end
+    fragRunning = true
+    fragThread = task.spawn(function()
+        while fragRunning do
+            pcall(function() RE:FireServer("UseFragment", "Green", 1) end)
+            pcall(function() RE:FireServer("UseFragment", "Blue", 1) end)
+            pcall(function() RE:FireServer("UseFragment", "Purple", 1) end)
+            pcall(function() RE:FireServer("UseFragment", "Rainbow", 1) end)
+            task.wait(2)
+        end
+    end)
+end
+
+local function stopAutoFragment()
+    fragRunning = false
+    if fragThread then task.cancel(fragThread); fragThread = nil end
+end
+
+local function startAutoGoldenOrb()
+    if orbThread then return end
+    orbEnabled = true
+    orbThread = task.spawn(function()
+        while orbEnabled do
+            pcall(function() fire("UseGoldenOrb") end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function stopAutoGoldenOrb()
+    orbEnabled = false
+    if orbThread then task.cancel(orbThread); orbThread = nil end
+end
+
+local function startAutoPlaytime()
+    if playtimeThread then return end
+    playtimeRunning = true
+    playtimeThread = task.spawn(function()
+        while playtimeRunning do
+            pcall(function() RE:FireServer("ClaimAllPlaytime") end)
+            task.wait(60)
+        end
+    end)
+end
+
+local function stopAutoPlaytime()
+    playtimeRunning = false
+    if playtimeThread then task.cancel(playtimeThread); playtimeThread = nil end
+end
+
+local function startAutoBox()
+    if boxThread then return end
+    boxEnabled = true
+    boxThread = task.spawn(function()
+        local VIM = game:GetService("VirtualInputManager")
+        while boxEnabled do
+            local data = LocalData:Get()
+            local amount = data and data.Powerups and data.Powerups[selectedBox] or 0
+            if amount > 0 then
+                local openAmount = math.min(amount, 25)
+                getgenv().ActivityStatus.current = "Opening " .. selectedBox .. " x" .. openAmount
+                getgenv().ActivityStatus.trigger = true
+                pcall(function() fire("UseGift", selectedBox, openAmount) end)
+                for i = 1, openAmount do
+                    if not boxEnabled then break end
+                    VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                end
+                task.wait(0.1)
+            else
+                task.wait(5)
+            end
+        end
+    end)
+end
+
+local function stopAutoBox()
+    boxEnabled = false
+    if boxThread then task.cancel(boxThread); boxThread = nil end
+end
+
+local function startAutoDaily()
+    if dailyThread then return end
+    dailyRunning = true
+    dailyThread = task.spawn(function()
+        while dailyRunning do
+            local playerGui = player:FindFirstChild("PlayerGui")
+            
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local hud = screenGui:FindFirstChild("HUD")
+                    if hud then
+                        local left = hud:FindFirstChild("Left")
+                        if left then
+                            local buttons = left:FindFirstChild("Buttons")
+                            if buttons then
+                                local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                                if dailyBtn then
+                                    local btn = dailyBtn:FindFirstChild("Button")
+                                    if btn then firesignal(btn.Activated) end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            task.wait(0.5)
+            
+            local streakText = "Unknown"
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                    if dailyRewards then
+                        local shop = dailyRewards:FindFirstChild("Shop")
+                        if shop then
+                            local streak = shop:FindFirstChild("Streak")
+                            if streak then
+                                local label = streak:FindFirstChild("Label")
+                                if label then streakText = label.Text end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            local claimed = false
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local dailyRewards = screenGui:FindFirstChild("DailyRewards")
+                    if dailyRewards then
+                        local login = dailyRewards:FindFirstChild("Login")
+                        if login then
+                            local loginFrame = login:FindFirstChild("Frame")
+                            if loginFrame then
+                                local claim = loginFrame:FindFirstChild("Claim")
+                                if claim then
+                                    local claimBtn = claim:FindFirstChild("Button")
+                                    if claimBtn and claimBtn.Visible then
+                                        firesignal(claimBtn.Activated)
+                                        claimed = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            pcall(function() RE:FireServer("DailyRewardClaimStars") end)
+            claimed = true
+            
+            task.wait(0.3)
+            
+            if playerGui then
+                local screenGui = playerGui:FindFirstChild("ScreenGui")
+                if screenGui then
+                    local hud = screenGui:FindFirstChild("HUD")
+                    if hud then
+                        local left = hud:FindFirstChild("Left")
+                        if left then
+                            local buttons = left:FindFirstChild("Buttons")
+                            if buttons then
+                                local dailyBtn = buttons:FindFirstChild("DailyRewards")
+                                if dailyBtn then
+                                    local btn = dailyBtn:FindFirstChild("Button")
+                                    if btn then firesignal(btn.Activated) end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            if claimed then
+                getgenv().ActivityStatus.current = "Signed in for your Daily Streak! (" .. streakText .. ")"
+                getgenv().ActivityStatus.trigger = true
+                print("[Auto] Daily streak claimed! (" .. streakText .. ")")
+            end
+            
+            task.wait(86400)
+        end
+    end)
+end
+
+local function stopAutoDaily()
+    dailyRunning = false
+    if dailyThread then task.cancel(dailyThread); dailyThread = nil end
+end
+
+local function startAutoFishing()
+    fishRunning = true
+    getgenv().ActivityStatus.current = "Starting Fishing quest..."
+    getgenv().ActivityStatus.trigger = true
+    
+    getgenv().RdotAfishingConfig = {
+        Mode = "Quest",
+        Zone = "Fisher's Island",
+    }
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/IRdotAI/Rcash-Hub/main/random-shit/autofish.lua"))()
+    
+    task.wait(1)
+    local camera = workspace.CurrentCamera
+    if camera then
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            camera.CameraType = Enum.CameraType.Scriptable
+            local forward = root.CFrame.LookVector
+            local right = root.CFrame.RightVector
+            local leftPos = root.Position + (-right * 10) + (forward * 5)
+            camera.CFrame = CFrame.new(root.Position + Vector3.new(0, 2, 0), leftPos)
+            task.wait(0.3)
+            camera.CameraType = Enum.CameraType.LockFirstPerson
+        end
+    end
+end
+
+local function stopAutoFishing()
+    fishRunning = false
+    getgenv().ActivityStatus.current = "Done Fishing Quest"
+    getgenv().ActivityStatus.trigger = true
+    
+    getgenv().RdotAfishingConfig = {
+        Mode = "Off",
+        Zone = "Fisher's Island",
+        Enabled = false
+    }
+    getgenv().RdotAfishingStop = true
+    task.wait(0.5)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 50, 0)
+    end
+end
+
+-- ======================================
 -- UI - PRESENT RAIN
 -- ======================================
 AutoTab:Section({ Title = "Present Rain" })
@@ -167,39 +508,10 @@ AutoTab:Toggle({
     Desc = "Collects all presents in the Present Rain event",
     Value = autoSettings.presentRain or false,
     Callback = function(v)
-        presentEnabled = v
         autoSettings.presentRain = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            local wasCollecting = false
-            presentThread = task.spawn(function()
-                while presentEnabled do
-                    if getgenv().questActive then
-                        task.wait(0.5)
-                        continue
-                    end
-                    
-                    local count = collectAllPresents()
-                    if count > 0 then
-                        if not wasCollecting then
-                            getgenv().ActivityStatus.current = "Collecting Presents (" .. count .. " found)"
-                            getgenv().ActivityStatus.trigger = true
-                            wasCollecting = true
-                        end
-                    else
-                        if wasCollecting then
-                            getgenv().ActivityStatus.current = "Done collecting presents"
-                            getgenv().ActivityStatus.trigger = true
-                            wasCollecting = false
-                        end
-                    end
-                    task.wait(0.5)
-                end
-            end)
-        else
-            if presentThread then task.cancel(presentThread) end
-        end
+        if v then startAutoPresent() else stopAutoPresent() end
     end,
 })
 
@@ -208,7 +520,6 @@ AutoTab:Toggle({
 -- ======================================
 AutoTab:Section({ Title = "Auto Rune/Fragment" })
 
--- Rune 1 (Luck)
 AutoTab:Dropdown({
     Title = "Luck Rune Tier",
     Values = {"Luck Tier 1", "Luck Tier 2", "Luck Tier 3"},
@@ -257,7 +568,6 @@ AutoTab:Toggle({
     end,
 })
 
--- Rune 2 (Secret)
 AutoTab:Dropdown({
     Title = "Secret Rune Tier",
     Values = {"Secret Tier 1", "Secret Tier 2", "Secret Tier 3"},
@@ -306,7 +616,6 @@ AutoTab:Toggle({
     end,
 })
 
--- Rune 3 (Bubble)
 AutoTab:Dropdown({
     Title = "Bubble Rune Tier",
     Values = {"Bubble Tier 1", "Bubble Tier 2", "Bubble Tier 3"},
@@ -360,23 +669,10 @@ AutoTab:Toggle({
     Desc = "Uses 1 of each fragment every 2 seconds",
     Value = autoSettings.autoFragment or false,
     Callback = function(v)
-        fragRunning = v
         autoSettings.autoFragment = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            fragThread = task.spawn(function()
-                while fragRunning do
-                    pcall(function() RE:FireServer("UseFragment", "Green", 1) end)
-                    pcall(function() RE:FireServer("UseFragment", "Blue", 1) end)
-                    pcall(function() RE:FireServer("UseFragment", "Purple", 1) end)
-                    pcall(function() RE:FireServer("UseFragment", "Rainbow", 1) end)
-                    task.wait(2)
-                end
-            end)
-        else
-            if fragThread then task.cancel(fragThread) end
-        end
+        if v then startAutoFragment() else stopAutoFragment() end
     end,
 })
 
@@ -390,20 +686,10 @@ AutoTab:Toggle({
     Desc = "Blows bubble 100 times per second",
     Value = autoSettings.autoBubble or false,
     Callback = function(v)
-        bubbleEnabled = v
         autoSettings.autoBubble = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            bubbleThread = task.spawn(function()
-                while bubbleEnabled do
-                    pcall(function() fire("BlowBubble") end)
-                    task.wait(0.01)
-                end
-            end)
-        else
-            if bubbleThread then task.cancel(bubbleThread) end
-        end
+        if v then startAutoBubble() else stopAutoBubble() end
     end,
 })
 
@@ -412,53 +698,10 @@ AutoTab:Toggle({
     Desc = "Sells when Bubbles reach 650M (returns after)",
     Value = autoSettings.autoSell or false,
     Callback = function(v)
-        sellEnabled = v
         autoSettings.autoSell = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            local returnCFrame = root and root.CFrame or nil
-            
-            sellThread = task.spawn(function()
-                local needsSell = false
-                
-                while sellEnabled do
-                    local bubbles = getBubbles()
-                    
-                    if bubbles >= BUBBLE_CAP then
-                        needsSell = true
-                    elseif bubbles < 100000000 then
-                        needsSell = false
-                    end
-                    
-                    if needsSell and bubbles >= BUBBLE_CAP then
-                        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                        
-                        if root then root.CFrame = CFrame.new(SELL_POS) end
-                        task.wait(0.2)
-                        
-                        for i = 1, 3 do
-                            local before = getBubbles()
-                            pcall(function() fire("SellBubble") end)
-                            task.wait(0.3)
-                            local after = getBubbles()
-                            if after < before then break end
-                        end
-                        
-                        if returnCFrame and root then
-                            root.CFrame = returnCFrame
-                            root.Velocity = Vector3.zero
-                            root.RotVelocity = Vector3.zero
-                        end
-                        task.wait(3)
-                    end
-                    task.wait(1)
-                end
-            end)
-        else
-            if sellThread then task.cancel(sellThread) end
-        end
+        if v then startAutoSell() else stopAutoSell() end
     end,
 })
 
@@ -467,122 +710,10 @@ AutoTab:Toggle({
     Desc = "Claims daily rewards every 24 hours",
     Value = autoSettings.dailyStreak or false,
     Callback = function(v)
-        dailyRunning = v
         autoSettings.dailyStreak = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            dailyThread = task.spawn(function()
-                while dailyRunning do
-                    local playerGui = player:FindFirstChild("PlayerGui")
-                    
-                    if playerGui then
-                        local screenGui = playerGui:FindFirstChild("ScreenGui")
-                        if screenGui then
-                            local hud = screenGui:FindFirstChild("HUD")
-                            if hud then
-                                local left = hud:FindFirstChild("Left")
-                                if left then
-                                    local buttons = left:FindFirstChild("Buttons")
-                                    if buttons then
-                                        local dailyBtn = buttons:FindFirstChild("DailyRewards")
-                                        if dailyBtn then
-                                            local btn = dailyBtn:FindFirstChild("Button")
-                                            if btn then
-                                                firesignal(btn.Activated)
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                    task.wait(0.5)
-                    
-                    local streakText = "Unknown"
-                    if playerGui then
-                        local screenGui = playerGui:FindFirstChild("ScreenGui")
-                        if screenGui then
-                            local dailyRewards = screenGui:FindFirstChild("DailyRewards")
-                            if dailyRewards then
-                                local shop = dailyRewards:FindFirstChild("Shop")
-                                if shop then
-                                    local streak = shop:FindFirstChild("Streak")
-                                    if streak then
-                                        local label = streak:FindFirstChild("Label")
-                                        if label then
-                                            streakText = label.Text
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                    local claimed = false
-                    if playerGui then
-                        local screenGui = playerGui:FindFirstChild("ScreenGui")
-                        if screenGui then
-                            local dailyRewards = screenGui:FindFirstChild("DailyRewards")
-                            if dailyRewards then
-                                local login = dailyRewards:FindFirstChild("Login")
-                                if login then
-                                    local loginFrame = login:FindFirstChild("Frame")
-                                    if loginFrame then
-                                        local claim = loginFrame:FindFirstChild("Claim")
-                                        if claim then
-                                            local claimBtn = claim:FindFirstChild("Button")
-                                            if claimBtn and claimBtn.Visible then
-                                                firesignal(claimBtn.Activated)
-                                                claimed = true
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                    pcall(function() RE:FireServer("DailyRewardClaimStars") end)
-                    claimed = true
-                    
-                    task.wait(0.3)
-                    
-                    if playerGui then
-                        local screenGui = playerGui:FindFirstChild("ScreenGui")
-                        if screenGui then
-                            local hud = screenGui:FindFirstChild("HUD")
-                            if hud then
-                                local left = hud:FindFirstChild("Left")
-                                if left then
-                                    local buttons = left:FindFirstChild("Buttons")
-                                    if buttons then
-                                        local dailyBtn = buttons:FindFirstChild("DailyRewards")
-                                        if dailyBtn then
-                                            local btn = dailyBtn:FindFirstChild("Button")
-                                            if btn then
-                                                firesignal(btn.Activated)
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                    if claimed then
-                        getgenv().ActivityStatus.current = "Signed in for your Daily Streak! (" .. streakText .. ")"
-                        getgenv().ActivityStatus.trigger = true
-                        print("[Auto] Daily streak claimed! (" .. streakText .. ")")
-                    end
-                    
-                    task.wait(86400)
-                end
-            end)
-        else
-            if dailyThread then task.cancel(dailyThread) end
-        end
+        if v then startAutoDaily() else stopAutoDaily() end
     end,
 })
 
@@ -619,7 +750,6 @@ AutoTab:Toggle({
                     pcall(function() RE:FireServer("DailyRewardsForfeitStreak") end)
                     getgenv().ActivityStatus.current = "Forfeited Daily Streak!"
                     getgenv().ActivityStatus.trigger = true
-                    print("[Auto] Daily streak forfeited!")
                 end
                 
                 forfeitRunning = false
@@ -660,13 +790,11 @@ AutoTab:Toggle({
                         if afterCount > beforeCount then
                             getgenv().ActivityStatus.current = "Claimed XL Index Reward! (" .. afterCount .. "/" .. totalTasks .. ")"
                             getgenv().ActivityStatus.trigger = true
-                            print("[XL Index] Claimed! " .. afterCount .. "/" .. totalTasks)
                             task.wait(5)
                         else
                             task.wait(600)
                         end
                     else
-                        print("[XL Index] All complete!")
                         break
                     end
                 end
@@ -716,20 +844,10 @@ AutoTab:Toggle({
     Desc = "Uses Golden Orb every 1 second",
     Value = autoSettings.autoGoldenOrb or false,
     Callback = function(v)
-        orbEnabled = v
         autoSettings.autoGoldenOrb = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            orbThread = task.spawn(function()
-                while orbEnabled do
-                    pcall(function() fire("UseGoldenOrb") end)
-                    task.wait(1)
-                end
-            end)
-        else
-            if orbThread then task.cancel(orbThread) end
-        end
+        if v then startAutoGoldenOrb() else stopAutoGoldenOrb() end
     end,
 })
 
@@ -755,20 +873,10 @@ AutoTab:Toggle({
     Desc = "Claims playtime rewards every 60 seconds",
     Value = autoSettings.autoPlaytime or false,
     Callback = function(v)
-        playtimeRunning = v
         autoSettings.autoPlaytime = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            playtimeThread = task.spawn(function()
-                while playtimeRunning do
-                    pcall(function() RE:FireServer("ClaimAllPlaytime") end)
-                    task.wait(60)
-                end
-            end)
-        else
-            if playtimeThread then task.cancel(playtimeThread) end
-        end
+        if v then startAutoPlaytime() else stopAutoPlaytime() end
     end,
 })
 
@@ -802,7 +910,6 @@ AutoTab:Button({
         selectedBox = boxList[1] or "Mystery Box"
         local text = "Found " .. #boxList .. " boxes"
         pcall(function() boxListParagraph:SetDesc(text) end)
-        print("[Auto] Box Rescan: " .. text)
     end,
 })
 
@@ -811,35 +918,10 @@ AutoTab:Toggle({
     Desc = "Opens selected box 25 at a time",
     Value = autoSettings.autoOpenBox or false,
     Callback = function(v)
-        boxEnabled = v
         autoSettings.autoOpenBox = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            boxThread = task.spawn(function()
-                local VIM = game:GetService("VirtualInputManager")
-                while boxEnabled do
-                    local data = LocalData:Get()
-                    local amount = data and data.Powerups and data.Powerups[selectedBox] or 0
-                    if amount > 0 then
-                        local openAmount = math.min(amount, 25)
-                        getgenv().ActivityStatus.current = "Opening " .. selectedBox .. " x" .. openAmount
-                        getgenv().ActivityStatus.trigger = true
-                        pcall(function() fire("UseGift", selectedBox, openAmount) end)
-                        for i = 1, openAmount do
-                            if not boxEnabled then break end
-                            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                        end
-                        task.wait(0.1)
-                    else
-                        task.wait(5)
-                    end
-                end
-            end)
-        else
-            if boxThread then task.cancel(boxThread) end
-        end
+        if v then startAutoBox() else stopAutoBox() end
     end,
 })
 
@@ -858,50 +940,31 @@ AutoTab:Toggle({
     Desc = "Loads external auto-fishing script",
     Value = autoSettings.autoFishing or false,
     Callback = function(v)
-        fishRunning = v
         autoSettings.autoFishing = v
         getgenv().HubSettings.auto = autoSettings
         saveHubSettings()
-        if v then
-            getgenv().ActivityStatus.current = "Starting Fishing quest..."
-            getgenv().ActivityStatus.trigger = true
-            
-            getgenv().RdotAfishingConfig = {
-                Mode = "Quest",
-                Zone = "Fisher's Island",
-            }
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/IRdotAI/Rcash-Hub/main/random-shit/autofish.lua"))()
-            
-            task.wait(1)
-            local camera = workspace.CurrentCamera
-            if camera then
-                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                if root then
-                    camera.CameraType = Enum.CameraType.Scriptable
-                    local forward = root.CFrame.LookVector
-                    local right = root.CFrame.RightVector
-                    local leftPos = root.Position + (-right * 10) + (forward * 5)
-                    camera.CFrame = CFrame.new(root.Position + Vector3.new(0, 2, 0), leftPos)
-                    task.wait(0.3)
-                    camera.CameraType = Enum.CameraType.LockFirstPerson
-                end
-            end
-        else
-            getgenv().ActivityStatus.current = "Done Fishing Quest"
-            getgenv().ActivityStatus.trigger = true
-            
-            getgenv().RdotAfishingConfig = {
-                Mode = "Off",
-                Zone = "Fisher's Island",
-                Enabled = false
-            }
-            getgenv().RdotAfishingStop = true
-            task.wait(0.5)
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 50, 0)
-            end
-        end
+        if v then startAutoFishing() else stopAutoFishing() end
     end,
 })
 
-print("[Auto] Loaded!")
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+task.spawn(function()
+    task.wait(1)
+    
+    if autoSettings.presentRain then startAutoPresent() end
+    if autoSettings.autoBubble then startAutoBubble() end
+    if autoSettings.autoSell then startAutoSell() end
+    if autoSettings.autoFragment then startAutoFragment() end
+    if autoSettings.dailyStreak then startAutoDaily() end
+    if autoSettings.autoGoldenOrb then startAutoGoldenOrb() end
+    if autoSettings.autoPlaytime then startAutoPlaytime() end
+    if autoSettings.autoOpenBox then startAutoBox() end
+    if autoSettings.autoFishing then startAutoFishing() end
+    
+    if autoSettings.autoPickup then
+        pickupEnabled = true
+        constants.DefaultPickupRadius = math.huge
+    end
+end)
