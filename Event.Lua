@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (WINDUI VERSION)
+-- EVENT TAB (WINDUI VERSION - FIXED EVENT BOARD)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -101,8 +101,6 @@ local function getActiveEventDisplay()
     if #events == 0 then return "No Event" end
     return table.concat(events, ", ")
 end
-
-local lastEventDisplay = ""
 
 -- ======================================
 -- SPAWNABLE RIFT FUNCTIONS
@@ -363,29 +361,45 @@ local function buyAllItems(itemNumbers)
 end
 
 -- ======================================
--- UI - EVENT BOARD
+-- UI - EVENT BOARD (FIXED - NO SPAM)
 -- ======================================
 EventTab:Section({ Title = "Event Board" })
 
 local activeEventParagraph = EventTab:Paragraph({
     Title = "Active: " .. getActiveEventDisplay(),
-    Desc = "Updates every 30 seconds",
+    Desc = "Updates every 15 min or when event changes",
 })
+
+local lastEventDisplay = getActiveEventDisplay()
+local lastEventUpdate = tick()
+local EVENT_UPDATE_INTERVAL = 900 -- 15 minutes
 
 task.spawn(function()
     while true do
-        task.wait(30)
-        local display = getActiveEventDisplay()
-        pcall(function() activeEventParagraph:SetTitle("Active: " .. display) end)
+        task.wait(30) -- internal check every 30s
         
-        if display ~= lastEventDisplay then
+        local display = getActiveEventDisplay()
+        local now = tick()
+        
+        local shouldUpdateUI = (now - lastEventUpdate) >= EVENT_UPDATE_INTERVAL
+        local eventChanged = (display ~= lastEventDisplay)
+        
+        if eventChanged then
+            pcall(function() activeEventParagraph:SetTitle("Active: " .. display) end)
             lastEventDisplay = display
+            lastEventUpdate = now
+            
             if display == "No Event" then
-                getgenv().ActivityStatus.current = "Event Board = No Event"
+                getgenv().ActivityStatus.current = "Event Board = No Event (removed)"
             else
-                getgenv().ActivityStatus.current = "Event Board = " .. display
+                getgenv().ActivityStatus.current = "Event Board = " .. display .. " (activated)"
             end
             getgenv().ActivityStatus.trigger = true
+            
+            print("[Event] Event Board changed: " .. display)
+        elseif shouldUpdateUI then
+            pcall(function() activeEventParagraph:SetTitle("Active: " .. display) end)
+            lastEventUpdate = now
         end
     end
 end)
