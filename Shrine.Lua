@@ -1,10 +1,11 @@
 -- ================================================
--- SHRINE TAB (DELTA - LINEAR PERM SHRINE)
+-- SHRINE TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local ShrineTab = Window:CreateTab("Shrine", nil)
+local ShrineTab = Window:Tab({ Title = "Shrine", Icon = "landmark" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -199,28 +200,26 @@ local function dreamer()
 end
 
 -- ======================================
--- BUBBLE SHRINE
+-- UI - BUBBLE SHRINE
 -- ======================================
-ShrineTab:CreateSection("Bubble Shrine")
+ShrineTab:Section({ Title = "Bubble Shrine" })
 
-ShrineTab:CreateDropdown({
-    Name = "Potion Type (Level 1-3)",
-    CurrentOption = BUBBLE.Name,
-    Options = potionOptions,
+ShrineTab:Dropdown({
+    Title = "Potion Type (Level 1-3)",
+    Values = potionOptions,
+    Value = BUBBLE.Name,
     Callback = function(v)
-        local value = type(v) == "table" and v[1] or v
-        BUBBLE.Name = value
-        shrineSettings.bubbleType = value
+        BUBBLE.Name = v
+        shrineSettings.bubbleType = v
         getgenv().HubSettings.shrine = shrineSettings
         saveHubSettings()
-    end
+    end,
 })
 
-ShrineTab:CreateInput({
-    Name = "Amount",
-    CurrentValue = tostring(BUBBLE.Amount),
-    PlaceholderText = "500",
-    RemoveTextAfterFocusLost = false,
+ShrineTab:Input({
+    Title = "Amount",
+    Value = tostring(BUBBLE.Amount),
+    Placeholder = "500",
     Callback = function(v)
         local n = tonumber(v)
         if n then
@@ -229,12 +228,13 @@ ShrineTab:CreateInput({
             getgenv().HubSettings.shrine = shrineSettings
             saveHubSettings()
         end
-    end
+    end,
 })
 
-ShrineTab:CreateToggle({
-    Name = "Auto Bubble",
-    CurrentValue = shrineSettings.autoBubble or false,
+ShrineTab:Toggle({
+    Title = "Auto Bubble",
+    Desc = "Donates to Bubble Shrine every 60 seconds",
+    Value = shrineSettings.autoBubble or false,
     Callback = function(v)
         bubbleEnabled = v
         shrineSettings.autoBubble = v
@@ -257,19 +257,18 @@ ShrineTab:CreateToggle({
         else
             if bubbleThread then task.cancel(bubbleThread); bubbleThread = nil end
         end
-    end
+    end,
 })
 
 -- ======================================
--- DREAMER SHRINE
+-- UI - DREAMER SHRINE
 -- ======================================
-ShrineTab:CreateSection("Dreamer Shrine")
+ShrineTab:Section({ Title = "Dreamer Shrine" })
 
-ShrineTab:CreateInput({
-    Name = "Amount",
-    CurrentValue = tostring(DREAMER_AMOUNT),
-    PlaceholderText = "15",
-    RemoveTextAfterFocusLost = false,
+ShrineTab:Input({
+    Title = "Amount",
+    Value = tostring(DREAMER_AMOUNT),
+    Placeholder = "15",
     Callback = function(v)
         local n = tonumber(v)
         if n then
@@ -278,12 +277,13 @@ ShrineTab:CreateInput({
             getgenv().HubSettings.shrine = shrineSettings
             saveHubSettings()
         end
-    end
+    end,
 })
 
-ShrineTab:CreateToggle({
-    Name = "Auto Dreamer",
-    CurrentValue = shrineSettings.autoDreamer or false,
+ShrineTab:Toggle({
+    Title = "Auto Dreamer",
+    Desc = "Donates to Dreamer Shrine every 60 seconds",
+    Value = shrineSettings.autoDreamer or false,
     Callback = function(v)
         dreamerEnabled = v
         shrineSettings.autoDreamer = v
@@ -306,15 +306,18 @@ ShrineTab:CreateToggle({
         else
             if dreamerThread then task.cancel(dreamerThread); dreamerThread = nil end
         end
-    end
+    end,
 })
 
 -- ======================================
--- PERM SHRINE (LINEAR FLOW)
+-- UI - PERM SHRINE
 -- ======================================
-ShrineTab:CreateSection("Perm Shrine")
+ShrineTab:Section({ Title = "Perm Shrine" })
 
-local permInfoLabel = ShrineTab:CreateLabel("Buff: None | Egg: None | XP: 0/1M")
+local permInfoParagraph = ShrineTab:Paragraph({
+    Title = "Current Buff Info",
+    Desc = "Buff: None | Egg: None | XP: 0/1M",
+})
 
 task.spawn(function()
     while true do
@@ -334,54 +337,53 @@ task.spawn(function()
             end
             
             pcall(function() 
-                permInfoLabel:SetText("Buff: " .. tostring(buff) .. " | Egg: " .. tostring(egg) .. " | XP: " .. tostring(xp) .. "/1M" .. timeText) 
+                permInfoParagraph:SetTitle("Current Buff: " .. tostring(buff))
+                permInfoParagraph:SetDesc("Egg: " .. tostring(egg) .. " | XP: " .. tostring(xp) .. "/1M" .. timeText)
             end)
         end
     end
 end)
 
-ShrineTab:CreateDropdown({
-    Name = "Donate Potion (Level 6 Only)",
-    Options = {"Lucky 6", "Speed 6", "Coins 6", "Mythic 6", "Tickets 6"},
-    CurrentOption = permSelectedPotion,
+ShrineTab:Dropdown({
+    Title = "Donate Potion (Level 6 Only)",
+    Values = {"Lucky 6", "Speed 6", "Coins 6", "Mythic 6", "Tickets 6"},
+    Value = permSelectedPotion,
     Callback = function(v)
-        local value = type(v) == "table" and v[1] or v
-        permSelectedPotion = value
-        shrineSettings.permPotion = value
+        permSelectedPotion = v
+        shrineSettings.permPotion = v
         getgenv().HubSettings.shrine = shrineSettings
         saveHubSettings()
-    end
+    end,
 })
 
-ShrineTab:CreateDropdown({
-    Name = "Egg",
-    Options = {"Common Egg", "Cyber Egg", "Nightmare Egg", "Neon Egg", "Atlantis Egg", "Lava Egg", "Icy Egg", "Rainbow Egg", "Mining Egg", "Vine Egg", "Classic Egg"},
-    CurrentOption = permSelectedEgg,
+ShrineTab:Dropdown({
+    Title = "Egg",
+    Values = {"Common Egg", "Cyber Egg", "Nightmare Egg", "Neon Egg", "Atlantis Egg", "Lava Egg", "Icy Egg", "Rainbow Egg", "Mining Egg", "Vine Egg", "Classic Egg"},
+    Value = permSelectedEgg,
     Callback = function(v)
-        local value = type(v) == "table" and v[1] or v
-        permSelectedEgg = value
-        shrineSettings.permEgg = value
+        permSelectedEgg = v
+        shrineSettings.permEgg = v
         getgenv().HubSettings.shrine = shrineSettings
         saveHubSettings()
-    end
+    end,
 })
 
-ShrineTab:CreateDropdown({
-    Name = "Target Buff",
-    Options = {"Luck", "Secret", "Infinity", "Mythic", "Shiny"},
-    CurrentOption = permTargetBuff,
+ShrineTab:Dropdown({
+    Title = "Target Buff",
+    Values = {"Luck", "Secret", "Infinity", "Mythic", "Shiny"},
+    Value = permTargetBuff,
     Callback = function(v)
-        local value = type(v) == "table" and v[1] or v
-        permTargetBuff = value
-        shrineSettings.permTargetBuff = value
+        permTargetBuff = v
+        shrineSettings.permTargetBuff = v
         getgenv().HubSettings.shrine = shrineSettings
         saveHubSettings()
-    end
+    end,
 })
 
-ShrineTab:CreateToggle({
-    Name = "Reroll Until Target Buff",
-    CurrentValue = permRerollEnabled,
+ShrineTab:Toggle({
+    Title = "Reroll Until Target Buff",
+    Desc = "Keeps rerolling until the target buff is obtained",
+    Value = permRerollEnabled,
     Callback = function(v)
         permRerollEnabled = v
         shrineSettings.permReroll = v
@@ -390,12 +392,13 @@ ShrineTab:CreateToggle({
         if not v then
             permRerollNotified = false
         end
-    end
+    end,
 })
 
-ShrineTab:CreateToggle({
-    Name = "Auto Perm Shrine",
-    CurrentValue = shrineSettings.autoPermShrine or false,
+ShrineTab:Toggle({
+    Title = "Auto Perm Shrine",
+    Desc = "Automatically donates + claims + rerolls Perm Shrine",
+    Value = shrineSettings.autoPermShrine or false,
     Callback = function(v)
         permEnabled = v
         shrineSettings.autoPermShrine = v
@@ -414,10 +417,8 @@ ShrineTab:CreateToggle({
                     local currentBuff = getPermShrineBuff()
                     local currentXP = getPermShrineXP()
                     
-                    -- BUFF ACTIVE (timer > 0)
                     if remaining > 0 then
                         if permRerollEnabled and currentBuff ~= permTargetBuff then
-                            -- Reroll
                             getgenv().ActivityStatus.current = "Rerolling for " .. permTargetBuff .. " (current: " .. currentBuff .. ")"
                             getgenv().ActivityStatus.trigger = true
                             
@@ -427,7 +428,6 @@ ShrineTab:CreateToggle({
                             
                             local newBuff = getPermShrineBuff()
                             if newBuff == currentBuff then
-                                -- Reroll failed (out of tickets)
                                 if not permRerollNotified then
                                     permRerollNotified = true
                                     
@@ -449,18 +449,15 @@ ShrineTab:CreateToggle({
                             task.wait(math.min(remaining + 5, 300))
                             permRerollNotified = false
                         else
-                            -- No reroll, just wait
                             task.wait(math.min(remaining + 5, 300))
                         end
                     else
-                        -- BUFF EXPIRED - LINEAR FLOW: Donate → Claim → Wait
                         getgenv().ActivityStatus.current = "Perm Shrine: Starting new cycle"
                         getgenv().ActivityStatus.trigger = true
                         
                         forceShrineUIVisible()
                         task.wait(1)
                         
-                        -- STEP 1: Donate
                         local xp = getPermShrineXP()
                         if xp < 1000000 then
                             getgenv().ActivityStatus.current = "Donating " .. permSelectedPotion .. " to Perm Shrine"
@@ -470,7 +467,6 @@ ShrineTab:CreateToggle({
                             task.wait(3)
                         end
                         
-                        -- STEP 2: Claim IMMEDIATELY (no state flag)
                         getgenv().ActivityStatus.current = "Claiming Perm Shrine for " .. permSelectedEgg
                         getgenv().ActivityStatus.trigger = true
                         
@@ -479,7 +475,6 @@ ShrineTab:CreateToggle({
                         claimPermShrineBuff(permSelectedEgg)
                         task.wait(5)
                         
-                        -- Reset notification for next cycle
                         permRerollNotified = false
                     end
                     
@@ -489,44 +484,7 @@ ShrineTab:CreateToggle({
         else
             if permThread then task.cancel(permThread) end
         end
-    end
+    end,
 })
-
--- ======================================
--- AUTO-START
--- ======================================
-if shrineSettings.autoBubble then
-    bubbleEnabled = true
-    getgenv().ActivityStatus.current = "Bubble Shrine Activated"
-    getgenv().ActivityStatus.trigger = true
-    bubble()
-    bubbleThread = task.spawn(function()
-        while bubbleEnabled do
-            task.wait(60)
-            if isBuffExpired("ShrineBlessing") then
-                getgenv().ActivityStatus.current = "Bubble Shrine Activated"
-                getgenv().ActivityStatus.trigger = true
-                bubble()
-            end
-        end
-    end)
-end
-
-if shrineSettings.autoDreamer then
-    dreamerEnabled = true
-    getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
-    getgenv().ActivityStatus.trigger = true
-    dreamer()
-    dreamerThread = task.spawn(function()
-        while dreamerEnabled do
-            task.wait(60)
-            if isBuffExpired("DreamerBlessing") then
-                getgenv().ActivityStatus.current = "Dreamer Shrine Activated"
-                getgenv().ActivityStatus.trigger = true
-                dreamer()
-            end
-        end
-    end)
-end
 
 print("[Shrine] Loaded!")
