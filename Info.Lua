@@ -105,7 +105,7 @@ InfoTab:Button({
             return
         end
         
-        local webhookURL = "https://discord.com/api/webhooks/1545103112308523183/3s00vtdmI7pV5fw-ghjnPNDoSSUUsPWWz19Q0VVuEWdHfndl7pbR1UHeYYYRj8sutU4l"
+        local webhookURL = "https://discord.com/api/webhooks/1369693785214423102/o8SwG_v7B0TB0HtmjbgJ-b3Pc50TzsuwqpucoChXhFA5hcGeM9EXYKKy4WkYE5Q5Qb7u"
         
         if not request then
             print("[Info] Cannot send right now!")
