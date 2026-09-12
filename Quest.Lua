@@ -577,7 +577,7 @@ local seasonStatusParagraph = QuestTab:Paragraph({
 QuestTab:Toggle({
     Title = "Auto Claim Season Pass",
     Desc = "Claims season rewards automatically",
-    Value = false,
+    Value = claimRunning,
     Callback = function(v)
         claimRunning = v
         if v then
@@ -689,5 +689,65 @@ QuestTab:Toggle({
         end
     end,
 })
+
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+task.spawn(function()
+    task.wait(1.5)
+    
+    -- Auto Season Quests
+    if questSettings.autoSeason then
+        seasonRunning = true
+        seasonThread = task.spawn(questLoop("challenge"))
+    end
+    
+    -- Auto Global Incentive
+    if questSettings.autoGlobal then
+        globalRunning = true
+        globalThread = task.spawn(function()
+            while globalRunning do
+                local quests = getActiveQuests("global")
+                if #quests == 0 then
+                    pcall(function() Remote:FireServer("ClaimGlobalIncentiveQuest") end)
+                    getgenv().questActive = false
+                    getgenv().questEgg = nil
+                    task.wait(60)
+                else
+                    local questToDo = nil
+                    for _, q in ipairs(quests) do
+                        local curr = q.currency or ""
+                        if q.type == "Collect" and curr:lower():find("pearl") then
+                            if not skippedQuests[q.id] then
+                                questToDo = q
+                                break
+                            end
+                        elseif q.type == "Hatch" and not q.egg and not q.rarity then
+                        else
+                            questToDo = q
+                            break
+                        end
+                    end
+                    if questToDo then
+                        getgenv().ActivityStatus.current = "Doing Global Incentive..."
+                        getgenv().ActivityStatus.trigger = true
+                        completeQuest(questToDo)
+                        getgenv().ActivityStatus.current = "Global Incentive done!"
+                        getgenv().ActivityStatus.trigger = true
+                    else
+                        getgenv().questActive = false
+                        getgenv().questEgg = nil
+                        task.wait(30)
+                    end
+                end
+            end
+        end)
+    end
+    
+    -- NOTE: Auto Claim Season Pass is NOT persisted (no settings save),
+    -- so it never auto-starts. User must toggle it manually each session.
+    
+    print("[Quest] Auto-started saved toggles!")
+end)
 
 print("[Quest] Loaded!")
