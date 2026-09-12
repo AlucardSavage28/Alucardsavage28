@@ -1,10 +1,11 @@
 -- ================================================
--- TELEPORT TAB
+-- TELEPORT TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local TeleportTab = Window:CreateTab("Teleport", nil)
+local TeleportTab = Window:Tab({ Title = "Teleport", Icon = "map-pin" })
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -77,11 +78,12 @@ end
 -- ======================================
 -- UI - AUTO UNLOCK
 -- ======================================
-TeleportTab:CreateSection("Auto Unlock")
+TeleportTab:Section({ Title = "Auto Unlock" })
 
-TeleportTab:CreateToggle({
-    Name = "Auto Unlock All Islands",
-    CurrentValue = false,
+TeleportTab:Toggle({
+    Title = "Auto Unlock All Islands",
+    Desc = "Teleport to every island in order",
+    Value = false,
     Callback = function(v)
         unlockRunning = v
         if v then
@@ -117,8 +119,9 @@ TeleportTab:CreateToggle({
     end
 })
 
-TeleportTab:CreateButton({
-    Name = "Teleport to Shadow Realm (Unlock)",
+TeleportTab:Button({
+    Title = "Teleport to Shadow Realm (Unlock)",
+    Desc = "Unlock Shadow Realm",
     Callback = function()
         getgenv().ActivityStatus.current = "Teleported to Shadow Realm"
         getgenv().ActivityStatus.trigger = true
@@ -129,26 +132,27 @@ TeleportTab:CreateButton({
 -- ======================================
 -- UI - TELEPORT
 -- ======================================
-TeleportTab:CreateSection("Teleport")
+TeleportTab:Section({ Title = "Teleport" })
 
+-- Overworld
 local overworldOptions = {}
 for name, _ in pairs(OVERWORLD) do
     table.insert(overworldOptions, name)
 end
 table.sort(overworldOptions)
 
-TeleportTab:CreateDropdown({
-    Name = "The Overworld",
-    Options = overworldOptions,
-    CurrentOption = {overworldSelected},
+TeleportTab:Dropdown({
+    Title = "The Overworld",
+    Values = overworldOptions,
+    Value = overworldSelected,
     Callback = function(v)
-        overworldSelected = v[1]
+        overworldSelected = v
     end
 })
 
-TeleportTab:CreateToggle({
-    Name = "Auto Teleport Overworld",
-    CurrentValue = false,
+TeleportTab:Toggle({
+    Title = "Auto Teleport Overworld",
+    Value = false,
     Callback = function(v)
         overworldRunning = v
         if v then
@@ -166,24 +170,25 @@ TeleportTab:CreateToggle({
     end
 })
 
+-- Minigame
 local minigameOptions = {}
 for name, _ in pairs(MINIGAME) do
     table.insert(minigameOptions, name)
 end
 table.sort(minigameOptions)
 
-TeleportTab:CreateDropdown({
-    Name = "Minigame Paradise",
-    Options = minigameOptions,
-    CurrentOption = {minigameSelected},
+TeleportTab:Dropdown({
+    Title = "Minigame Paradise",
+    Values = minigameOptions,
+    Value = minigameSelected,
     Callback = function(v)
-        minigameSelected = v[1]
+        minigameSelected = v
     end
 })
 
-TeleportTab:CreateToggle({
-    Name = "Auto Teleport Minigame Paradise",
-    CurrentValue = false,
+TeleportTab:Toggle({
+    Title = "Auto Teleport Minigame Paradise",
+    Value = false,
     Callback = function(v)
         minigameRunning = v
         if v then
@@ -201,24 +206,25 @@ TeleportTab:CreateToggle({
     end
 })
 
+-- Seven Seas
 local sevenseasOptions = {}
 for name, _ in pairs(SEVENSEAS) do
     table.insert(sevenseasOptions, name)
 end
 table.sort(sevenseasOptions)
 
-TeleportTab:CreateDropdown({
-    Name = "Seven Seas",
-    Options = sevenseasOptions,
-    CurrentOption = {sevenseasSelected},
+TeleportTab:Dropdown({
+    Title = "Seven Seas",
+    Values = sevenseasOptions,
+    Value = sevenseasSelected,
     Callback = function(v)
-        sevenseasSelected = v[1]
+        sevenseasSelected = v
     end
 })
 
-TeleportTab:CreateToggle({
-    Name = "Auto Teleport Seven Seas",
-    CurrentValue = false,
+TeleportTab:Toggle({
+    Title = "Auto Teleport Seven Seas",
+    Value = false,
     Callback = function(v)
         sevenseasRunning = v
         if v then
@@ -236,8 +242,9 @@ TeleportTab:CreateToggle({
     end
 })
 
-TeleportTab:CreateButton({
-    Name = "Teleport to Shadow Realm",
+TeleportTab:Button({
+    Title = "Teleport to Shadow Realm",
+    Desc = "Go to Shadow Realm",
     Callback = function()
         getgenv().ActivityStatus.current = "Teleported to Shadow Realm"
         getgenv().ActivityStatus.trigger = true
