@@ -13,6 +13,16 @@ local player = Players.LocalPlayer
 
 local Board = require(ReplicatedStorage.Client.Gui.Frames.Board)
 
+-- ======================================
+-- LOAD SAVED SETTINGS
+-- ======================================
+local settings = getgenv().HubSettings or {}
+if not settings.diceboard then settings.diceboard = {} end
+local diceSettings = settings.diceboard
+
+-- ======================================
+-- TILE TYPES
+-- ======================================
 local TILE_TYPES = {
     ["Chance"] = {5,13,25,29,32,36,39,40,44,50,53,55,60,61,62,72,76,78,79,83},
     ["Dice-Key"] = {19,21,34,47,80},
@@ -25,7 +35,7 @@ local TILE_TYPES = {
     ["Basic"] = {1,6,7,9,14,15,22,23,24,30,31,35,37,48,51,56,58,67,68,70,73,74,81,84,85,87},
 }
 
-local targetTile = "Chance"
+local targetTile = diceSettings.targetTile or "Chance"
 local running = false
 local thread = nil
 
@@ -143,6 +153,27 @@ local function loop()
 end
 
 -- ======================================
+-- AUTO-START LOGIC
+-- ======================================
+local function startDiceLoop()
+    if running then return end
+    running = true
+    if not getBoardHUD() then
+        running = false
+        return
+    end
+    thread = task.spawn(loop)
+end
+
+local function stopDiceLoop()
+    running = false
+    if thread then 
+        task.cancel(thread)
+        thread = nil
+    end
+end
+
+-- ======================================
 -- UI
 -- ======================================
 DiceBoardTab:Section({ Title = "Settings" })
@@ -153,29 +184,39 @@ DiceBoardTab:Dropdown({
         "Chance", "Dice-Key", "Dice", "Giant-Dice", "Golden-Dice",
         "Infinity-Elixir", "Special-Egg", "Super-Ticket", "Basic"
     },
-    Value = "Chance",
+    Value = targetTile,
     Callback = function(v)
         targetTile = v
+        diceSettings.targetTile = v
+        getgenv().HubSettings.diceboard = diceSettings
+        saveHubSettings()
     end,
 })
 
 DiceBoardTab:Toggle({
     Title = "Auto Dice Board",
     Desc = "Automatically rolls dice to reach the target tile",
-    Value = false,
+    Value = diceSettings.autoDice or false,
     Callback = function(v)
-        running = v
+        diceSettings.autoDice = v
+        getgenv().HubSettings.diceboard = diceSettings
+        saveHubSettings()
         if v then
-            if not getBoardHUD() then
-                running = false
-                return
-            end
-            thread = task.spawn(loop)
+            startDiceLoop()
         else
-            running = false
-            if thread then task.cancel(thread) end
+            stopDiceLoop()
         end
     end,
 })
+
+-- ======================================
+-- AUTO-START SAVED TOGGLE
+-- ======================================
+task.spawn(function()
+    task.wait(1)
+    if diceSettings.autoDice then
+        startDiceLoop()
+    end
+end)
 
 print("[Dice Board] Loaded!")
