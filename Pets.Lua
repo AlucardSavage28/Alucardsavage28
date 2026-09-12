@@ -1,10 +1,11 @@
 -- ================================================
--- PETS TAB (DELTA - BULK DELETE + TRUE SECRET + XL EXCLUDED)
+-- PETS TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
+local WindUI = getgenv().WindUI
 
-local PetTab = Window:CreateTab("Pets", nil)
+local PetTab = Window:Tab({ Title = "Pets", Icon = "paw-print" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -48,18 +49,14 @@ local function isTrueSecret(info)
 end
 
 -- ======================================
--- AUTO DELETE T3 LEGENDARY (BULK VERSION)
+-- AUTO DELETE T3 LEGENDARY
 -- ======================================
 local autoDeleteT3Enabled = petSettings.autoDeleteT3 or false
 local autoDeleteT3Thread = nil
 
 local TARGET_EGGS = {
-    "Void Egg",
-    "Neon Egg",
-    "Lava Egg",
-    "Vine Egg",
-    "Atlantis Egg",
-    "Classic Egg",
+    "Void Egg", "Neon Egg", "Lava Egg",
+    "Vine Egg", "Atlantis Egg", "Classic Egg",
 }
 
 local function isT3Legendary(pet, info)
@@ -74,18 +71,12 @@ local function isT3Legendary(pet, info)
 end
 
 -- ======================================
--- AUTO DELETE BY RARITY (BULK VERSION)
+-- AUTO DELETE BY RARITY
 -- ======================================
 local autoDeleteRarityEnabled = petSettings.autoDeleteRarity or false
 local autoDeleteRarityThread = nil
 
-local DELETE_RARITIES = {
-    "Common",
-    "Unique",
-    "Rare",
-    "Epic",
-    "Legendary",
-}
+local DELETE_RARITIES = {"Common", "Unique", "Rare", "Epic", "Legendary"}
 
 local function shouldDeleteByRarity(pet, info)
     if not info or not info.Rarity then return false end
@@ -102,7 +93,7 @@ local function shouldDeleteByRarity(pet, info)
 end
 
 -- ======================================
--- SETTINGS (Rebirth Machine)
+-- REBIRTH MACHINE
 -- ======================================
 local fuserActive = false
 local loopThread = nil
@@ -180,15 +171,19 @@ local function fusionLoop()
 end
 
 -- ======================================
--- UI - AUTO DELETE PET (BULK - SILENT)
+-- UI - AUTO DELETE PET
 -- ======================================
-PetTab:CreateSection("Auto delete Pet")
+PetTab:Section({ Title = "Auto Delete Pet" })
 
-PetTab:CreateLabel("Note: First toggle only deletes T3 Legendary from perm egg THAT CAN be Super legendary (Safe Tested many time🔥)")
+PetTab:Paragraph({
+    Title = "⚠️ Note",
+    Desc = "First toggle only deletes T3 Legendary from perm egg THAT CAN be Super Legendary (Safe Tested many times 🔥)",
+})
 
-PetTab:CreateToggle({
-    Name = "Auto Delete T3 Legendary",
-    CurrentValue = autoDeleteT3Enabled,
+PetTab:Toggle({
+    Title = "Auto Delete T3 Legendary",
+    Desc = "Deletes all T3 Legendary pets in bulk",
+    Value = autoDeleteT3Enabled,
     Callback = function(v)
         autoDeleteT3Enabled = v
         petSettings.autoDeleteT3 = v
@@ -219,12 +214,13 @@ PetTab:CreateToggle({
         else
             if autoDeleteT3Thread then task.cancel(autoDeleteT3Thread) end
         end
-    end
+    end,
 })
 
-PetTab:CreateToggle({
-    Name = "Auto Delete Rarity (Common, Unique, Rare, Epic, Legendary)",
-    CurrentValue = autoDeleteRarityEnabled,
+PetTab:Toggle({
+    Title = "Auto Delete Rarity",
+    Desc = "Deletes Common, Unique, Rare, Epic, Legendary pets",
+    Value = autoDeleteRarityEnabled,
     Callback = function(v)
         autoDeleteRarityEnabled = v
         petSettings.autoDeleteRarity = v
@@ -255,38 +251,39 @@ PetTab:CreateToggle({
         else
             if autoDeleteRarityThread then task.cancel(autoDeleteRarityThread) end
         end
-    end
+    end,
 })
 
 -- ======================================
 -- UI - REBIRTH MACHINE
 -- ======================================
-PetTab:CreateSection("Rebirth Machine")
+PetTab:Section({ Title = "Rebirth Machine" })
 
-PetTab:CreateInput({
-    Name = "Pet Names (comma)",
-    PlaceholderText = "doggy, cat, ufo",
-    CurrentValue = "",
-    Callback = function(V)
-        targetPetNamesString = V
+PetTab:Input({
+    Title = "Pet Names (comma separated)",
+    Value = "",
+    Placeholder = "doggy, cat, ufo",
+    Callback = function(v)
+        targetPetNamesString = v
     end,
 })
 
-PetTab:CreateDropdown({
-    Name = "Variant",
-    Options = {"Normal","Shiny","Mythic","Shiny Mythic"},
-    CurrentOption = "Normal",
-    Callback = function(V)
-        selectedVariant = type(V) == "table" and V[1] or V
+PetTab:Dropdown({
+    Title = "Variant",
+    Values = {"Normal", "Shiny", "Mythic", "Shiny Mythic"},
+    Value = "Normal",
+    Callback = function(v)
+        selectedVariant = v
     end,
 })
 
-PetTab:CreateToggle({
-    Name = "Auto Rebirth Machine",
-    CurrentValue = false,
-    Callback = function(V)
-        fuserActive = V
-        if V then
+PetTab:Toggle({
+    Title = "Auto Rebirth Machine",
+    Desc = "Uses the Rebirth Machine with specified pet names",
+    Value = false,
+    Callback = function(v)
+        fuserActive = v
+        if v then
             loopThread = task.spawn(fusionLoop)
         else
             fuserActive = false
@@ -299,23 +296,32 @@ PetTab:CreateToggle({
 })
 
 -- ======================================
--- REBIRTH MACHINE (ALL UNLOCKED) - TRUE SECRET ONLY + XL EXCLUDED
+-- UI - REBIRTH MACHINE (ALL UNLOCKED)
 -- ======================================
-PetTab:CreateSection("Rebirth Machine (All Unlocked)")
+PetTab:Section({ Title = "Rebirth Machine (All Unlocked)" })
 
-PetTab:CreateLabel("Testing, Make sure to Lock all Valuable Pets before execute this")
-PetTab:CreateLabel("Only uses TRUE Secret pets (NOT Celestial, Infinity, Void)")
-PetTab:CreateLabel("XL pets are EXCLUDED from Rebirth Machine")
+PetTab:Paragraph({
+    Title = "⚠️ Warning",
+    Desc = "Make sure to Lock all Valuable Pets before using this. Only uses TRUE Secret pets (NOT Celestial, Infinity, Void). XL pets are EXCLUDED.",
+})
 
-local trackerLabel = PetTab:CreateLabel("Last Used: None")
+local trackerParagraph = PetTab:Paragraph({
+    Title = "Last Used: None",
+    Desc = "Waiting for first use...",
+})
 
-PetTab:CreateToggle({
-    Name = "Auto Rebirth Machine (All Unlocked Pets)",
-    CurrentValue = false,
-    Callback = function(V)
-        fuseAllActive = V
-        if V then
-            pcall(function() trackerLabel:SetText("Last Used: None") end)
+PetTab:Toggle({
+    Title = "Auto Rebirth Machine (All Unlocked Pets)",
+    Desc = "Uses all unlocked True Secret pets (grouped by variant)",
+    Value = false,
+    Callback = function(v)
+        fuseAllActive = v
+        if v then
+            pcall(function() 
+                trackerParagraph:SetTitle("Last Used: None")
+                trackerParagraph:SetDesc("Waiting for first use...")
+            end)
+            
             fuseAllThread = task.spawn(function()
                 local lastPrint = ""
                 local wasActive = false
@@ -330,7 +336,7 @@ PetTab:CreateToggle({
                     
                     local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
                     for _, pet in pairs(data.Pets) do
-                        if not pet.Locked and not pet.XL then  -- EXCLUDE XL
+                        if not pet.Locked and not pet.XL then
                             local info = Pets[pet.Name]
                             if isTrueSecret(info) then
                                 if pet.Shiny and pet.Mythic then
@@ -371,7 +377,10 @@ PetTab:CreateToggle({
                         
                         local text = table.concat(usedWithVariant, ", ")
                         
-                        pcall(function() trackerLabel:SetText("Last Used: " .. text) end)
+                        pcall(function() 
+                            trackerParagraph:SetTitle("Last Used: " .. text)
+                            trackerParagraph:SetDesc("Used 5 pets")
+                        end)
                         
                         pcall(function()
                             NetworkRemote:InvokeServer("UseRebirthMachine", "RebirthMachine", payload)
@@ -412,53 +421,4 @@ PetTab:CreateToggle({
     end,
 })
 
--- ======================================
--- AUTO-START (SILENT)
--- ======================================
-if autoDeleteT3Enabled then
-    autoDeleteT3Thread = task.spawn(function()
-        while autoDeleteT3Enabled do
-            local data = LocalData:Get()
-            
-            if data and data.Pets then
-                for _, pet in pairs(data.Pets) do
-                    if not autoDeleteT3Enabled then break end
-                    
-                    local info = Pets[pet.Name]
-                    if isT3Legendary(pet, info) then
-                        local amount = pet.Amount or 1
-                        deletePet(pet.Id, amount)
-                        task.wait(0.5)
-                    end
-                end
-            end
-            
-            task.wait(10)
-        end
-    end)
-end
-
-if autoDeleteRarityEnabled then
-    autoDeleteRarityThread = task.spawn(function()
-        while autoDeleteRarityEnabled do
-            local data = LocalData:Get()
-            
-            if data and data.Pets then
-                for _, pet in pairs(data.Pets) do
-                    if not autoDeleteRarityEnabled then break end
-                    
-                    local info = Pets[pet.Name]
-                    if shouldDeleteByRarity(pet, info) then
-                        local amount = pet.Amount or 1
-                        deletePet(pet.Id, amount)
-                        task.wait(0.5)
-                    end
-                end
-            end
-            
-            task.wait(10)
-        end
-    end)
-end
-
-print("[Pets] Loaded! ")
+print("[Pets] Loaded!")
