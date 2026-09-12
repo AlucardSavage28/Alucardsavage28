@@ -190,6 +190,45 @@ local function startMonitor()
 end
 
 -- ======================================
+-- ENCHANT RUNNER (reusable for callback + auto-start)
+-- ======================================
+local function startEnchant()
+    if enchantRunning then return end
+    enchantRunning = true
+    monitorRunning = true
+    
+    getgenv().ActivityStatus.current = "Auto Enchanting with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
+    getgenv().ActivityStatus.trigger = true
+    
+    monitorThread = task.spawn(startMonitor)
+    
+    enchantThread = task.spawn(function()
+        local pets = getEquippedPets()
+        
+        for i, pet in ipairs(pets) do
+            if not enchantRunning then break end
+            enchantSingleSlot(pet.Id, 1, TARGET_ENCHANTS[1].Id)
+            if i < #pets then task.wait(0.5) end
+        end
+        
+        if enchantRunning then
+            for i, pet in ipairs(pets) do
+                if not enchantRunning then break end
+                enchantSingleSlot(pet.Id, 2, TARGET_ENCHANTS[2].Id)
+                if i < #pets then task.wait(0.5) end
+            end
+        end
+    end)
+end
+
+local function stopEnchant()
+    enchantRunning = false
+    monitorRunning = false
+    if enchantThread then task.cancel(enchantThread); enchantThread = nil end
+    if monitorThread then task.cancel(monitorThread); monitorThread = nil end
+end
+
+-- ======================================
 -- UI
 -- ======================================
 EnchantTab:Section({ Title = "Manual Enchant" })
@@ -231,37 +270,15 @@ EnchantTab:Dropdown({
 EnchantTab:Toggle({
     Title = "Auto Enchant All Equipped (Monitor Mode)",
     Desc = "Continuously monitors and re-enchants pets when enchants are lost",
-    Value = false,
+    Value = enchantSettings.autoEnchant or false,
     Callback = function(v)
-        enchantRunning = v
-        monitorRunning = v
-        
+        enchantSettings.autoEnchant = v
+        getgenv().HubSettings.enchant = enchantSettings
+        saveHubSettings()
         if v then
-            getgenv().ActivityStatus.current = "Auto Enchanting with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
-            getgenv().ActivityStatus.trigger = true
-            
-            monitorThread = task.spawn(startMonitor)
-            
-            enchantThread = task.spawn(function()
-                local pets = getEquippedPets()
-                
-                for i, pet in ipairs(pets) do
-                    if not enchantRunning then break end
-                    enchantSingleSlot(pet.Id, 1, TARGET_ENCHANTS[1].Id)
-                    if i < #pets then task.wait(0.5) end
-                end
-                
-                if enchantRunning then
-                    for i, pet in ipairs(pets) do
-                        if not enchantRunning then break end
-                        enchantSingleSlot(pet.Id, 2, TARGET_ENCHANTS[2].Id)
-                        if i < #pets then task.wait(0.5) end
-                    end
-                end
-            end)
+            startEnchant()
         else
-            if enchantThread then task.cancel(enchantThread) end
-            if monitorThread then task.cancel(monitorThread) end
+            stopEnchant()
         end
     end,
 })
@@ -350,5 +367,19 @@ EnchantTab:Button({
         RunEnchant({"Determination","Looter V"}, {"Determination","Looter V"}, "Shadow Crystal", "Gems")
     end,
 })
+
+-- ======================================
+-- AUTO-START SAVED TOGGLES
+-- ======================================
+task.spawn(function()
+    task.wait(1.5)
+    
+    -- Auto Enchant (Monitor Mode)
+    if enchantSettings.autoEnchant then
+        startEnchant()
+    end
+    
+    print("[Enchant] Auto-started saved toggles!")
+end)
 
 print("[Enchant] Loaded!")
