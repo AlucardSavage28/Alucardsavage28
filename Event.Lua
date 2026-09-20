@@ -1,5 +1,5 @@
 -- ================================================
--- EVENT TAB (WINDUI VERSION - FIXED EVENT BOARD)
+-- EVENT TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -17,6 +17,7 @@ local HttpService = game:GetService("HttpService")
 
 local RemoteContainer = ReplicatedStorage.Shared.Framework.Network.Remote
 local RemoteFunction = RemoteContainer.RemoteFunction
+local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
 
 local request = http_request or request or (syn and syn.request)
 
@@ -52,6 +53,72 @@ local EVENTS = {
     "Luck Event", "Shiny Event", "Mythic Event", "Celestial Event",
     "Secret Event", "Infinity Event", "XL Event", "Super Palooza"
 }
+
+-- ======================================
+-- AUTUMN UPGRADES
+-- ======================================
+local AUTUMN_UPGRADES = {
+    "Currency",
+    "Luck",
+    "SecretLuck",
+    "InfinityLuck",
+    "AutoRebirth",
+}
+
+local selectedUpgrades = eventSettings.selectedUpgrades or {}
+if type(selectedUpgrades) == "string" then selectedUpgrades = {selectedUpgrades} end
+
+-- ======================================
+-- REBIRTH SHOP (rebirth-shop)
+-- ======================================
+local REBIRTH_SHOP_ITEMS = {
+    "Lucky Lvl 7",
+    "Speed Lvl 7",
+    "Mythic Lvl 7",
+    "Infinity Elixir x25",
+    "Secret Elixir x25",
+    "Ultra Infinity Elixir x25",
+    "Purple Fragment",
+    "Rainbow Fragment",
+    "Shrine Ticket",
+    "Autumn Elixir Lvl 4 x10",
+    "Sinister Jack O' Lantern",
+}
+
+local selectedRebirthItems = eventSettings.selectedRebirthItems or {}
+if type(selectedRebirthItems) == "string" then selectedRebirthItems = {selectedRebirthItems} end
+
+-- ======================================
+-- AUTUMN SHOP (autumn-shop)
+-- ======================================
+local AUTUMN_SHOP_ITEMS = {
+    "Autumn Elixir Lvl 4",
+    "Shadow Crystal",
+    "Lucky Lvl 7",
+    "Speed Lvl 7",
+    "Mythic Lvl 7",
+    "Infinity Elixir",
+    "Secret Elixir",
+    "Ultra Infinity Elixir",
+    "Green Fragment",
+    "Blue Fragment",
+    "Angelic Pumpkin",
+}
+
+local selectedShopItems = eventSettings.selectedShopItems or {}
+if type(selectedShopItems) == "string" then selectedShopItems = {selectedShopItems} end
+
+-- ======================================
+-- THREAD HANDLES
+-- ======================================
+local autumnUpgradeBuying = false
+local autumnUpgradeThread = nil
+local rebirthShopBuying = false
+local rebirthShopThread = nil
+local autumnShopBuying = false
+local autumnShopThread = nil
+local autumnRebirthAuto = false
+local autumnRebirthThread = nil
 
 -- ======================================
 -- EVENT BOARD READER
@@ -350,18 +417,7 @@ local function useSkyAltar(pets)
 end
 
 -- ======================================
--- EVENT SHOP BUY ALL
--- ======================================
-local function buyAllItems(itemNumbers)
-    for _, itemNum in ipairs(itemNumbers) do
-        pcall(function()
-            RE:FireServer("BuyShopItem", "megaegg-shop", itemNum, true)
-        end)
-    end
-end
-
--- ======================================
--- UI - EVENT BOARD (FIXED - NO SPAM)
+-- UI - EVENT BOARD
 -- ======================================
 EventTab:Section({ Title = "Event Board" })
 
@@ -372,11 +428,11 @@ local activeEventParagraph = EventTab:Paragraph({
 
 local lastEventDisplay = getActiveEventDisplay()
 local lastEventUpdate = tick()
-local EVENT_UPDATE_INTERVAL = 900 -- 15 minutes
+local EVENT_UPDATE_INTERVAL = 900
 
 task.spawn(function()
     while true do
-        task.wait(30) -- internal check every 30s
+        task.wait(30)
         
         local display = getActiveEventDisplay()
         local now = tick()
@@ -395,8 +451,6 @@ task.spawn(function()
                 getgenv().ActivityStatus.current = "Event Board = " .. display .. " (activated)"
             end
             getgenv().ActivityStatus.trigger = true
-            
-            print("[Event] Event Board changed: " .. display)
         elseif shouldUpdateUI then
             pcall(function() activeEventParagraph:SetTitle("Active: " .. display) end)
             lastEventUpdate = now
@@ -449,9 +503,255 @@ EventTab:Toggle({
 })
 
 -- ======================================
--- UI - SPAWNABLE SPECIAL RIFT
+-- UI - EVENT CHEST
 -- ======================================
-EventTab:Section({ Title = "Spawnable Special Rift" })
+EventTab:Section({ Title = "Event Chest" })
+
+local autumnChestClaiming = false
+local autumnChestThread = nil
+
+EventTab:Toggle({
+    Title = "Auto Claim Autumn Chest",
+    Desc = "Claims Autumn Chest when cooldown is ready",
+    Value = eventSettings.autoClaimAutumnChest or false,
+    Callback = function(v)
+        autumnChestClaiming = v
+        eventSettings.autoClaimAutumnChest = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            autumnChestThread = task.spawn(function()
+                while autumnChestClaiming do
+                    local data = LocalData:Get()
+                    local cooldowns = data and data.Cooldowns
+                    local cd = cooldowns and cooldowns["Autumn Chest"]
+
+                    if cd and os.time() >= cd then
+                        pcall(function()
+                            Remote:FireServer("ClaimChest", "Autumn Chest")
+                        end)
+                    end
+                    task.wait(5)
+                end
+            end)
+        else
+            if autumnChestThread then task.cancel(autumnChestThread) end
+        end
+    end,
+})
+
+-- ======================================
+-- UI - AUTUMN UPGRADES
+-- ======================================
+EventTab:Section({ Title = "Autumn Upgrades" })
+
+EventTab:Dropdown({
+    Title = "Select Upgrades (Multi-Select)",
+    Values = AUTUMN_UPGRADES,
+    Value = selectedUpgrades,
+    Multi = true,
+    Callback = function(v)
+        if type(v) == "table" then
+            selectedUpgrades = v
+        else
+            selectedUpgrades = {v}
+        end
+        eventSettings.selectedUpgrades = selectedUpgrades
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+    end,
+})
+
+EventTab:Toggle({
+    Title = "Auto Buy Selected Upgrades",
+    Desc = "Buys the selected Autumn upgrades continuously",
+    Value = eventSettings.autoBuyUpgrades or false,
+    Callback = function(v)
+        autumnUpgradeBuying = v
+        eventSettings.autoBuyUpgrades = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            autumnUpgradeThread = task.spawn(function()
+                while autumnUpgradeBuying do
+                    for _, upgrade in ipairs(selectedUpgrades) do
+                        if not autumnUpgradeBuying then break end
+                        local value = type(upgrade) == "table" and upgrade[1] or upgrade
+                        pcall(function() RE:FireServer("BuyAutumnUpgrade", value) end)
+                        task.wait(0.5)
+                    end
+                    task.wait(5)
+                end
+            end)
+        else
+            if autumnUpgradeThread then task.cancel(autumnUpgradeThread) end
+        end
+    end,
+})
+
+-- ======================================
+-- UI - REBIRTH SHOP (ABOVE AUTUMN SHOP)
+-- ======================================
+EventTab:Section({ Title = "Rebirth Shop" })
+
+EventTab:Dropdown({
+    Title = "Select Items (Multi-Select)",
+    Values = REBIRTH_SHOP_ITEMS,
+    Value = selectedRebirthItems,
+    Multi = true,
+    Callback = function(v)
+        if type(v) == "table" then
+            selectedRebirthItems = v
+        else
+            selectedRebirthItems = {v}
+        end
+        eventSettings.selectedRebirthItems = selectedRebirthItems
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+    end,
+})
+
+EventTab:Toggle({
+    Title = "Auto Buy Selected Items",
+    Desc = "Buys the selected Rebirth shop items continuously",
+    Value = eventSettings.autoBuyRebirthShop or false,
+    Callback = function(v)
+        rebirthShopBuying = v
+        eventSettings.autoBuyRebirthShop = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            rebirthShopThread = task.spawn(function()
+                while rebirthShopBuying do
+                    for _, item in ipairs(selectedRebirthItems) do
+                        if not rebirthShopBuying then break end
+                        local value = type(item) == "table" and item[1] or item
+                        local slotIndex = nil
+                        for i, name in ipairs(REBIRTH_SHOP_ITEMS) do
+                            if name == value then slotIndex = i; break end
+                        end
+                        if slotIndex then
+                            pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", slotIndex, false) end)
+                            task.wait(0.5)
+                        end
+                    end
+                    task.wait(5)
+                end
+            end)
+        else
+            if rebirthShopThread then task.cancel(rebirthShopThread) end
+        end
+    end,
+})
+
+-- ======================================
+-- UI - AUTUMN SHOP
+-- ======================================
+EventTab:Section({ Title = "Autumn Shop" })
+
+EventTab:Dropdown({
+    Title = "Select Items (Multi-Select)",
+    Values = AUTUMN_SHOP_ITEMS,
+    Value = selectedShopItems,
+    Multi = true,
+    Callback = function(v)
+        if type(v) == "table" then
+            selectedShopItems = v
+        else
+            selectedShopItems = {v}
+        end
+        eventSettings.selectedShopItems = selectedShopItems
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+    end,
+})
+
+EventTab:Toggle({
+    Title = "Auto Buy Selected Items",
+    Desc = "Buys the selected Autumn shop items continuously",
+    Value = eventSettings.autoBuyShop or false,
+    Callback = function(v)
+        autumnShopBuying = v
+        eventSettings.autoBuyShop = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            autumnShopThread = task.spawn(function()
+                while autumnShopBuying do
+                    for _, item in ipairs(selectedShopItems) do
+                        if not autumnShopBuying then break end
+                        local value = type(item) == "table" and item[1] or item
+                        local slotIndex = nil
+                        for i, name in ipairs(AUTUMN_SHOP_ITEMS) do
+                            if name == value then slotIndex = i; break end
+                        end
+                        if slotIndex then
+                            pcall(function() RE:FireServer("BuyShopItem", "autumn-shop", slotIndex, true) end)
+                            task.wait(0.5)
+                        end
+                    end
+                    task.wait(5)
+                end
+            end)
+        else
+            if autumnShopThread then task.cancel(autumnShopThread) end
+        end
+    end,
+})
+
+-- ======================================
+-- UI - AUTUMN REBIRTH
+-- ======================================
+EventTab:Section({ Title = "Autumn Rebirth" })
+
+EventTab:Toggle({
+    Title = "Auto Autumn Rebirth",
+    Desc = "Rebirths when progress is full",
+    Value = eventSettings.autoAutumnRebirth or false,
+    Callback = function(v)
+        autumnRebirthAuto = v
+        eventSettings.autoAutumnRebirth = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            autumnRebirthThread = task.spawn(function()
+                while autumnRebirthAuto do
+                    local playerGui = player:FindFirstChild("PlayerGui")
+                    local sg = playerGui and playerGui:FindFirstChild("ScreenGui")
+                    local ar = sg and sg:FindFirstChild("AutumnRebirth")
+
+                    if ar then
+                        local ok, progressLabel = pcall(function()
+                            return ar.Frame.Inner.Frame.Progress.Info.Label
+                        end)
+
+                        if ok and progressLabel and progressLabel.Text then
+                            local current, max = progressLabel.Text:match("([%d,]+)%s*/%s*([%d,]+)")
+                            if current and max then
+                                current = tonumber(current:gsub(",", ""))
+                                max = tonumber(max:gsub(",", ""))
+                                if current and max and current >= max then
+                                    pcall(function()
+                                        Remote:FireServer("AutumnRebirth")
+                                    end)
+                                    task.wait(3)
+                                end
+                            end
+                        end
+                    end
+                    task.wait(2)
+                end
+            end)
+        else
+            if autumnRebirthThread then task.cancel(autumnRebirthThread) end
+        end
+    end,
+})
+
+-- ======================================
+-- UI - NONE (Spawnable Special Rift)
+-- ======================================
+EventTab:Section({ Title = "None" })
 
 EventTab:Toggle({
     Title = "Auto Hatch",
@@ -564,142 +864,9 @@ EventTab:Toggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP
+-- UI - NONE (Event Altar)
 -- ======================================
-EventTab:Section({ Title = "Event Shop" })
-
-local shopToggles = {}
-
-EventTab:Toggle({
-    Title = "Auto Buy All Event Egg (1)",
-    Value = eventSettings.shopEgg or false,
-    Callback = function(v)
-        shopToggles[1] = v
-        eventSettings.shopEgg = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[1] do buyAllItems({1}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All Boost Crystal (2)",
-    Value = eventSettings.shopBoost or false,
-    Callback = function(v)
-        shopToggles[2] = v
-        eventSettings.shopBoost = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[2] do buyAllItems({2}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All Event Elixir (3)",
-    Value = eventSettings.shopElixir or false,
-    Callback = function(v)
-        shopToggles[3] = v
-        eventSettings.shopElixir = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[3] do buyAllItems({3}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All Infinity Elixir (4,5,6,7)",
-    Value = eventSettings.shopInfElixir or false,
-    Callback = function(v)
-        shopToggles[4] = v
-        eventSettings.shopInfElixir = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[4] do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All Infinity Luck/Mythic/Gold (8,9,10)",
-    Value = eventSettings.shopInfLuck or false,
-    Callback = function(v)
-        shopToggles[5] = v
-        eventSettings.shopInfLuck = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[5] do buyAllItems({8, 9, 10}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All Normal Pet (11)",
-    Value = eventSettings.shopNormalPet or false,
-    Callback = function(v)
-        shopToggles[6] = v
-        eventSettings.shopNormalPet = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[6] do buyAllItems({11}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All XL Pet (12)",
-    Value = eventSettings.shopXLPet or false,
-    Callback = function(v)
-        shopToggles[7] = v
-        eventSettings.shopXLPet = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[7] do buyAllItems({12}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All Green & Blue Fragment (13,14)",
-    Value = eventSettings.shopGBFrag or false,
-    Callback = function(v)
-        shopToggles[8] = v
-        eventSettings.shopGBFrag = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[8] do buyAllItems({13, 14}) task.wait(5) end end)
-        end
-    end,
-})
-
-EventTab:Toggle({
-    Title = "Auto Buy All Purple & Rainbow Fragment (15,16)",
-    Value = eventSettings.shopPRFrag or false,
-    Callback = function(v)
-        shopToggles[9] = v
-        eventSettings.shopPRFrag = v
-        getgenv().HubSettings.event = eventSettings
-        saveHubSettings()
-        if v then
-            task.spawn(function() while shopToggles[9] do buyAllItems({15, 16}) task.wait(5) end end)
-        end
-    end,
-})
-
--- ======================================
--- UI - EVENT ALTAR
--- ======================================
-EventTab:Section({ Title = "Event Altar (Event Rebirth Machine)" })
+EventTab:Section({ Title = "None" })
 
 EventTab:Paragraph({
     Title = "⚠️ Warning",
@@ -815,7 +982,112 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Hatch (Cloud Rift)
+    -- Auto Claim Autumn Chest
+    if eventSettings.autoClaimAutumnChest then
+        autumnChestClaiming = true
+        autumnChestThread = task.spawn(function()
+            while autumnChestClaiming do
+                local data = LocalData:Get()
+                local cooldowns = data and data.Cooldowns
+                local cd = cooldowns and cooldowns["Autumn Chest"]
+                if cd and os.time() >= cd then
+                    pcall(function() Remote:FireServer("ClaimChest", "Autumn Chest") end)
+                end
+                task.wait(5)
+            end
+        end)
+    end
+    
+    -- Auto Buy Selected Upgrades
+    if eventSettings.autoBuyUpgrades then
+        autumnUpgradeBuying = true
+        autumnUpgradeThread = task.spawn(function()
+            while autumnUpgradeBuying do
+                for _, upgrade in ipairs(selectedUpgrades) do
+                    if not autumnUpgradeBuying then break end
+                    local value = type(upgrade) == "table" and upgrade[1] or upgrade
+                    pcall(function() RE:FireServer("BuyAutumnUpgrade", value) end)
+                    task.wait(0.5)
+                end
+                task.wait(5)
+            end
+        end)
+    end
+    
+    -- Auto Buy Rebirth Shop Items
+    if eventSettings.autoBuyRebirthShop then
+        rebirthShopBuying = true
+        rebirthShopThread = task.spawn(function()
+            while rebirthShopBuying do
+                for _, item in ipairs(selectedRebirthItems) do
+                    if not rebirthShopBuying then break end
+                    local value = type(item) == "table" and item[1] or item
+                    local slotIndex = nil
+                    for i, name in ipairs(REBIRTH_SHOP_ITEMS) do
+                        if name == value then slotIndex = i; break end
+                    end
+                    if slotIndex then
+                        pcall(function() RE:FireServer("BuyShopItem", "rebirth-shop", slotIndex, false) end)
+                        task.wait(0.5)
+                    end
+                end
+                task.wait(5)
+            end
+        end)
+    end
+    
+    -- Auto Buy Autumn Shop Items
+    if eventSettings.autoBuyShop then
+        autumnShopBuying = true
+        autumnShopThread = task.spawn(function()
+            while autumnShopBuying do
+                for _, item in ipairs(selectedShopItems) do
+                    if not autumnShopBuying then break end
+                    local value = type(item) == "table" and item[1] or item
+                    local slotIndex = nil
+                    for i, name in ipairs(AUTUMN_SHOP_ITEMS) do
+                        if name == value then slotIndex = i; break end
+                    end
+                    if slotIndex then
+                        pcall(function() RE:FireServer("BuyShopItem", "autumn-shop", slotIndex, true) end)
+                        task.wait(0.5)
+                    end
+                end
+                task.wait(5)
+            end
+        end)
+    end
+    
+    -- Auto Autumn Rebirth
+    if eventSettings.autoAutumnRebirth then
+        autumnRebirthAuto = true
+        autumnRebirthThread = task.spawn(function()
+            while autumnRebirthAuto do
+                local playerGui = player:FindFirstChild("PlayerGui")
+                local sg = playerGui and playerGui:FindFirstChild("ScreenGui")
+                local ar = sg and sg:FindFirstChild("AutumnRebirth")
+                if ar then
+                    local ok, progressLabel = pcall(function()
+                        return ar.Frame.Inner.Frame.Progress.Info.Label
+                    end)
+                    if ok and progressLabel and progressLabel.Text then
+                        local current, max = progressLabel.Text:match("([%d,]+)%s*/%s*([%d,]+)")
+                        if current and max then
+                            current = tonumber(current:gsub(",", ""))
+                            max = tonumber(max:gsub(",", ""))
+                            if current and max and current >= max then
+                                pcall(function() Remote:FireServer("AutumnRebirth") end)
+                                task.wait(3)
+                            end
+                        end
+                    end
+                end
+                task.wait(2)
+            end
+        end)
+    end
+    
+    -- None section toggles
     if eventSettings.autoHatchRift then
         autoHatchRiftEnabled = true
         autoHatchRiftThread = task.spawn(function()
@@ -853,16 +1125,13 @@ task.spawn(function()
                 
                 if riftExists then
                     if getgenv().questActive then continue end
-                    
                     getgenv().questActive = true
                     getgenv().questEgg = riftEgg
-                    
                     if not wasActive then
                         getgenv().ActivityStatus.current = "Hatching " .. riftEgg .. (currentLuck > 0 and " (x" .. currentLuck .. " luck)" or "")
                         getgenv().ActivityStatus.trigger = true
                         wasActive = true
                     end
-                    
                     pcall(function() RE:FireServer("HatchEgg", riftEgg, HATCH_AMOUNT) end)
                     task.wait(0.05)
                 else
@@ -879,70 +1148,23 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Summon (Cloud Rift)
     if eventSettings.autoSummonRift then
         autoSummonRiftEnabled = true
         autoSummonRiftThread = task.spawn(function()
             while autoSummonRiftEnabled do
                 getgenv().ActivityStatus.current = "Summoning " .. riftName
                 getgenv().ActivityStatus.trigger = true
-                
                 summonRift()
                 task.wait(5)
-                
                 if isRiftExists(riftName) then
                     sendSummonWebhook(true)
                 else
                     sendSummonWebhook(false)
                 end
-                
                 task.wait(3300)
             end
         end)
     end
-    
-    -- Event Shop Toggles
-    if eventSettings.shopEgg then
-        shopToggles[1] = true
-        task.spawn(function() while shopToggles[1] do buyAllItems({1}) task.wait(5) end end)
-    end
-    if eventSettings.shopBoost then
-        shopToggles[2] = true
-        task.spawn(function() while shopToggles[2] do buyAllItems({2}) task.wait(5) end end)
-    end
-    if eventSettings.shopElixir then
-        shopToggles[3] = true
-        task.spawn(function() while shopToggles[3] do buyAllItems({3}) task.wait(5) end end)
-    end
-    if eventSettings.shopInfElixir then
-        shopToggles[4] = true
-        task.spawn(function() while shopToggles[4] do buyAllItems({4, 5, 6, 7}) task.wait(5) end end)
-    end
-    if eventSettings.shopInfLuck then
-        shopToggles[5] = true
-        task.spawn(function() while shopToggles[5] do buyAllItems({8, 9, 10}) task.wait(5) end end)
-    end
-    if eventSettings.shopNormalPet then
-        shopToggles[6] = true
-        task.spawn(function() while shopToggles[6] do buyAllItems({11}) task.wait(5) end end)
-    end
-    if eventSettings.shopXLPet then
-        shopToggles[7] = true
-        task.spawn(function() while shopToggles[7] do buyAllItems({12}) task.wait(5) end end)
-    end
-    if eventSettings.shopGBFrag then
-        shopToggles[8] = true
-        task.spawn(function() while shopToggles[8] do buyAllItems({13, 14}) task.wait(5) end end)
-    end
-    if eventSettings.shopPRFrag then
-        shopToggles[9] = true
-        task.spawn(function() while shopToggles[9] do buyAllItems({15, 16}) task.wait(5) end end)
-    end
-    
-    -- NOTE: Auto Event Altar is NOT persisted (Value = false, no settings save).
-    -- User must toggle it manually each session.
-    
-    print("[Event] Auto-started saved toggles!")
 end)
 
 print("[Event] Loaded!")
