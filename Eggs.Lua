@@ -57,6 +57,8 @@ local EGG_LOCATIONS = {
     ["Void Egg"] = Vector3.new(-150, 11, -26),
     ["Hell Egg"] = Vector3.new(-149, 11, -37),
     ["Void Realm Egg"] = Vector3.new(2308, 3159, 976),
+    ["Harvest Egg"] = Vector3.new(292, 9, 197),
+    ["Neon Pumpkin Egg"] = Vector3.new(284, 9, 207),
 }
 
 local EGG_WORLDS = {
@@ -83,6 +85,8 @@ local EGG_WORLDS = {
     ["Void Egg"] = "The Overworld",
     ["Hell Egg"] = "The Overworld",
     ["Void Realm Egg"] = "The Overworld",
+    ["Harvest Egg"] = "The Overworld",
+    ["Neon Pumpkin Egg"] = "The Overworld",
 }
 
 local discoveredEggs = {}
@@ -776,9 +780,6 @@ EggsTab:Toggle({
                         task.wait(0.5)
                     end
                     
-                    -- ======================================
-                    -- 4X RIFT OVERRIDE — highest priority
-                    -- ======================================
                     local fourXRift = get4xRift()
                     if fourXRift then
                         if fourXRift ~= lastRift then
@@ -810,7 +811,6 @@ EggsTab:Toggle({
                         continue
                     end
                     
-                    -- 4x rift gone
                     if lastRift then
                         getgenv().ActivityStatus.current = "4x Rift gone, back to selected egg"
                         getgenv().ActivityStatus.trigger = true
@@ -820,9 +820,6 @@ EggsTab:Toggle({
                         wasActive = false
                     end
                     
-                    -- ======================================
-                    -- NORMAL MODE — hatch selected egg
-                    -- ======================================
                     local now = tick()
                     if now - lastCheckTime >= 5 or selectedEgg ~= lastEgg then
                         lastCheckTime = now
@@ -1383,7 +1380,6 @@ task.spawn(function()
                     task.wait(0.5)
                 end
                 
-                -- 4x override
                 local fourXRift = get4xRift()
                 if fourXRift then
                     if fourXRift ~= lastRift then
@@ -1424,7 +1420,6 @@ task.spawn(function()
                     wasActive = false
                 end
                 
-                -- Normal mode
                 local now = tick()
                 if now - lastCheckTime >= 5 or selectedEgg ~= lastEgg then
                     lastCheckTime = now
