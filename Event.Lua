@@ -69,7 +69,7 @@ local selectedUpgrades = eventSettings.selectedUpgrades or {}
 if type(selectedUpgrades) == "string" then selectedUpgrades = {selectedUpgrades} end
 
 -- ======================================
--- REBIRTH SHOP (rebirth-shop)
+-- REBIRTH SHOP
 -- ======================================
 local REBIRTH_SHOP_ITEMS = {
     "Lucky Lvl 7",
@@ -89,7 +89,7 @@ local selectedRebirthItems = eventSettings.selectedRebirthItems or {}
 if type(selectedRebirthItems) == "string" then selectedRebirthItems = {selectedRebirthItems} end
 
 -- ======================================
--- AUTUMN SHOP (autumn-shop)
+-- AUTUMN SHOP
 -- ======================================
 local AUTUMN_SHOP_ITEMS = {
     "Autumn Elixir Lvl 4",
@@ -590,7 +590,7 @@ EventTab:Toggle({
 })
 
 -- ======================================
--- UI - REBIRTH SHOP (ABOVE AUTUMN SHOP)
+-- UI - REBIRTH SHOP
 -- ======================================
 EventTab:Section({ Title = "Rebirth Shop" })
 
@@ -726,14 +726,28 @@ EventTab:Toggle({
                         end)
 
                         if ok and progressLabel and progressLabel.Text then
-                            local current, max = progressLabel.Text:match("([%d,]+)%s*/%s*([%d,]+)")
-                            if current and max then
-                                current = tonumber(current:gsub(",", ""))
-                                max = tonumber(max:gsub(",", ""))
+                            local currStr, maxStr = progressLabel.Text:match("([%d,]+)%s*/%s*([%d,]+)")
+                            if currStr and maxStr then
+                                local currClean = currStr:gsub(",", "")
+                                local maxClean = maxStr:gsub(",", "")
+                                local current = tonumber(currClean)
+                                local max = tonumber(maxClean)
+
                                 if current and max and current >= max then
-                                    pcall(function()
-                                        Remote:FireServer("AutumnRebirth")
-                                    end)
+                                    local rebirthBtn = ar.Frame
+                                        and ar.Frame:FindFirstChild("Inner")
+                                        and ar.Frame.Inner:FindFirstChild("Frame")
+                                        and ar.Frame.Inner.Frame:FindFirstChild("Buttons")
+                                        and ar.Frame.Inner.Frame.Buttons:FindFirstChild("Rebirth")
+                                        and ar.Frame.Inner.Frame.Buttons.Rebirth:FindFirstChild("Button")
+
+                                    if rebirthBtn and (rebirthBtn:IsA("TextButton") or rebirthBtn:IsA("ImageButton")) then
+                                        firesignal(rebirthBtn.Activated)
+                                    else
+                                        pcall(function()
+                                            Remote:FireServer("AutumnRebirth")
+                                        end)
+                                    end
                                     task.wait(3)
                                 end
                             end
@@ -1058,7 +1072,7 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Autumn Rebirth
+    -- Auto Autumn Rebirth (FIXED)
     if eventSettings.autoAutumnRebirth then
         autumnRebirthAuto = true
         autumnRebirthThread = task.spawn(function()
@@ -1071,12 +1085,24 @@ task.spawn(function()
                         return ar.Frame.Inner.Frame.Progress.Info.Label
                     end)
                     if ok and progressLabel and progressLabel.Text then
-                        local current, max = progressLabel.Text:match("([%d,]+)%s*/%s*([%d,]+)")
-                        if current and max then
-                            current = tonumber(current:gsub(",", ""))
-                            max = tonumber(max:gsub(",", ""))
+                        local currStr, maxStr = progressLabel.Text:match("([%d,]+)%s*/%s*([%d,]+)")
+                        if currStr and maxStr then
+                            local currClean = currStr:gsub(",", "")
+                            local maxClean = maxStr:gsub(",", "")
+                            local current = tonumber(currClean)
+                            local max = tonumber(maxClean)
                             if current and max and current >= max then
-                                pcall(function() Remote:FireServer("AutumnRebirth") end)
+                                local rebirthBtn = ar.Frame
+                                    and ar.Frame:FindFirstChild("Inner")
+                                    and ar.Frame.Inner:FindFirstChild("Frame")
+                                    and ar.Frame.Inner.Frame:FindFirstChild("Buttons")
+                                    and ar.Frame.Inner.Frame.Buttons:FindFirstChild("Rebirth")
+                                    and ar.Frame.Inner.Frame.Buttons.Rebirth:FindFirstChild("Button")
+                                if rebirthBtn and (rebirthBtn:IsA("TextButton") or rebirthBtn:IsA("ImageButton")) then
+                                    firesignal(rebirthBtn.Activated)
+                                else
+                                    pcall(function() Remote:FireServer("AutumnRebirth") end)
+                                end
                                 task.wait(3)
                             end
                         end
