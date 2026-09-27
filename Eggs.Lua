@@ -31,7 +31,7 @@ if not settings.eggs then settings.eggs = {} end
 local eggSettings = settings.eggs
 
 -- ======================================
--- EGG LOCATIONS
+-- EGG LOCATIONS (permanent hardcoded list)
 -- ======================================
 local EGG_LOCATIONS = {
     ["Common Egg"] = Vector3.new(-80, 7, 5),
@@ -56,7 +56,6 @@ local EGG_LOCATIONS = {
     ["Lunar Egg"] = Vector3.new(-148, 11, -15),
     ["Void Egg"] = Vector3.new(-150, 11, -26),
     ["Hell Egg"] = Vector3.new(-149, 11, -37),
-    ["Void Realm Egg"] = Vector3.new(2308, 3159, 976),
     ["Harvest Egg"] = Vector3.new(292, 9, 197),
     ["Neon Pumpkin Egg"] = Vector3.new(284, 9, 207),
 }
@@ -84,7 +83,6 @@ local EGG_WORLDS = {
     ["Lunar Egg"] = "The Overworld",
     ["Void Egg"] = "The Overworld",
     ["Hell Egg"] = "The Overworld",
-    ["Void Realm Egg"] = "The Overworld",
     ["Harvest Egg"] = "The Overworld",
     ["Neon Pumpkin Egg"] = "The Overworld",
 }
@@ -109,6 +107,58 @@ local function getInventoryEggs()
     end
     table.sort(eggs)
     return eggs
+end
+
+-- ======================================
+-- AUTO-DISCOVERY FROM workspace.Rendered.Generic
+-- ======================================
+local function isRiftEggName(name)
+    return name:lower() == name and name:find("%-egg$") ~= nil
+end
+
+local function is4xEgg(name)
+    return name:lower():find("^4x") ~= nil or name:lower():find("4x luck") ~= nil
+end
+
+local function isPlaceholderEgg(name)
+    return name == "Egg" or name == "ShadowEgg" or name == "CelestialEgg"
+end
+
+local function scanAndDiscoverEggs()
+    local newCount = 0
+    local rendered = workspace:FindFirstChild("Rendered")
+    if not rendered then return 0 end
+
+    local generic = rendered:FindFirstChild("Generic")
+    if not generic then return 0 end
+
+    for _, obj in ipairs(generic:GetChildren()) do
+        if obj:IsA("Model") and obj.Name:lower():find("egg") then
+            local name = obj.Name
+
+            if isRiftEggName(name) then continue end
+            if is4xEgg(name) then continue end
+            if isPlaceholderEgg(name) then continue end
+
+            if not EGG_LOCATIONS[name] and not discoveredEggs[name] then
+                local ok, pivot = pcall(function() return obj:GetPivot() end)
+                if ok and pivot then
+                    local pos = pivot.Position
+                    discoveredEggs[name] = pos
+                    newCount = newCount + 1
+                    print("[Eggs] Discovered: " .. name .. " @ (" .. 
+                        math.floor(pos.X) .. ", " .. math.floor(pos.Y) .. ", " .. math.floor(pos.Z) .. ")")
+                end
+            elseif discoveredEggs[name] then
+                local ok, pivot = pcall(function() return obj:GetPivot() end)
+                if ok and pivot then
+                    discoveredEggs[name] = pivot.Position
+                end
+            end
+        end
+    end
+
+    return newCount
 end
 
 -- ======================================
@@ -423,27 +473,14 @@ local function toggleAutoHatchR()
 end
 
 -- ======================================
--- 4X RIFT DETECTION (CROSS-WORLD)
+-- 4X EGG DETECTION
 -- ======================================
-local FOUR_X_RIFT_NAME = "4xvoid-rift"
-local FOUR_X_EGG_NAME = "4x Luck Void Realm Egg"
-
-local function get4xRift()
-    local rendered = workspace:FindFirstChild("Rendered")
-    if not rendered then return nil end
-    local rifts = rendered:FindFirstChild("Rifts")
-    if not rifts then return nil end
-    return rifts:FindFirstChild(FOUR_X_RIFT_NAME)
-end
-
-local function get4xSpawnPosition(rift)
-    local spawn = rift:FindFirstChild("EggPlatformSpawn")
-    if spawn then
-        local part = spawn:FindFirstChild("Part")
-        if part then return part.Position end
+local function find4xEgg()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name:lower():find("4x") then
+            return obj
+        end
     end
-    local ok, pivot = pcall(function() return rift:GetPivot() end)
-    if ok and pivot then return pivot.Position end
     return nil
 end
 
@@ -546,7 +583,7 @@ EggsTab:Toggle({
 
 EggsTab:Toggle({
     Title = "Auto 4x Egg",
-    Desc = "Priority 3 — Hatching 4x Luck Void Realm Egg (cross-world)",
+    Desc = "Priority 3 — Hatching 4x Luck Egg (auto-detects event name)",
     Value = fourXEnabled,
     Callback = function(v)
         fourXEnabled = v
@@ -555,50 +592,46 @@ EggsTab:Toggle({
         saveHubSettings()
         if v then
             fourXThread = task.spawn(function()
-                local lastRift = nil
-                local lastTeleport = 0
+                local current4x = nil
+                local last4xTeleport = 0
                 while fourXEnabled do
                     if not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") then
-                        local rift = get4xRift()
-                        if rift then
-                            if rift ~= lastRift then
-                                lastRift = rift
-                                getgenv().questActive = true
-                                getgenv().questEgg = FOUR_X_EGG_NAME
-                                getgenv().ActivityStatus.current = "Doing 4x Void Rift right now"
-                                getgenv().ActivityStatus.trigger = true
-                            end
-                            
+                        local egg = find4xEgg()
+                        if egg then
+                            current4x = egg
+                            getgenv().questActive = true
+                            getgenv().questEgg = egg.Name
+                            getgenv().ActivityStatus.current = "Doing 4x " .. egg.Name .. " right now"
+                            getgenv().ActivityStatus.trigger = true
+
                             local now = tick()
-                            if now - lastTeleport >= 3 then
-                                local spawnPos = get4xSpawnPosition(rift)
-                                if spawnPos then
-                                    local root = getRoot()
-                                    if root then
-                                        root.CFrame = CFrame.new(spawnPos + Vector3.new(0, 5, 0))
+                            if now - last4xTeleport >= 3 then
+                                local root = getRoot()
+                                if root then
+                                    local ok, pivot = pcall(function() return egg:GetPivot() end)
+                                    if ok and pivot then
+                                        root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 5, 0))
                                         root.Velocity = Vector3.zero
                                         root.RotVelocity = Vector3.zero
                                     end
-                                    lastTeleport = now
                                 end
+                                last4xTeleport = now
                             end
-                            
-                            getgenv().questActive = true
-                            getgenv().questEgg = FOUR_X_EGG_NAME
-                            pcall(function() Remote:FireServer("HatchEgg", FOUR_X_EGG_NAME, HATCH_AMOUNT) end)
+
+                            pcall(function() Remote:FireServer("HatchEgg", egg.Name, HATCH_AMOUNT) end)
                             task.wait(0.05)
                         else
-                            if lastRift then
-                                getgenv().ActivityStatus.current = "Finished 4x Void Rift"
+                            if current4x then
+                                getgenv().ActivityStatus.current = "Finished 4x Egg"
                                 getgenv().ActivityStatus.trigger = true
                                 getgenv().questActive = false
                                 getgenv().questEgg = nil
-                                lastRift = nil
+                                current4x = nil
                             end
                             task.wait(1)
                         end
                     else
-                        lastRift = nil
+                        current4x = nil
                         task.wait(1)
                     end
                 end
@@ -623,7 +656,7 @@ EggsTab:Toggle({
         if v then
             shadowThread = task.spawn(function()
                 while shadowEnabled do
-                    local fourXExists = get4xRift() ~= nil
+                    local fourXExists = find4xEgg() ~= nil
                     if isRiftExists("shadow-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not fourXExists then
                         getgenv().questActive = true
                         getgenv().questEgg = "Dark Rift Egg"
@@ -670,7 +703,7 @@ EggsTab:Toggle({
         if v then
             doodleThread = task.spawn(function()
                 while doodleEnabled do
-                    local fourXExists = get4xRift() ~= nil
+                    local fourXExists = find4xEgg() ~= nil
                     if isRiftExists("doodle-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not isRiftExists("shadow-rift") and not fourXExists then
                         getgenv().questActive = true
                         getgenv().questEgg = "Doodle Egg"
@@ -706,15 +739,17 @@ EggsTab:Toggle({
 })
 
 -- ======================================
--- UI - HATCH SELECTED EGG
+-- UI - HATCH SELECTED EGG (DYNAMIC DROPDOWN)
 -- ======================================
 EggsTab:Section({ Title = "------- Hatch Selected Egg -------" })
 
-local allEggs = getAllEggNames()
+-- Initial scan
+scanAndDiscoverEggs()
 
-EggsTab:Dropdown({
+-- Create dropdown ONCE
+local eggDropdown = EggsTab:Dropdown({
     Title = "Select Egg",
-    Values = allEggs,
+    Values = getAllEggNames(),
     Value = selectedEgg,
     Callback = function(v)
         selectedEgg = v
@@ -731,10 +766,29 @@ local eggListParagraph = EggsTab:Paragraph({
 
 EggsTab:Button({
     Title = "Re Scan The Egg Dropdown",
-    Desc = "Refresh the list of available eggs",
+    Desc = "Auto-discovers new eggs from the world",
     Callback = function()
+        local newCount = scanAndDiscoverEggs()
         local newEggs = getAllEggNames()
+        local oldCount = #eggDropdown.Values
+
+        -- Add any new eggs to dd.Values
+        for _, eggName in ipairs(newEggs) do
+            if not table.find(eggDropdown.Values, eggName) then
+                table.insert(eggDropdown.Values, eggName)
+            end
+        end
+
+        -- Trigger WindUI rebuild — makes new items appear in the menu
+        local currentValue = eggDropdown.Value
+        pcall(function() eggDropdown:Select(currentValue) end)
+
+        -- Show status
+        local added = #eggDropdown.Values - oldCount
         local text = "Found " .. #newEggs .. " eggs"
+        if added > 0 then
+            text = text .. " (" .. added .. " new discovered!)"
+        end
         pcall(function() eggListParagraph:SetDesc(text) end)
         print("[Eggs] Rescan: " .. text)
     end,
@@ -757,7 +811,7 @@ EggsTab:Input({
 
 EggsTab:Toggle({
     Title = "Auto Hatch (Teleport + Hatch)",
-    Desc = "Hatches selected egg — auto-switches to 4x rift when spawned",
+    Desc = "Hatches selected egg (pauses when special rift or quest is active)",
     Value = autoHatchEnabled,
     Callback = function(v)
         autoHatchEnabled = v
@@ -771,53 +825,11 @@ EggsTab:Toggle({
                 local lastCheckTime = 0
                 local riftExists = false
                 local lastEgg = ""
-                local lastRift = nil
-                local last4xTeleport = 0
                 
                 while autoHatchEnabled do
                     while getgenv().questActive and autoHatchEnabled do
                         wasActive = false
                         task.wait(0.5)
-                    end
-                    
-                    local fourXRift = get4xRift()
-                    if fourXRift then
-                        if fourXRift ~= lastRift then
-                            lastRift = fourXRift
-                            getgenv().questActive = true
-                            getgenv().questEgg = FOUR_X_EGG_NAME
-                            getgenv().ActivityStatus.current = "Auto Hatching 4x Void Rift (override)"
-                            getgenv().ActivityStatus.trigger = true
-                        end
-                        
-                        local now = tick()
-                        if now - last4xTeleport >= 3 then
-                            local spawnPos = get4xSpawnPosition(fourXRift)
-                            if spawnPos then
-                                local root = getRoot()
-                                if root then
-                                    root.CFrame = CFrame.new(spawnPos + Vector3.new(0, 5, 0))
-                                    root.Velocity = Vector3.zero
-                                    root.RotVelocity = Vector3.zero
-                                end
-                                last4xTeleport = now
-                            end
-                        end
-                        
-                        getgenv().questActive = true
-                        getgenv().questEgg = FOUR_X_EGG_NAME
-                        pcall(function() Remote:FireServer("HatchEgg", FOUR_X_EGG_NAME, HATCH_AMOUNT) end)
-                        task.wait(0.05)
-                        continue
-                    end
-                    
-                    if lastRift then
-                        getgenv().ActivityStatus.current = "4x Rift gone, back to selected egg"
-                        getgenv().ActivityStatus.trigger = true
-                        getgenv().questActive = false
-                        getgenv().questEgg = nil
-                        lastRift = nil
-                        wasActive = false
                     end
                     
                     local now = tick()
@@ -853,8 +865,6 @@ EggsTab:Toggle({
             end)
         else
             if autoHatchThread then task.cancel(autoHatchThread) end
-            getgenv().questActive = false
-            getgenv().questEgg = nil
         end
     end,
 })
@@ -997,7 +1007,7 @@ end
 
 EggsTab:Toggle({
     Title = "Auto Bounty (Teleport + Hatch)",
-    Desc = "Hatches current bounty egg automatically",
+    Desc = "Hatches current bounty egg (pauses when special rift or quest is active)",
     Value = bountyEnabled,
     Callback = function(v)
         bountyEnabled = v
@@ -1186,7 +1196,6 @@ EggsTab:Toggle({
 task.spawn(function()
     task.wait(1.5)
     
-    -- Priority Rifts
     if corruptShadowEnabled then
         corruptShadowThread = task.spawn(function()
             while corruptShadowEnabled do
@@ -1251,48 +1260,46 @@ task.spawn(function()
     
     if fourXEnabled then
         fourXThread = task.spawn(function()
-            local lastRift = nil
-            local lastTeleport = 0
+            local current4x = nil
+            local last4xTeleport = 0
             while fourXEnabled do
                 if not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") then
-                    local rift = get4xRift()
-                    if rift then
-                        if rift ~= lastRift then
-                            lastRift = rift
-                            getgenv().questActive = true
-                            getgenv().questEgg = FOUR_X_EGG_NAME
-                            getgenv().ActivityStatus.current = "Doing 4x Void Rift right now"
-                            getgenv().ActivityStatus.trigger = true
-                        end
+                    local egg = find4xEgg()
+                    if egg then
+                        current4x = egg
+                        getgenv().questActive = true
+                        getgenv().questEgg = egg.Name
+                        getgenv().ActivityStatus.current = "Doing 4x " .. egg.Name .. " right now"
+                        getgenv().ActivityStatus.trigger = true
+
                         local now = tick()
-                        if now - lastTeleport >= 3 then
-                            local spawnPos = get4xSpawnPosition(rift)
-                            if spawnPos then
-                                local root = getRoot()
-                                if root then
-                                    root.CFrame = CFrame.new(spawnPos + Vector3.new(0, 5, 0))
+                        if now - last4xTeleport >= 3 then
+                            local root = getRoot()
+                            if root then
+                                local ok, pivot = pcall(function() return egg:GetPivot() end)
+                                if ok and pivot then
+                                    root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 5, 0))
                                     root.Velocity = Vector3.zero
                                     root.RotVelocity = Vector3.zero
                                 end
-                                lastTeleport = now
                             end
+                            last4xTeleport = now
                         end
-                        getgenv().questActive = true
-                        getgenv().questEgg = FOUR_X_EGG_NAME
-                        pcall(function() Remote:FireServer("HatchEgg", FOUR_X_EGG_NAME, HATCH_AMOUNT) end)
+
+                        pcall(function() Remote:FireServer("HatchEgg", egg.Name, HATCH_AMOUNT) end)
                         task.wait(0.05)
                     else
-                        if lastRift then
-                            getgenv().ActivityStatus.current = "Finished 4x Void Rift"
+                        if current4x then
+                            getgenv().ActivityStatus.current = "Finished 4x Egg"
                             getgenv().ActivityStatus.trigger = true
                             getgenv().questActive = false
                             getgenv().questEgg = nil
-                            lastRift = nil
+                            current4x = nil
                         end
                         task.wait(1)
                     end
                 else
-                    lastRift = nil
+                    current4x = nil
                     task.wait(1)
                 end
             end
@@ -1302,7 +1309,7 @@ task.spawn(function()
     if shadowEnabled then
         shadowThread = task.spawn(function()
             while shadowEnabled do
-                local fourXExists = get4xRift() ~= nil
+                local fourXExists = find4xEgg() ~= nil
                 if isRiftExists("shadow-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not fourXExists then
                     getgenv().questActive = true
                     getgenv().questEgg = "Dark Rift Egg"
@@ -1334,7 +1341,7 @@ task.spawn(function()
     if doodleEnabled then
         doodleThread = task.spawn(function()
             while doodleEnabled do
-                local fourXExists = get4xRift() ~= nil
+                local fourXExists = find4xEgg() ~= nil
                 if isRiftExists("doodle-rift") and not isRiftExists("corruptshadow-rift") and not isRiftExists("overlord-rift") and not isRiftExists("shadow-rift") and not fourXExists then
                     getgenv().questActive = true
                     getgenv().questEgg = "Doodle Egg"
@@ -1363,7 +1370,6 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Hatch (with 4x override)
     if autoHatchEnabled then
         autoHatchThread = task.spawn(function()
             local wasActive = false
@@ -1371,53 +1377,11 @@ task.spawn(function()
             local lastCheckTime = 0
             local riftExists = false
             local lastEgg = ""
-            local lastRift = nil
-            local last4xTeleport = 0
             
             while autoHatchEnabled do
                 while getgenv().questActive and autoHatchEnabled do
                     wasActive = false
                     task.wait(0.5)
-                end
-                
-                local fourXRift = get4xRift()
-                if fourXRift then
-                    if fourXRift ~= lastRift then
-                        lastRift = fourXRift
-                        getgenv().questActive = true
-                        getgenv().questEgg = FOUR_X_EGG_NAME
-                        getgenv().ActivityStatus.current = "Auto Hatching 4x Void Rift (override)"
-                        getgenv().ActivityStatus.trigger = true
-                    end
-                    
-                    local now = tick()
-                    if now - last4xTeleport >= 3 then
-                        local spawnPos = get4xSpawnPosition(fourXRift)
-                        if spawnPos then
-                            local root = getRoot()
-                            if root then
-                                root.CFrame = CFrame.new(spawnPos + Vector3.new(0, 5, 0))
-                                root.Velocity = Vector3.zero
-                                root.RotVelocity = Vector3.zero
-                            end
-                            last4xTeleport = now
-                        end
-                    end
-                    
-                    getgenv().questActive = true
-                    getgenv().questEgg = FOUR_X_EGG_NAME
-                    pcall(function() Remote:FireServer("HatchEgg", FOUR_X_EGG_NAME, HATCH_AMOUNT) end)
-                    task.wait(0.05)
-                    continue
-                end
-                
-                if lastRift then
-                    getgenv().ActivityStatus.current = "4x Rift gone, back to selected egg"
-                    getgenv().ActivityStatus.trigger = true
-                    getgenv().questActive = false
-                    getgenv().questEgg = nil
-                    lastRift = nil
-                    wasActive = false
                 end
                 
                 local now = tick()
@@ -1453,7 +1417,6 @@ task.spawn(function()
         end)
     end
     
-    -- Spam E
     if spamEEnabled then
         spamEThread = task.spawn(function()
             local lastAutoHatchR = 0
@@ -1485,12 +1448,10 @@ task.spawn(function()
         end)
     end
     
-    -- Hide Animation flag
     if hideAnimEnabled then
         getgenv().animationHidden = true
     end
     
-    -- Auto Bounty
     if bountyEnabled then
         refreshBountyLabels()
         bountyThread = task.spawn(function()
@@ -1541,7 +1502,6 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Summon Rift for Bounty
     if riftEnabled then
         refreshBountyLabels()
         local world = EGG_WORLDS[currentBountyEgg] or "The Overworld"
@@ -1570,8 +1530,6 @@ task.spawn(function()
             end
         end)
     end
-    
-    print("[Eggs] Auto-started saved toggles!")
 end)
 
 print("[Eggs] Loaded!")
