@@ -52,6 +52,49 @@ local autoRejoinEnabled = settings.webhook.autoRejoin or false
 local oddsThresholdInput = settings.webhook.oddsThreshold or ""
 
 -- ======================================
+-- SKIP LIST — Private webhook only, public still sent
+-- ======================================
+local SKIP_PRIVATE_PETS = {
+    ["Inferno Bull"] = true,
+    ["Quamatic's Creation"] = true,
+    ["Fenner's Bruh Moment"] = true,
+    ["Dark Wasp"] = true,
+    ["Elite Shard"] = true,
+    ["Lucky Dogcat"] = true,
+    ["Inferno Wyrm"] = true,
+    ["Demonic One"] = true,
+    ["Royal Dogcat"] = true,
+    ["Overworld Basket"] = true,
+    ["Andromeda"] = true,
+    ["Dark Weblord"] = true,
+}
+
+-- ======================================
+-- RARE INVENTORY EGGS
+-- ======================================
+local RARE_EGGS = {
+    ["VOID EGG??"] = {
+        displayName = "VOID EGG??",
+        imageURL = "https://cdn.bgsi.gg/eggs/void-egg.png",
+        pets = {
+            { name = "VOID PYRAMIDIUM", rarity = "Void", chance = "100" },
+        },
+        color = 0x8A2BE2,
+    },
+    ["Shadow Realm Egg"] = {
+        displayName = "Shadow Realm Egg",
+        imageURL = "https://cdn.bgsi.gg/eggs/shadow-realm-egg.png",
+        pets = {
+            { name = "Ancient Shadow Leviathan", rarity = "Infinity", chance = "10" },
+            { name = "Shadow Shock", rarity = "Celestial", chance = "90" },
+        },
+        color = 0x8A2BE2,
+    },
+}
+
+local rareEggsSeen = {}
+
+-- ======================================
 -- TRUE RARITY DETECTION
 -- ======================================
 local function getTrueRarity(info)
@@ -191,12 +234,21 @@ end
 -- ======================================
 local ENCHANT_NAMES = {
     ["super-burst"] = "Burst Blessing",
+    ["super-burst-plus"] = "Burst Blessing+",
     ["super-shiny"] = "Shiny Blessing",
+    ["super-shiny-plus"] = "Shiny Blessing+",
     ["super-luck"] = "Luck Boost",
-    ["super-hatch"] = "Hatch Blessing",
+    ["super-luck-plus"] = "Luck Boost+",
+    ["super-speed"] = "Hatch Blessing",
+    ["super-speed-plus"] = "Hatch Blessing+",
     ["super-bubble"] = "Bubble Machine",
+    ["super-bubble-plus"] = "Bubble Machine+",
     ["super-infinity"] = "Infinity Blessing",
+    ["super-infinity-plus"] = "Infinity Blessing+",
+    ["super-mythic"] = "Mythic Blessing",
+    ["super-mythic-plus"] = "Mythic Blessing+",
     ["super-duplication"] = "Duplication",
+    ["super-duplication-plus"] = "Duplication+",
 }
 
 -- ======================================
@@ -309,13 +361,34 @@ local function getVariantText(v)
     else return "Normal" end
 end
 
+-- ======================================
+-- PET IMAGE (demand.gg)
+-- ======================================
 local function getImage(petName, ex)
-    local n = petName:lower():gsub("%s+", "-"):gsub("[^%w%-]", "")
+    local slug = petName:lower():gsub("%s+", "-"):gsub("[^%w%-]", "")
     local prefix = ""
-    if ex.Shiny and ex.Mythic then prefix = "shiny-mythic-"
+    if ex.XL and ex.Shiny and ex.Mythic then prefix = "shiny-mythic-xl-"
+    elseif ex.XL and ex.Shiny then prefix = "shiny-xl-"
+    elseif ex.XL and ex.Mythic then prefix = "mythic-xl-"
+    elseif ex.XL then prefix = "xl-"
+    elseif ex.Shiny and ex.Mythic then prefix = "shiny-mythic-"
     elseif ex.Shiny then prefix = "shiny-"
-    elseif ex.Mythic then prefix = "mythic-" end
-    return "https://cdn.bgsi.gg/items/" .. prefix .. n .. ".png"
+    elseif ex.Mythic then prefix = "mythic-"
+    end
+    return "https://cdn.demand.gg/i/bgsi/pets/" .. prefix .. slug .. "/256.webp"
+end
+
+-- ======================================
+-- ENCHANT IMAGE (demand.gg)
+-- ======================================
+local function getEnchantImage(enchantId)
+    if not enchantId or enchantId == "" then return nil end
+    return "https://cdn.demand.gg/i/bgsi/enchants/" .. enchantId .. "/256.webp"
+end
+
+local function getComboEnchantImage(id1, id2)
+    if not id1 or not id2 then return nil end
+    return "https://cdn.demand.gg/i/bgsi/enchants/combo-" .. id1 .. id2 .. "/256.webp"
 end
 
 -- ======================================
@@ -407,9 +480,11 @@ end
 local hatchQueue={}
 local onlineQueue={}
 local publicQueue={}
+local rareEggQueue={}
 local hatchProcessing=false
 local onlineProcessing=false
 local publicProcessing=false
+local rareEggProcessing=false
 
 local function sendToWebhook(queue, url)
     if url == "" then return end
@@ -430,6 +505,7 @@ end
 local function processHatch() if not hatchProcessing then hatchProcessing = true task.spawn(function() sendToWebhook(hatchQueue, HATCH_WEBHOOK_URL) hatchProcessing = false end) end end
 local function processPublic() if not publicProcessing then publicProcessing = true task.spawn(function() sendToWebhook(publicQueue, PUBLIC_WEBHOOK_URL) publicProcessing = false end) end end
 local function processOnline() if not onlineProcessing then onlineProcessing = true task.spawn(function() sendToWebhook(onlineQueue, ONLINE_WEBHOOK_URL) onlineProcessing = false end) end end
+local function processRareEgg() if not rareEggProcessing then rareEggProcessing = true task.spawn(function() sendToWebhook(rareEggQueue, HATCH_WEBHOOK_URL) rareEggProcessing = false end) end end
 
 -- ======================================
 -- STUCK DETECTION + REJOIN
@@ -601,6 +677,139 @@ task.spawn(function()
 end)
 
 -- ======================================
+-- INVENTORY FULL DETECTOR
+-- ======================================
+local wasFullNotified = false
+
+task.spawn(function()
+    while true do
+        task.wait(3)
+
+        local pg = player:FindFirstChild("PlayerGui")
+        local sg = pg and pg:FindFirstChild("ScreenGui")
+        local prompt = sg and sg:FindFirstChild("Prompt")
+
+        if prompt and prompt.Visible then
+            local topTitle = prompt.Frame
+                and prompt.Frame:FindFirstChild("Top")
+                and prompt.Frame.Top:FindFirstChild("Title")
+                and prompt.Frame.Top.Title:FindFirstChild("Label")
+
+            local isFullPopup = topTitle and topTitle.Text == "No space!"
+
+            if isFullPopup then
+                local ownedLabel = prompt.Frame
+                    and prompt.Frame:FindFirstChild("Gamepass")
+                    and prompt.Frame.Gamepass:FindFirstChild("Buy")
+                    and prompt.Frame.Gamepass.Buy:FindFirstChild("Owned")
+
+                local hasDigitalStorage = ownedLabel and ownedLabel.Visible and ownedLabel.Text == "Owned"
+
+                if not wasFullNotified and not hasDigitalStorage then
+                    wasFullNotified = true
+
+                    if HATCH_WEBHOOK_URL ~= "" then
+                        local pingMsg = ""
+                        if DISCORD_USER_ID ~= "" then
+                            pingMsg = "<@" .. DISCORD_USER_ID .. "> "
+                        end
+
+                        table.insert(hatchQueue, {
+                            content = pingMsg .. "⚠️ Inventory Full!",
+                            embeds = {{
+                                title = "⚠️ INVENTORY FULL!",
+                                description = "**" .. player.Name .. "**'s pet inventory is full!\n\nHatching is blocked until pets are cleared.\n\nConsider unlocking **Digital Storage** to avoid this.",
+                                color = 0xFF0000,
+                                footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
+                            }}
+                        })
+                        processHatch()
+
+                        getgenv().ActivityStatus.current = "⚠️ Inventory Full!"
+                        getgenv().ActivityStatus.trigger = true
+                    end
+                end
+            end
+        else
+            wasFullNotified = false
+        end
+    end
+end)
+
+-- ======================================
+-- RARE EGG SCANNER
+-- ======================================
+task.spawn(function()
+    local initData = LocalData:Get()
+    if initData and initData.Powerups then
+        for eggName, _ in pairs(RARE_EGGS) do
+            rareEggsSeen[eggName] = initData.Powerups[eggName] or 0
+        end
+    end
+    
+    while true do
+        task.wait(5)
+        local data = LocalData:Get()
+        if data and data.Powerups then
+            for eggName, eggInfo in pairs(RARE_EGGS) do
+                local currentCount = data.Powerups[eggName] or 0
+                local lastCount = rareEggsSeen[eggName] or 0
+                
+                if currentCount > lastCount then
+                    local petLines = {}
+                    for _, pet in ipairs(eggInfo.pets) do
+                        table.insert(petLines, "• " .. pet.name .. " [" .. pet.rarity .. "] | " .. pet.chance .. "%")
+                    end
+                    local petListStr = table.concat(petLines, "\n")
+                    
+                    local displayName = hideUsername and "Hidden" or player.Name
+                    local pingMsg = ""
+                    if DISCORD_USER_ID ~= "" then
+                        pingMsg = "<@" .. DISCORD_USER_ID .. ">"
+                    end
+                    
+                    table.insert(rareEggQueue, {
+                        content = pingMsg,
+                        embeds = {{
+                            title = "🔥 RARE EGG OBTAINED! 🔥",
+                            description = "**" .. displayName .. "** just got a **" .. eggInfo.displayName .. "**!\n\n**Contents:**\n" .. petListStr,
+                            color = eggInfo.color,
+                            thumbnail = { url = eggInfo.imageURL },
+                            fields = {
+                                { name = "Source", value = "Pickup Collection", inline = true },
+                                { name = "Rarity", value = "Secret", inline = true },
+                            },
+                            footer = { text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S") },
+                        }},
+                    })
+                    processRareEgg()
+                    
+                    table.insert(publicQueue, {
+                        embeds = {{
+                            title = "🔥 RARE EGG OBTAINED! 🔥",
+                            description = "Someone just got a **" .. eggInfo.displayName .. "**!\n\n**Contents:**\n" .. petListStr,
+                            color = eggInfo.color,
+                            thumbnail = { url = eggInfo.imageURL },
+                            fields = {
+                                { name = "Source", value = "Pickup Collection", inline = true },
+                                { name = "Rarity", value = "Secret", inline = true },
+                            },
+                            footer = { text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S") },
+                        }},
+                    })
+                    processPublic()
+                    
+                    getgenv().ActivityStatus.current = "Got " .. eggInfo.displayName .. "!"
+                    getgenv().ActivityStatus.trigger = true
+                end
+                
+                rareEggsSeen[eggName] = currentCount
+            end
+        end
+    end
+end)
+
+-- ======================================
 -- FULL INVENTORY SCANNER
 -- ======================================
 local knownPets = {}
@@ -652,8 +861,14 @@ task.spawn(function()
                         
                         local threshold = getThreshold()
                         local shouldSendPrivate = true
-                        
-                        if threshold and not isSuper and not isXL then
+
+                        if SKIP_PRIVATE_PETS[pet.Name] then
+                            shouldSendPrivate = false
+                        end
+
+                        local isInfinityOrVoid = (rarity == "Infinity" or rarity == "Void")
+
+                        if threshold and not isSuper and not isXL and not isInfinityOrVoid then
                             if not isOriginBypass(origin, rarity) then
                                 local oneInX = getOneInX(info and info.Chance)
                                 if oneInX <= threshold then
@@ -673,9 +888,19 @@ task.spawn(function()
                                     if enchant.Id then table.insert(enchantNames, enchant.Id) end
                                 end
                             end
+
                             local displayEnchants = {}
-                            for _, id in ipairs(enchantNames) do table.insert(displayEnchants, ENCHANT_NAMES[id] or id) end
+                            for _, id in ipairs(enchantNames) do
+                                table.insert(displayEnchants, ENCHANT_NAMES[id] or id)
+                            end
                             local displayStr = #displayEnchants > 0 and table.concat(displayEnchants, ", ") or "None"
+
+                            local enchantImage = nil                            if #enchantNames == 1 then
+                                enchantImage = getEnchantImage(enchantNames[1])
+                            elseif #enchantNames == 2 then
+                                enchantImage = getComboEnchantImage(enchantNames[1], enchantNames[2])
+                            end
+
                             local variant = "Normal"
                             if pet.Shiny and pet.Mythic then variant = "Shiny Mythic"
                             elseif pet.Shiny then variant = "Shiny"
@@ -696,6 +921,8 @@ task.spawn(function()
                                     },
                                     footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
+                                if enchantImage then embed.thumbnail = { url = enchantImage } end
+                                
                                 local pingMsg = "<@"..DISCORD_USER_ID..">"
                                 if displayStr ~= "None" then pingMsg = "<@"..DISCORD_USER_ID..">, You Got "..displayStr.."!" end
                                 
@@ -713,6 +940,7 @@ task.spawn(function()
                                 },
                                 footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
+                            if enchantImage then publicEmbed.thumbnail = { url = enchantImage } end
                             table.insert(publicQueue, {embeds = {publicEmbed}})
                             processPublic()
                         else
@@ -727,7 +955,7 @@ task.spawn(function()
                             elseif pet.Mythic then variant = "Mythic"; variantKey = "Mythic" end
                             
                             local color = getColorForPet(rarity, variantKey, isXL, origin)
-                            local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic})
+                            local img = getImage(pet.Name, {Shiny=pet.Shiny, Mythic=pet.Mythic, XL=pet.XL})
                             local displayName = hideUsername and "Hidden" or player.Name
                             local coins = formatNum(data.Coins or 0)
                             local gems = formatNum(data.Gems or 0)
@@ -872,7 +1100,7 @@ WebhookTab:Section({ Title = "Odds Threshold (Private Only)" })
 
 WebhookTab:Paragraph({
     Title = "How it works",
-    Desc = "Only sends private webhook if pet is RARER than this. Format: 10B = 1/10B, 100M = 1/100M, 1T = 1/1T. Leave empty to send ALL pets. Does NOT affect: Super Legendary & XL pets (always send).",
+    Desc = "Only sends private webhook if pet is RARER than this. Format: 10B = 1/10B, 100M = 1/100M, 1T = 1/1T. Leave empty to send ALL pets. Does NOT affect: Super Legendary, XL, Infinity, Void pets (always send).",
 })
 
 WebhookTab:Paragraph({
@@ -934,7 +1162,7 @@ WebhookTab:Section({ Title = "Status" })
 
 WebhookTab:Paragraph({
     Title = "Active",
-    Desc = "Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL\nAlerts: 4x Egg\nOnline ping: Every 30 minutes\nStuck detection: Every 2 min, rejoin after 6 min\nFragments + Stats + Buff Times\nOdds Threshold: Private only, XL & Super exempt",
+    Desc = "Tracking: Secret, Celestial, Infinity, Void, Super Legendary, XL\nAlerts: 4x Egg, Rare Inventory Eggs (VOID EGG??, Shadow Realm Egg), Inventory Full\nOnline ping: Every 30 minutes\nStuck detection: Every 2 min, rejoin after 6 min\nFragments + Stats + Buff Times\nOdds Threshold: Private only, XL & Super exempt\nInfinity/Void: ALWAYS notify\nPet images: demand.gg\nEnchant images: demand.gg",
 })
 
 WebhookTab:Paragraph({
