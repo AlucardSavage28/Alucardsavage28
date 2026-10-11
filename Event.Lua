@@ -298,6 +298,7 @@ local function sendSummonWebhook(success)
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 content = content,
+                allowed_mentions = {parse = {"users"}},
                 embeds = {{
                     title = success and "✅ Rift Summoned" or "❌ Summon Failed",
                     description = "**" .. player.Name .. "**",
@@ -722,11 +723,11 @@ EventTab:Toggle({
                 while halloweenRebirthAuto do
                     local playerGui = player:FindFirstChild("PlayerGui")
                     local sg = playerGui and playerGui:FindFirstChild("ScreenGui")
-                    local ar = sg and sg:FindFirstChild("HalloweenRebirth")
+                    local hr = sg and sg:FindFirstChild("HalloweenRebirth")
 
-                    if ar then
+                    if hr then
                         local ok, progressLabel = pcall(function()
-                            return ar.Frame.Inner.Frame.Progress.Info.Label
+                            return hr.Frame.Inner.Frame.Progress.Info.Label
                         end)
 
                         if ok and progressLabel and progressLabel.Text then
@@ -738,18 +739,18 @@ EventTab:Toggle({
                                 local max = tonumber(maxClean)
 
                                 if current and max and current >= max then
-                                    local rebirthBtn = ar.Frame
-                                        and ar.Frame:FindFirstChild("Inner")
-                                        and ar.Frame.Inner:FindFirstChild("Frame")
-                                        and ar.Frame.Inner.Frame:FindFirstChild("Buttons")
-                                        and ar.Frame.Inner.Frame.Buttons:FindFirstChild("Rebirth")
-                                        and ar.Frame.Inner.Frame.Buttons.Rebirth:FindFirstChild("Button")
+                                    local rebirthBtn = hr.Frame
+                                        and hr.Frame:FindFirstChild("Inner")
+                                        and hr.Frame.Inner:FindFirstChild("Frame")
+                                        and hr.Frame.Inner.Frame:FindFirstChild("Buttons")
+                                        and hr.Frame.Inner.Frame.Buttons:FindFirstChild("Rebirth")
+                                        and hr.Frame.Inner.Frame.Buttons.Rebirth:FindFirstChild("Button")
 
                                     if rebirthBtn and (rebirthBtn:IsA("TextButton") or rebirthBtn:IsA("ImageButton")) then
-                                        firesignal(rebirthBtn.Activated)
+                                        pcall(function() firesignal(rebirthBtn.Activated) end)
                                     else
                                         pcall(function()
-                                            RE:FireServer("HalloweenRebirth")
+                                            RE:FireServer("Halloween Rebirth")
                                         end)
                                     end
                                     task.wait(3)
@@ -984,7 +985,6 @@ EventTab:Toggle({
 task.spawn(function()
     task.wait(1.5)
     
-    -- Auto Add Event
     if eventSettings.autoAddEvent then
         eventRunning = true
         eventThread = task.spawn(function()
@@ -1000,7 +1000,6 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Claim Halloween Chest
     if eventSettings.autoClaimHalloweenChest then
         halloweenChestClaiming = true
         halloweenChestThread = task.spawn(function()
@@ -1016,7 +1015,6 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Buy Selected Upgrades
     if eventSettings.autoBuyUpgrades then
         halloweenUpgradeBuying = true
         halloweenUpgradeThread = task.spawn(function()
@@ -1032,7 +1030,6 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Buy Rebirth Shop Items
     if eventSettings.autoBuyRebirthShop then
         rebirthShopBuying = true
         rebirthShopThread = task.spawn(function()
@@ -1054,7 +1051,6 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Buy Event Shop Items
     if eventSettings.autoBuyShop then
         eventShopBuying = true
         eventShopThread = task.spawn(function()
@@ -1076,17 +1072,16 @@ task.spawn(function()
         end)
     end
     
-    -- Auto Halloween Rebirth
     if eventSettings.autoHalloweenRebirth then
         halloweenRebirthAuto = true
         halloweenRebirthThread = task.spawn(function()
             while halloweenRebirthAuto do
                 local playerGui = player:FindFirstChild("PlayerGui")
                 local sg = playerGui and playerGui:FindFirstChild("ScreenGui")
-                local ar = sg and sg:FindFirstChild("HalloweenRebirth")
-                if ar then
+                local hr = sg and sg:FindFirstChild("HalloweenRebirth")
+                if hr then
                     local ok, progressLabel = pcall(function()
-                        return ar.Frame.Inner.Frame.Progress.Info.Label
+                        return hr.Frame.Inner.Frame.Progress.Info.Label
                     end)
                     if ok and progressLabel and progressLabel.Text then
                         local currStr, maxStr = progressLabel.Text:match("([%d,]+)%s*/%s*([%d,]+)")
@@ -1096,16 +1091,16 @@ task.spawn(function()
                             local current = tonumber(currClean)
                             local max = tonumber(maxClean)
                             if current and max and current >= max then
-                                local rebirthBtn = ar.Frame
-                                    and ar.Frame:FindFirstChild("Inner")
-                                    and ar.Frame.Inner:FindFirstChild("Frame")
-                                    and ar.Frame.Inner.Frame:FindFirstChild("Buttons")
-                                    and ar.Frame.Inner.Frame.Buttons:FindFirstChild("Rebirth")
-                                    and ar.Frame.Inner.Frame.Buttons.Rebirth:FindFirstChild("Button")
+                                local rebirthBtn = hr.Frame
+                                    and hr.Frame:FindFirstChild("Inner")
+                                    and hr.Frame.Inner:FindFirstChild("Frame")
+                                    and hr.Frame.Inner.Frame:FindFirstChild("Buttons")
+                                    and hr.Frame.Inner.Frame.Buttons:FindFirstChild("Rebirth")
+                                    and hr.Frame.Inner.Frame.Buttons.Rebirth:FindFirstChild("Button")
                                 if rebirthBtn and (rebirthBtn:IsA("TextButton") or rebirthBtn:IsA("ImageButton")) then
-                                    firesignal(rebirthBtn.Activated)
+                                    pcall(function() firesignal(rebirthBtn.Activated) end)
                                 else
-                                    pcall(function() RE:FireServer("HalloweenRebirth") end)
+                                    pcall(function() RE:FireServer("Halloween Rebirth") end)
                                 end
                                 task.wait(3)
                             end
@@ -1117,7 +1112,6 @@ task.spawn(function()
         end)
     end
     
-    -- None section toggles
     if eventSettings.autoHatchRift then
         autoHatchRiftEnabled = true
         autoHatchRiftThread = task.spawn(function()
