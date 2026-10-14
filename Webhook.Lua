@@ -919,7 +919,7 @@ task.spawn(function()
                                         {name = "Stats", value = statsStr, inline = false},
                                         {name = "Buff Time Left", value = buffStr, inline = false}
                                     },
-                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                    footer = {text = "Renoa is Collecting the Luck... * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
                                 if enchantImage then embed.thumbnail = { url = enchantImage } end
                                 
@@ -938,7 +938,7 @@ task.spawn(function()
                                     {name = "Ultra Legendary Enchant", value = displayStr, inline = false},
                                     {name = "Stats", value = statsStr, inline = false}
                                 },
-                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                footer = {text = "Renoa is Collecting the Luck... * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
                             if enchantImage then publicEmbed.thumbnail = { url = enchantImage } end
                             table.insert(publicQueue, {embeds = {publicEmbed}})
@@ -974,7 +974,7 @@ task.spawn(function()
                                         {name = "Stats", value = statsStr, inline = false},
                                         {name = "Buff Time Left", value = buffStr, inline = false}
                                     },
-                                    footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                    footer = {text = "Renoa is Collecting the Luck... * "..os.date("%Y-%m-%d %H:%M:%S")}
                                 }
                                 if img then embed.thumbnail = {url = img} end
                                 
@@ -998,7 +998,7 @@ task.spawn(function()
                                     {name = "Pet Info", value = "Chance : "..chance.."\nExist : "..existStr.."\nOrigin : "..origin, inline = false},
                                     {name = "Stats", value = statsStr, inline = false}
                                 },
-                                footer = {text = "Renoa The Finest has Blessed You! * "..os.date("%Y-%m-%d %H:%M:%S")}
+                                footer = {text = "Renoa is Collecting the Luck... * "..os.date("%Y-%m-%d %H:%M:%S")}
                             }
                             if img then publicEmbed.thumbnail = {url = img} end
                             table.insert(publicQueue, {embeds = {publicEmbed}})
