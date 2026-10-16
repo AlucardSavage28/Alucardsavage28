@@ -38,7 +38,7 @@ QuestTab:Paragraph({
 
 QuestTab:Paragraph({
     Title = "Note #2",
-    Desc = "Make sure you have Wooden Crate, Steel Crate, Golden Crate, Classic Crate, or Galaxy Crate. BUT if you don't have any of these it's okay — it will just skip the pearl collect quest and continue to next quest.",
+    Desc = "Make sure you have Wooden Crate, Steel Crate, Golden Crate, Classic Crate, or Galaxy Crate. BUT if you don't have any of these it's okay - it will just skip the pearl collect quest and continue to next quest.",
 })
 
 -- ======================================
@@ -508,27 +508,25 @@ local function sendSeasonPremiumWebhook(premiumPet)
         pingMsg = "<@" .. discordID .. "> "
     end
     
+    local payload = {
+        content = pingMsg .. "STOP! Premium Season Pet Found!",
+        allowed_mentions = { parse = { "users" } },
+        embeds = {
+            {
+                title = "PREMIUM SEASON PET FOUND!",
+                description = "**Auto Claim has STOPPED!**\n\n**Pet:** " .. premiumPet.name .. "\n**Rarity:** " .. rarityText .. "\n**Tier:** " .. premiumPet.tier .. "\n\nBuy the Premium Pass before claiming to get this pet!",
+                color = 0xFF0000,
+                footer = { text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S") }
+            }
+        }
+    }
+    
     pcall(function()
         request({
             Url = webhookURL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode({
-                content = pingMsg .. "🚨 STOP! Premium Season Pet Found!",
-                allowed_mentions = {
-                    parse = {"users"}
-                },
-                embeds = {{
-                    title = "🚨 PREMIUM SEASON PET FOUND!",
-                    description = "**Auto Claim has STOPPED!**\n\n" ..
-                                  "**Pet:** " .. premiumPet.name .. "\n" ..
-                                  "**Rarity:** " .. rarityText .. "\n" ..
-                                  "**Tier:** " .. premiumPet.tier .. "\n\n" ..
-                                  "⚠️ Buy the Premium Pass before claiming to get this pet!",
-                    color = 0xFF0000,
-                    footer = {text = "Renoa Hub * " .. os.date("%Y-%m-%d %H:%M:%S")}
-                })
-            })
+            Body = HttpService:JSONEncode(payload)
         })
     end)
 end
@@ -536,15 +534,6 @@ end
 -- ======================================
 -- INCENTIVE REWARD CLAIMER
 -- ======================================
-local function getClaimedRewardsCount()
-    local d = LocalData:Get()
-    if not d or not d.GlobalIncentive then return 0, 0 end
-    local cr, ci = 0, 0
-    for _ in pairs(d.GlobalIncentive.ClaimedRewards or {}) do cr = cr + 1 end
-    for _ in pairs(d.GlobalIncentive.ClaimedIncentives or {}) do ci = ci + 1 end
-    return cr, ci
-end
-
 local function claimIncentiveRewards()
     local pg = player:FindFirstChild("PlayerGui")
     local sg = pg and pg:FindFirstChild("ScreenGui")
@@ -552,11 +541,9 @@ local function claimIncentiveRewards()
     
     if not gi then return end
     
-    local wasVisible = gi.Visible
-    gi.Visible = true
-    task.wait(0.5)
+    -- Do NOT toggle gi.Visible — button signals work even when hidden
     
-    -- Claim Rewards track (Score-based) — 15 tiers
+    -- Claim Rewards track (Score-based) - 15 tiers
     local scroller = gi.Frame
         and gi.Frame:FindFirstChild("Content")
         and gi.Frame.Content:FindFirstChild("Rewards")
@@ -580,7 +567,7 @@ local function claimIncentiveRewards()
         end
     end
     
-    -- Claim Global track (Bubble-based) — 13 tiers
+    -- Claim Global track (Bubble-based) - 13 tiers
     local globalContent = gi:FindFirstChild("Global")
         and gi.Global:FindFirstChild("List")
         and gi.Global.List:FindFirstChild("Content")
@@ -597,11 +584,6 @@ local function claimIncentiveRewards()
                 end
             end
         end
-    end
-    
-    task.wait(0.5)
-    if not wasVisible then
-        gi.Visible = false
     end
 end
 
@@ -622,14 +604,6 @@ local function stopIncentiveClaimer()
     if incentiveClaimThread then
         task.cancel(incentiveClaimThread)
         incentiveClaimThread = nil
-    end
-    
-    -- Hide UI if still showing
-    local pg = player:FindFirstChild("PlayerGui")
-    local sg = pg and pg:FindFirstChild("ScreenGui")
-    local gi = sg and sg:FindFirstChild("GlobalIncentive")
-    if gi then
-        pcall(function() gi.Visible = false end)
     end
 end
 
@@ -712,11 +686,11 @@ QuestTab:Toggle({
                         local rarityText = premiumPet.rarity
                         if premiumPet.xl then rarityText = rarityText .. " XL" end
                         
-                        getgenv().ActivityStatus.current = "🚨 Season Premium Pet: " .. premiumPet.name .. " [" .. rarityText .. "]!"
+                        getgenv().ActivityStatus.current = "Season Premium Pet: " .. premiumPet.name .. " [" .. rarityText .. "]!"
                         getgenv().ActivityStatus.trigger = true
                         
                         pcall(function()
-                            seasonStatusParagraph:SetTitle("🚨 STOPPED")
+                            seasonStatusParagraph:SetTitle("STOPPED")
                             seasonStatusParagraph:SetDesc(premiumPet.name .. " [" .. rarityText .. "] at Tier " .. premiumPet.tier)
                         end)
                         
@@ -806,7 +780,7 @@ QuestTab:Paragraph({
 
 QuestTab:Toggle({
     Title = "Auto Claim Incentive Rewards",
-    Desc = "Loops every 60s — claims all currently unlocked tiers on both tracks",
+    Desc = "Loops every 60s - claims all currently unlocked tiers on both tracks",
     Value = questSettings.autoClaimIncentive or false,
     Callback = function(v)
         questSettings.autoClaimIncentive = v
