@@ -1,17 +1,19 @@
 -- ================================================
--- DICE BOARD TAB (WINDUI VERSION)
+-- MINIGAME TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 local WindUI = getgenv().WindUI
 
-local DiceBoardTab = Window:Tab({ Title = "Dice Board", Icon = "dice-5" })
+local DiceBoardTab = Window:Tab({ Title = "Minigame", Icon = "gamepad-2" })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local Board = require(ReplicatedStorage.Client.Gui.Frames.Board)
+local Remote = require(ReplicatedStorage.Shared.Framework.Network.Remote)
+local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 
 -- ======================================
 -- LOAD SAVED SETTINGS
@@ -152,9 +154,6 @@ local function loop()
     end
 end
 
--- ======================================
--- AUTO-START LOGIC
--- ======================================
 local function startDiceLoop()
     if running then return end
     running = true
@@ -174,7 +173,212 @@ local function stopDiceLoop()
 end
 
 -- ======================================
--- UI
+-- MINIGAME SETUP
+-- ======================================
+local MINIGAMES = {
+    "Cart Escape",
+    "Hyper Darts",
+    "Pet Match",
+    "Circus Pet Match",
+}
+
+local DIFFICULTIES = {"Easy", "Medium", "Hard", "Insane"}
+
+local selectedMinigame = diceSettings.selectedMinigame or "Cart Escape"
+local selectedDifficulty = diceSettings.selectedDifficulty or "Easy"
+local autoMinigameRunning = false
+local autoMinigameThread = nil
+local currentLoopId = 0
+
+local function getMinigameCooldownRemaining(minigameName)
+    local data = LocalData:Get()
+    if data and data.Cooldowns then
+        local cd = data.Cooldowns[minigameName]
+        if cd then
+            return math.max(0, cd - os.time())
+        end
+    end
+    return 0
+end
+
+local function getSuperTicketCount()
+    local data = LocalData:Get()
+    if data and data.Powerups then
+        return data.Powerups["Super Ticket"] or 0
+    end
+    return 0
+end
+
+local function minigameLoop(myLoopId, targetMinigame, targetDifficulty)
+    while autoMinigameRunning and currentLoopId == myLoopId do
+        local remaining = getMinigameCooldownRemaining(targetMinigame)
+
+        if remaining > 0 then
+            if diceSettings.autoSuperTicket then
+                local tickets = getSuperTicketCount()
+                if tickets > 0 then
+                    pcall(function()
+                        Remote:FireServer("SkipMinigameCooldown", targetMinigame)
+                    end)
+                    task.wait(1.5)
+                    remaining = getMinigameCooldownRemaining(targetMinigame)
+                    if remaining > 0 then
+                        task.wait(2)
+                        continue
+                    end
+                else
+                    task.wait(5)
+                    continue
+                end
+            else
+                task.wait(5)
+                continue
+            end
+        end
+
+        -- Start minigame
+        pcall(function()
+            Remote:FireServer("StartMinigame", targetMinigame, targetDifficulty)
+        end)
+        task.wait(1)
+
+        -- Spam FinishMinigame until cooldown set
+        local attempts = 0
+        while autoMinigameRunning and currentLoopId == myLoopId and attempts < 30 do
+            attempts = attempts + 1
+            pcall(function()
+                Remote:FireServer("FinishMinigame")
+            end)
+            task.wait(0.3)
+
+            local cd = getMinigameCooldownRemaining(targetMinigame)
+            if cd > 0 then
+                break
+            end
+        end
+
+        task.wait(2)
+    end
+end
+
+local function startMinigameLoop()
+    if autoMinigameRunning then
+        autoMinigameRunning = false
+        currentLoopId = currentLoopId + 1
+        task.wait(0.5)
+    end
+
+    autoMinigameRunning = true
+    currentLoopId = currentLoopId + 1
+    local myLoopId = currentLoopId
+    local targetMinigame = selectedMinigame
+    local targetDifficulty = selectedDifficulty
+
+    -- ActivityStatus webhook
+    getgenv().ActivityStatus.current = "Auto Start " .. targetMinigame .. " Minigame"
+    getgenv().ActivityStatus.trigger = true
+
+    autoMinigameThread = task.spawn(function()
+        minigameLoop(myLoopId, targetMinigame, targetDifficulty)
+    end)
+end
+
+local function stopMinigameLoop()
+    autoMinigameRunning = false
+    currentLoopId = currentLoopId + 1
+    if autoMinigameThread then
+        pcall(function() task.cancel(autoMinigameThread) end)
+        autoMinigameThread = nil
+    end
+end
+
+-- ======================================
+-- HIDE SCREENS SETUP
+-- ======================================
+local HIDE_TARGETS = {"TeleportingGui", "TransitionGui", "LoadingGui"}
+local hookedGuis = {}
+local hideScreensRunning = false
+local hideScreensConnections = {}
+
+local function hookGuiForHiding(gui)
+    if hookedGuis[gui] then return end
+    hookedGuis[gui] = true
+
+    -- Instant hide on Enabled change
+    local conn = gui:GetPropertyChangedSignal("Enabled"):Connect(function()
+        if gui.Enabled then
+            gui.Enabled = false
+        end
+    end)
+    table.insert(hideScreensConnections, conn)
+
+    -- Also hook ChildAdded
+    local conn2 = gui.ChildAdded:Connect(function()
+        task.wait()
+        if gui.Enabled then
+            gui.Enabled = false
+        end
+    end)
+    table.insert(hideScreensConnections, conn2)
+
+    -- Hide immediately
+    if gui.Enabled then
+        gui.Enabled = false
+    end
+end
+
+local function unhookAllGuis()
+    for _, conn in ipairs(hideScreensConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    hideScreensConnections = {}
+    hookedGuis = {}
+end
+
+local function startHideScreens()
+    if hideScreensRunning then return end
+    hideScreensRunning = true
+
+    local pg = player:WaitForChild("PlayerGui")
+
+    -- Hook existing GUIs
+    for _, name in ipairs(HIDE_TARGETS) do
+        local gui = pg:FindFirstChild(name)
+        if gui then
+            hookGuiForHiding(gui)
+        end
+    end
+
+    -- Hook new GUIs (in case they get recreated)
+    local pgConn = pg.ChildAdded:Connect(function(child)
+        for _, name in ipairs(HIDE_TARGETS) do
+            if child.Name == name then
+                task.wait(0.05)
+                hookGuiForHiding(child)
+            end
+        end
+    end)
+    table.insert(hideScreensConnections, pgConn)
+end
+
+local function stopHideScreens()
+    hideScreensRunning = false
+    unhookAllGuis()
+
+    -- Restore GUIs
+    local pg = player:FindFirstChild("PlayerGui")
+    if pg then
+        for _, name in ipairs(HIDE_TARGETS) do
+            local gui = pg:FindFirstChild(name)
+            if gui then
+                pcall(function() gui.Enabled = true end)
+            end
+        end
+    end
+end
+
+-- ======================================
+-- UI - SETTINGS
 -- ======================================
 DiceBoardTab:Section({ Title = "Settings" })
 
@@ -210,13 +414,107 @@ DiceBoardTab:Toggle({
 })
 
 -- ======================================
--- AUTO-START SAVED TOGGLE
+-- UI - AUTO MINIGAME
+-- ======================================
+DiceBoardTab:Section({ Title = "Auto Minigame" })
+
+DiceBoardTab:Dropdown({
+    Title = "Select Minigame",
+    Values = MINIGAMES,
+    Value = selectedMinigame,
+    Callback = function(v)
+        selectedMinigame = v
+        diceSettings.selectedMinigame = v
+        getgenv().HubSettings.diceboard = diceSettings
+        saveHubSettings()
+
+        if autoMinigameRunning then
+            startMinigameLoop()
+        end
+    end,
+})
+
+DiceBoardTab:Dropdown({
+    Title = "Select Difficulty",
+    Values = DIFFICULTIES,
+    Value = selectedDifficulty,
+    Callback = function(v)
+        selectedDifficulty = v
+        diceSettings.selectedDifficulty = v
+        getgenv().HubSettings.diceboard = diceSettings
+        saveHubSettings()
+
+        if autoMinigameRunning then
+            startMinigameLoop()
+        end
+    end,
+})
+
+DiceBoardTab:Toggle({
+    Title = "Auto Play Minigame",
+    Desc = "Plays the selected minigame on repeat",
+    Value = diceSettings.autoMinigame or false,
+    Callback = function(v)
+        diceSettings.autoMinigame = v
+        getgenv().HubSettings.diceboard = diceSettings
+        saveHubSettings()
+        if v then
+            startMinigameLoop()
+        else
+            stopMinigameLoop()
+        end
+    end,
+})
+
+DiceBoardTab:Toggle({
+    Title = "Use Super Ticket to Skip Cooldown",
+    Desc = "Automatically uses Super Ticket when on cooldown",
+    Value = diceSettings.autoSuperTicket or false,
+    Callback = function(v)
+        diceSettings.autoSuperTicket = v
+        getgenv().HubSettings.diceboard = diceSettings
+        saveHubSettings()
+    end,
+})
+
+-- ======================================
+-- UI - HIDE SCREENS
+-- ======================================
+DiceBoardTab:Section({ Title = "Hide Screens" })
+
+DiceBoardTab:Toggle({
+    Title = "Hide Teleporting / Returning Home / Loading Screens",
+    Desc = "Instantly hides transition GUIs during minigames",
+    Value = diceSettings.hideScreens or false,
+    Callback = function(v)
+        diceSettings.hideScreens = v
+        getgenv().HubSettings.diceboard = diceSettings
+        saveHubSettings()
+        if v then
+            startHideScreens()
+        else
+            stopHideScreens()
+        end
+    end,
+})
+
+-- ======================================
+-- AUTO-START SAVED TOGGLES
 -- ======================================
 task.spawn(function()
-    task.wait(1)
+    task.wait(1.5)
+
     if diceSettings.autoDice then
         startDiceLoop()
     end
+
+    if diceSettings.autoMinigame then
+        startMinigameLoop()
+    end
+
+    if diceSettings.hideScreens then
+        startHideScreens()
+    end
 end)
 
-print("[Dice Board] Loaded!")
+print("[Minigame] Loaded!")
