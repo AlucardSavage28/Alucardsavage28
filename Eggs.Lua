@@ -959,28 +959,9 @@ EggsTab:Toggle({
 })
 
 -- ======================================
--- UI - BOUNTY HATCH (SAFE)
+-- UI - BOUNTY HATCH (NO DISPLAY)
 -- ======================================
 EggsTab:Section({ Title = "------- Bounty Hatch -------" })
-
-local bountyPetParagraph = EggsTab:Paragraph({
-    Title = "Bounty Pet: Loading...",
-    Desc = "Please wait...",
-})
-
-local bountyResetParagraph = EggsTab:Paragraph({
-    Title = "Resets in: Loading...",
-    Desc = "Automatically updates",
-})
-
-local function refreshBountyLabels()
-    updateBountyInfo()
-    pcall(function() 
-        bountyPetParagraph:SetTitle("Bounty Pet: " .. currentBountyPet .. " [" .. currentBountyRarity .. "]")
-        bountyPetParagraph:SetDesc("Egg: " .. currentBountyEgg .. " | Chance: " .. currentBountyChance)
-    end)
-    pcall(function() bountyResetParagraph:SetTitle("Resets in: " .. getTimeUntilReset()) end)
-end
 
 EggsTab:Dropdown({
     Title = "Prioritize Bounty Rarity",
@@ -1005,7 +986,7 @@ EggsTab:Toggle({
         getgenv().HubSettings.eggs = eggSettings
         saveHubSettings()
         if v then
-            refreshBountyLabels()
+            updateBountyInfo()
             bountyThread = task.spawn(function()
                 local wasActive = false
                 local currentLuck = 0
@@ -1019,7 +1000,7 @@ EggsTab:Toggle({
                         task.wait(0.5)
                     end
                     
-                    refreshBountyLabels()
+                    updateBountyInfo()
                     
                     local matchesFilter = (bountyRarityFilter == "Current") or (currentBountyRarity == bountyRarityFilter)
                     
@@ -1075,7 +1056,7 @@ EggsTab:Toggle({
         getgenv().HubSettings.eggs = eggSettings
         saveHubSettings()
         if v then
-            refreshBountyLabels()
+            updateBountyInfo()
             local world = EGG_WORLDS[currentBountyEgg] or "The Overworld"
             pcall(function()
                 RemoteFunction:InvokeServer("SummonRift", {
@@ -1089,7 +1070,7 @@ EggsTab:Toggle({
             riftThread = task.spawn(function()
                 while riftEnabled do
                     task.wait(1860)
-                    refreshBountyLabels()
+                    updateBountyInfo()
                     pcall(function()
                         RemoteFunction:InvokeServer("SummonRift", {
                             Type = "Egg",
@@ -1186,19 +1167,6 @@ EggsTab:Toggle({
         end
     end,
 })
-
--- ======================================
--- BACKGROUND BOUNTY UPDATER
--- ======================================
-task.spawn(function()
-    task.wait(1)
-    pcall(function() refreshBountyLabels() end)
-    
-    while true do
-        task.wait(60)
-        pcall(function() refreshBountyLabels() end)
-    end
-end)
 
 -- ======================================
 -- AUTO-START SAVED TOGGLES
@@ -1439,7 +1407,7 @@ task.spawn(function()
     end
     
     if bountyEnabled then
-        refreshBountyLabels()
+        updateBountyInfo()
         bountyThread = task.spawn(function()
             local wasActive = false
             local currentLuck = 0
@@ -1453,7 +1421,7 @@ task.spawn(function()
                     task.wait(0.5)
                 end
                 
-                refreshBountyLabels()
+                updateBountyInfo()
                 
                 local matchesFilter = (bountyRarityFilter == "Current") or (currentBountyRarity == bountyRarityFilter)
                 
@@ -1496,7 +1464,7 @@ task.spawn(function()
     end
     
     if riftEnabled then
-        refreshBountyLabels()
+        updateBountyInfo()
         local world = EGG_WORLDS[currentBountyEgg] or "The Overworld"
         pcall(function()
             RemoteFunction:InvokeServer("SummonRift", {
@@ -1510,7 +1478,7 @@ task.spawn(function()
         riftThread = task.spawn(function()
             while riftEnabled do
                 task.wait(1860)
-                refreshBountyLabels()
+                updateBountyInfo()
                 pcall(function()
                     RemoteFunction:InvokeServer("SummonRift", {
                         Type = "Egg",
