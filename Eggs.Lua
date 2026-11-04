@@ -1,8 +1,6 @@
 -- ================================================
 -- EGGS TAB (WINDUI VERSION)
 -- ================================================
-if setthreadidentity then setthreadidentity(8) end
-
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
 local WindUI = getgenv().WindUI
@@ -122,7 +120,7 @@ local function getInventoryEggs()
 end
 
 -- ======================================
--- AUTO-DISCOVERY FROM workspace.Rendered.Generic
+-- AUTO-DISCOVERY
 -- ======================================
 local function isRiftEggName(name)
     return name:lower() == name and name:find("%-egg$") ~= nil
@@ -167,9 +165,9 @@ end
 -- ======================================
 local HATCH_AMOUNT = eggSettings.hatchAmount or 12
 local selectedEgg = eggSettings.selectedEgg or "Common Egg"
-local currentBountyPet = "Unknown"
-local currentBountyEgg = "Unknown"
-local currentBountyChance = "Unknown"
+local currentBountyPet = "None"
+local currentBountyEgg = "None"
+local currentBountyChance = "None"
 local currentBountyRarity = "None"
 
 local BOUNTY_RARITY_OPTIONS = {"Current", "Void", "Infinity", "Celestial", "Secret"}
@@ -241,9 +239,6 @@ local function eggNameToKey(name)
     return name:lower():gsub("%s+", "-")
 end
 
--- ======================================
--- TRUE RARITY CHECK
--- ======================================
 local function getTrueRarity(info)
     if not info then return "None" end
     if info.Void then return "Void" end
@@ -253,9 +248,6 @@ local function getTrueRarity(info)
     return info.Rarity or "None"
 end
 
--- ======================================
--- HIGHEST LUCK RIFT
--- ======================================
 local function getRiftLuck(rift)
     local display = rift:FindFirstChild("Display")
     if display then
@@ -487,9 +479,6 @@ local function toggleAutoHatchR()
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
 end
 
--- ======================================
--- MULTI EGG DETECTION
--- ======================================
 local function findMultiEgg()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") then
@@ -970,19 +959,17 @@ EggsTab:Toggle({
 })
 
 -- ======================================
--- UI - BOUNTY HATCH
+-- UI - BOUNTY HATCH (SAFE)
 -- ======================================
-updateBountyInfo()
-
 EggsTab:Section({ Title = "------- Bounty Hatch -------" })
 
 local bountyPetParagraph = EggsTab:Paragraph({
-    Title = "Bounty Pet: " .. currentBountyPet .. " [" .. currentBountyRarity .. "]",
-    Desc = "Egg: " .. currentBountyEgg .. " | Chance: " .. currentBountyChance,
+    Title = "Bounty Pet: Loading...",
+    Desc = "Please wait...",
 })
 
 local bountyResetParagraph = EggsTab:Paragraph({
-    Title = "Resets in: " .. getTimeUntilReset(),
+    Title = "Resets in: Loading...",
     Desc = "Automatically updates",
 })
 
@@ -1121,7 +1108,7 @@ EggsTab:Toggle({
 })
 
 -- ======================================
--- UI - XL EGG BOUNTY
+-- UI - XL EGG BOUNTY (SAFE)
 -- ======================================
 EggsTab:Section({ Title = "------- XL Egg Bounty -------" })
 
@@ -1199,6 +1186,19 @@ EggsTab:Toggle({
         end
     end,
 })
+
+-- ======================================
+-- BACKGROUND BOUNTY UPDATER
+-- ======================================
+task.spawn(function()
+    task.wait(1)
+    pcall(function() refreshBountyLabels() end)
+    
+    while true do
+        task.wait(60)
+        pcall(function() refreshBountyLabels() end)
+    end
+end)
 
 -- ======================================
 -- AUTO-START SAVED TOGGLES
