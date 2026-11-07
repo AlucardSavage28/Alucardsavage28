@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (WINDUI VERSION - FINAL FIX)
+-- EGGS TAB (WINDUI VERSION)
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -295,9 +295,6 @@ local function teleportToBestRift(eggName)
 end
 
 local function teleportToEgg(eggName)
-    -- HARD STOP: If a quest is active, do not teleport.
-    if getgenv().questActive then return false end
-    
     local pos = EGG_LOCATIONS[eggName] or discoveredEggs[eggName]
     if not pos then
         for _, obj in ipairs(workspace:GetDescendants()) do
@@ -466,12 +463,21 @@ local function findAdminShadowEgg()
 end
 
 -- ======================================
+-- GLOBAL BOUNTY UPDATER
+-- ======================================
+task.spawn(function()
+    while true do
+        task.wait(3)
+        pcall(function() updateBountyInfo() end)
+    end
+end)
+
+-- ======================================
 -- UI BUILDER
 -- ======================================
 task.spawn(function()
     task.wait(0.5)
 
-    -- PART 1
     EggsTab:Section({ Title = "------- Special Eggs -------" })
 
     EggsTab:Toggle({
@@ -489,17 +495,23 @@ task.spawn(function()
                         if egg then
                             getgenv().questActive = true
                             getgenv().questEgg = egg.Name
+                            getgenv().ActivityStatus.current = "Doing " .. egg.Name .. " right now"
+                            getgenv().ActivityStatus.trigger = true
+
                             local root = getRoot()
                             if root then
                                 local ok, pivot = pcall(function() return egg:GetPivot() end)
                                 if ok and pivot then
                                     root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 5, 0))
+                                    root.Velocity = Vector3.zero
+                                    root.RotVelocity = Vector3.zero
                                 end
                             end
                             pcall(function() Remote:FireServer("HatchEgg", egg.Name, HATCH_AMOUNT) end)
                             task.wait(0.1)
                         else
                             getgenv().questActive = false
+                            getgenv().questEgg = nil
                             task.wait(1)
                         end
                     end
@@ -526,11 +538,16 @@ task.spawn(function()
                         if egg then
                             getgenv().questActive = true
                             getgenv().questEgg = "Admin Shadow Egg"
+                            getgenv().ActivityStatus.current = "Doing Admin Shadow Egg right now"
+                            getgenv().ActivityStatus.trigger = true
+
                             local root = getRoot()
                             if root then
                                 local ok, pivot = pcall(function() return egg:GetPivot() end)
                                 if ok and pivot then
                                     root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 5, 0))
+                                    root.Velocity = Vector3.zero
+                                    root.RotVelocity = Vector3.zero
                                 end
                             end
                             pcall(function() Remote:FireServer("HatchEgg", "Admin Shadow Egg", HATCH_AMOUNT) end)
@@ -541,6 +558,7 @@ task.spawn(function()
                             task.wait(3)
                         else
                             getgenv().questActive = false
+                            getgenv().questEgg = nil
                             task.wait(1)
                         end
                     end
@@ -566,6 +584,9 @@ task.spawn(function()
                         if isRiftExists("doodle-rift") then
                             getgenv().questActive = true
                             getgenv().questEgg = "Doodle Egg"
+                            getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
+                            getgenv().ActivityStatus.trigger = true
+
                             teleportToRiftSafely("doodle-rift")
                             task.wait(0.3)
                             while doodleEnabled and isRiftExists("doodle-rift") do
@@ -573,6 +594,7 @@ task.spawn(function()
                                 task.wait(0.1)
                             end
                             getgenv().questActive = false
+                            getgenv().questEgg = nil
                         end
                         task.wait(1)
                     end
@@ -636,12 +658,45 @@ task.spawn(function()
             if v then
                 if autoHatchThread then task.cancel(autoHatchThread) end
                 autoHatchThread = task.spawn(function()
+                    local questIdleTimer = 0
                     while autoHatchEnabled do
-                        local bountyOverride = bountyEnabled and (bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter)
-                        while (getgenv().questActive or bountyOverride) and autoHatchEnabled do
-                            task.wait(0.5)
-                            bountyOverride = bountyEnabled and (bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter)
+                        local specialEggActive = false
+                        if multiEggEnabled and findMultiEgg() then specialEggActive = true end
+                        if adminShadowEnabled and findAdminShadowEgg() then specialEggActive = true end
+                        if doodleEnabled and isRiftExists("doodle-rift") then specialEggActive = true end
+                        
+                        local bountyOverride = bountyEnabled and currentBountyEgg ~= "None" and (
+                            bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter
+                        )
+                        local questActive = getgenv().questActive
+                        
+                        -- Track idle time
+                        if questActive or specialEggActive or bountyOverride then
+                            questIdleTimer = 0
+                        else
+                            questIdleTimer = questIdleTimer + 0.1
                         end
+                        
+                        while (specialEggActive or bountyOverride or questActive or questIdleTimer < 2) and autoHatchEnabled do
+                            task.wait(0.1)
+                            
+                            specialEggActive = false
+                            if multiEggEnabled and findMultiEgg() then specialEggActive = true end
+                            if adminShadowEnabled and findAdminShadowEgg() then specialEggActive = true end
+                            if doodleEnabled and isRiftExists("doodle-rift") then specialEggActive = true end
+                            
+                            bountyOverride = bountyEnabled and currentBountyEgg ~= "None" and (
+                                bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter
+                            )
+                            questActive = getgenv().questActive
+                            
+                            if questActive or specialEggActive or bountyOverride then
+                                questIdleTimer = 0
+                            else
+                                questIdleTimer = questIdleTimer + 0.1
+                            end
+                        end
+                        
                         teleportToEgg(selectedEgg)
                         pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                         task.wait(0.1)
@@ -694,7 +749,6 @@ task.spawn(function()
 
     task.wait(1)
 
-    -- PART 2
     EggsTab:Section({ Title = "------- Inventory Egg -------" })
 
     EggsTab:Dropdown({
@@ -751,14 +805,18 @@ task.spawn(function()
                 if bountyThread then task.cancel(bountyThread) end
                 bountyThread = task.spawn(function()
                     while bountyEnabled do
-                        updateBountyInfo()
                         local matchesFilter = (bountyRarityFilter == "Current") or (currentBountyRarity == bountyRarityFilter)
-                        if matchesFilter and currentBountyEgg ~= "None" then
+                        local specialEggActive = false
+                        if multiEggEnabled and findMultiEgg() then specialEggActive = true end
+                        if adminShadowEnabled and findAdminShadowEgg() then specialEggActive = true end
+                        if doodleEnabled and isRiftExists("doodle-rift") then specialEggActive = true end
+                        
+                        if matchesFilter and currentBountyEgg ~= "None" and not getgenv().questActive and not specialEggActive then
                             teleportToEgg(currentBountyEgg)
                             pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                             task.wait(0.1)
                         else
-                            task.wait(2)
+                            task.wait(0.5)
                         end
                     end
                 end)
@@ -828,9 +886,6 @@ task.spawn(function()
         end,
     })
 
-    -- ======================================
-    -- AUTO-START SAVED TOGGLES
-    -- ======================================
     task.wait(0.5)
     
     if multiEggEnabled then
@@ -840,6 +895,9 @@ task.spawn(function()
                 if egg then
                     getgenv().questActive = true
                     getgenv().questEgg = egg.Name
+                    getgenv().ActivityStatus.current = "Doing " .. egg.Name .. " right now"
+                    getgenv().ActivityStatus.trigger = true
+
                     local root = getRoot()
                     if root then
                         local ok, pivot = pcall(function() return egg:GetPivot() end)
@@ -849,6 +907,7 @@ task.spawn(function()
                     task.wait(0.1)
                 else
                     getgenv().questActive = false
+                    getgenv().questEgg = nil
                     task.wait(1)
                 end
             end
@@ -862,6 +921,9 @@ task.spawn(function()
                 if egg then
                     getgenv().questActive = true
                     getgenv().questEgg = "Admin Shadow Egg"
+                    getgenv().ActivityStatus.current = "Doing Admin Shadow Egg right now"
+                    getgenv().ActivityStatus.trigger = true
+
                     local root = getRoot()
                     if root then
                         local ok, pivot = pcall(function() return egg:GetPivot() end)
@@ -875,6 +937,7 @@ task.spawn(function()
                     task.wait(3)
                 else
                     getgenv().questActive = false
+                    getgenv().questEgg = nil
                     task.wait(1)
                 end
             end
@@ -887,6 +950,9 @@ task.spawn(function()
                 if isRiftExists("doodle-rift") then
                     getgenv().questActive = true
                     getgenv().questEgg = "Doodle Egg"
+                    getgenv().ActivityStatus.current = "Doing Doodle Rift right now"
+                    getgenv().ActivityStatus.trigger = true
+
                     teleportToRiftSafely("doodle-rift")
                     task.wait(0.3)
                     while doodleEnabled and isRiftExists("doodle-rift") do
@@ -894,6 +960,7 @@ task.spawn(function()
                         task.wait(0.1)
                     end
                     getgenv().questActive = false
+                    getgenv().questEgg = nil
                 end
                 task.wait(1)
             end
@@ -902,12 +969,44 @@ task.spawn(function()
 
     if autoHatchEnabled then
         autoHatchThread = task.spawn(function()
+            local questIdleTimer = 0
             while autoHatchEnabled do
-                local bountyOverride = bountyEnabled and (bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter)
-                while (getgenv().questActive or bountyOverride) and autoHatchEnabled do
-                    task.wait(0.5)
-                    bountyOverride = bountyEnabled and (bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter)
+                local specialEggActive = false
+                if multiEggEnabled and findMultiEgg() then specialEggActive = true end
+                if adminShadowEnabled and findAdminShadowEgg() then specialEggActive = true end
+                if doodleEnabled and isRiftExists("doodle-rift") then specialEggActive = true end
+                
+                local bountyOverride = bountyEnabled and currentBountyEgg ~= "None" and (
+                    bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter
+                )
+                local questActive = getgenv().questActive
+                
+                if questActive or specialEggActive or bountyOverride then
+                    questIdleTimer = 0
+                else
+                    questIdleTimer = questIdleTimer + 0.1
                 end
+                
+                while (specialEggActive or bountyOverride or questActive or questIdleTimer < 2) and autoHatchEnabled do
+                    task.wait(0.1)
+                    
+                    specialEggActive = false
+                    if multiEggEnabled and findMultiEgg() then specialEggActive = true end
+                    if adminShadowEnabled and findAdminShadowEgg() then specialEggActive = true end
+                    if doodleEnabled and isRiftExists("doodle-rift") then specialEggActive = true end
+                    
+                    bountyOverride = bountyEnabled and currentBountyEgg ~= "None" and (
+                        bountyRarityFilter == "Current" or currentBountyRarity == bountyRarityFilter
+                    )
+                    questActive = getgenv().questActive
+                    
+                    if questActive or specialEggActive or bountyOverride then
+                        questIdleTimer = 0
+                    else
+                        questIdleTimer = questIdleTimer + 0.1
+                    end
+                end
+                
                 teleportToEgg(selectedEgg)
                 pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
                 task.wait(0.1)
@@ -937,14 +1036,18 @@ task.spawn(function()
     if bountyEnabled then
         bountyThread = task.spawn(function()
             while bountyEnabled do
-                updateBountyInfo()
                 local matchesFilter = (bountyRarityFilter == "Current") or (currentBountyRarity == bountyRarityFilter)
-                if matchesFilter and currentBountyEgg ~= "None" then
+                local specialEggActive = false
+                if multiEggEnabled and findMultiEgg() then specialEggActive = true end
+                if adminShadowEnabled and findAdminShadowEgg() then specialEggActive = true end
+                if doodleEnabled and isRiftExists("doodle-rift") then specialEggActive = true end
+                
+                if matchesFilter and currentBountyEgg ~= "None" and not getgenv().questActive and not specialEggActive then
                     teleportToEgg(currentBountyEgg)
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
                     task.wait(0.1)
                 else
-                    task.wait(2)
+                    task.wait(0.5)
                 end
             end
         end)
