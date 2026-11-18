@@ -14,6 +14,7 @@ local LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
 local Pets = require(ReplicatedStorage.Shared.Data.Pets)
 local RE = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
 local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local RemoteContainer = ReplicatedStorage.Shared.Framework.Network.Remote
 local RemoteFunction = RemoteContainer.RemoteFunction
@@ -547,6 +548,283 @@ EventTab:Toggle({
 })
 
 -- ======================================
+-- UI - EVENT CHALLENGE PASS (WINTER PASS)
+-- ======================================
+EventTab:Section({ Title = "Event Challenge Pass" })
+
+EventTab:Paragraph({
+    Title = "⚠️ Note",
+    Desc = "Turn off: All Quest Tab, Auto Rain, Auto sell Bubble, Auto Hatch, Auto Special Egg, and Auto\nTurn On: Hide Hatch Animation",
+})
+
+EventTab:Paragraph({
+    Title = "⚠️ Note 2",
+    Desc = "untested",
+})
+
+local cpEnabled = false
+local cpThread = nil
+local PASS_POS = Vector3.new(77, 8, 46)
+
+local EGG_LOCATIONS = {
+    ["Common Egg"] = Vector3.new(-80, 7, 5), ["Classic Egg"] = Vector3.new(-90, 13, 30),
+    ["Vine Egg"] = Vector3.new(-61, 13, 11), ["Lava Egg"] = Vector3.new(-69, 14, 19),
+    ["Icy Egg"] = Vector3.new(-55, 14, 0), ["Iceshard Egg"] = Vector3.new(-119, 11, 13),
+    ["Spotted Egg"] = Vector3.new(-11, 10, -69), ["Atlantis Egg"] = Vector3.new(-79, 14, 25),
+    ["Mining Egg"] = Vector3.new(-122, 11, -69), ["Neon Egg"] = Vector3.new(-81, 10, -61),
+    ["Cyber Egg"] = Vector3.new(-92, 10, -67), ["Rainbow Egg"] = Vector3.new(-140, 10, -57),
+    ["Nightmare Egg"] = Vector3.new(-146, 10, -47), ["Infinity Egg"] = Vector3.new(-106, 12, -28),
+    ["Secret Egg"] = Vector3.new(-19438, 8, 18839), ["Spikey Egg"] = Vector3.new(-128, 10, 9),
+    ["Magma Egg"] = Vector3.new(-137, 11, 3), ["Crystal Egg"] = Vector3.new(-144, 10, -5),
+    ["Lunar Egg"] = Vector3.new(-148, 11, -15), ["Void Egg"] = Vector3.new(-150, 11, -26),
+    ["Hell Egg"] = Vector3.new(-149, 11, -37),
+}
+
+local KNOWN_EGGS = {}
+for name, _ in pairs(EGG_LOCATIONS) do KNOWN_EGGS[name] = true end
+local KNOWN_RARITIES = { ["Secret"]=true, ["Celestial"]=true, ["Infinity"]=true, ["Void"]=true, ["Super Legendary"]=true, ["Legendary"]=true, ["Epic"]=true, ["Rare"]=true }
+
+local function getRoot() local c = player.Character; return c and c:FindFirstChild("HumanoidRootPart") end
+local function teleportTo(pos) local root = getRoot(); if root and pos then root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0)) end end
+
+local function getChallengeFrame()
+    local pg = player:FindFirstChild("PlayerGui")
+    local sg = pg and pg:FindFirstChild("ScreenGui")
+    return sg and sg:FindFirstChild("ChallengePass")
+end
+
+local function parseNumber(str)
+    if not str then return 0 end
+    local clean = str:gsub(",", "")
+    return tonumber(clean) or 0
+end
+
+local function classify(text)
+    local num = text:match("Blow%s+([%d,]+)%s+Bubbles")
+    if num then return { type = "Bubbles", amount = parseNumber(num), raw = text } end
+    local hatchNum, hatchTarget = text:match("Hatch%s+([%d,]+)%s+(.+)$")
+    if hatchNum then
+        local amount = parseNumber(hatchNum)
+        local cleanTarget = hatchTarget:gsub("%s*Eggs?$", ""):gsub("%s*Pets?$", ""):gsub("%s+$", "")
+        if cleanTarget == "" then return { type = "HatchAny", amount = amount, raw = text } end
+        local eggName = cleanTarget
+        if not eggName:find("Egg") then eggName = eggName .. " Egg" end
+        if KNOWN_EGGS[eggName] then return { type = "HatchEgg", egg = eggName, amount = amount, raw = text } end
+        if KNOWN_RARITIES[cleanTarget] then return { type = "HatchRarity", rarity = cleanTarget, amount = amount, raw = text } end
+        return { type = "HatchUnknown", target = cleanTarget, amount = amount, raw = text }
+    end
+    local collectNum, collectTarget = text:match("Collect%s+([%d,]+)%s+(.+)$")
+    if collectNum then return { type = "Collect", currency = collectTarget, amount = parseNumber(collectNum), raw = text } end
+    return { type = "Unknown", raw = text }
+end
+
+local function readChallenges()
+    local cp = getChallengeFrame()
+    if not cp then return {} end
+    local results = {}
+    local list = cp:FindFirstChild("List", true)
+    if not list then return results end
+    for _, frame in ipairs(list:GetChildren()) do
+        if frame:IsA("Frame") then
+            local content = frame:FindFirstChild("Content")
+            if content then
+                local label = content:FindFirstChild("Label")
+                local bar = content:FindFirstChild("Bar")
+                local barLabel = bar and bar:FindFirstChild("Label")
+                if label and barLabel then
+                    local text = label.Text
+                    local progressStr = barLabel.Text:gsub("%%", "")
+                    local progress = tonumber(progressStr) or 0
+                    local parsed = classify(text)
+                    parsed.progress = progress
+                    parsed.frame = frame
+                    parsed.complete = (progress >= 100)
+                    table.insert(results, parsed)
+                end
+            end
+        end
+    end
+    return results
+end
+
+local function claimChallenges()
+    pcall(function() RE:FireServer("ChallengePassClaimReward") end)
+    task.wait(1)
+end
+
+local function claimTierRewards()
+    local data = LocalData:Get()
+    if not data or not data.ChallengePass then return end
+    local points = data.ChallengePass.Points or 0
+    local claimed = data.ChallengePass.Claimed or {}
+    local claimedMap = {}
+    for _, v in ipairs(claimed) do claimedMap[v] = true end
+    
+    for tier = 1, 15 do
+        if not claimedMap[tier] then
+            pcall(function() RE:FireServer("ChallengePassClaimReward") end)
+            task.wait(0.5)
+        end
+    end
+end
+
+local function resetPassIfDone()
+    local data = LocalData:Get()
+    if not data or not data.ChallengePass then return false end
+    local claimed = data.ChallengePass.Claimed or {}
+    local claimedMap = {}
+    for _, v in ipairs(claimed) do claimedMap[v] = true end
+    
+    local allClaimed = true
+    for tier = 1, 15 do
+        if not claimedMap[tier] then allClaimed = false; break end
+    end
+    
+    if allClaimed then
+        pcall(function() RE:FireServer("ChallengePassReset") end)
+        task.wait(2)
+        return true
+    end
+    return false
+end
+
+local function doBubbles(challenge)
+    local startProg = challenge.progress
+    local stallCount = 0
+    local hit100 = false
+    local overkillTimer = 0
+    
+    while cpEnabled do
+        for _ = 1, 10 do
+            pcall(function() RE:FireServer("BlowBubble") end)
+            task.wait(0.02)
+        end
+        if not hit100 then
+            task.wait(2)
+            local fresh = readChallenges()
+            local found = nil
+            for _, c in ipairs(fresh) do if c.raw == challenge.raw then found = c; break end end
+            if not found or found.complete then 
+                hit100 = true; overkillTimer = os.clock()
+            elseif found.progress > startProg then
+                startProg = found.progress; stallCount = 0
+            else
+                stallCount = stallCount + 1
+                if stallCount >= 30 then return false end
+            end
+        else
+            if os.clock() - overkillTimer >= 5 then return true end
+            task.wait(0.5)
+        end
+    end
+    return false
+end
+
+local function doHatch(challenge, eggName)
+    local pos = EGG_LOCATIONS[eggName]
+    if pos then teleportTo(pos) end
+    task.wait(0.3)
+    
+    local startProg = challenge.progress
+    local stallCount = 0
+    local hit100 = false
+    local overkillTimer = 0
+    
+    while cpEnabled do
+        for i = 1, 5 do
+            pcall(function() Remote:FireServer("HatchEgg", eggName, 500) end)
+            task.wait(0.1)
+        end
+        if not hit100 then
+            task.wait(1)
+            local fresh = readChallenges()
+            local found = nil
+            for _, c in ipairs(fresh) do if c.raw == challenge.raw then found = c; break end end
+            if not found or found.complete then
+                hit100 = true; overkillTimer = os.clock()
+            elseif found.progress > startProg then
+                startProg = found.progress; stallCount = 0
+            else
+                stallCount = stallCount + 1
+                if stallCount >= 30 then return false end
+            end
+        else
+            if os.clock() - overkillTimer >= 5 then return true end
+            task.wait(0.5) 
+        end
+    end
+    return false
+end
+
+local function doChallenge(challenge)
+    if challenge.complete then return true end
+    if challenge.type == "Bubbles" then return doBubbles(challenge)
+    elseif challenge.type == "HatchEgg" then return doHatch(challenge, challenge.egg)
+    elseif challenge.type == "HatchAny" then return doHatch(challenge, "Infinity Egg")
+    elseif challenge.type == "HatchRarity" then return doHatch(challenge, "Nightmare Egg")
+    elseif challenge.type == "HatchUnknown" then return false
+    elseif challenge.type == "Collect" then return false
+    else return false end
+end
+
+EventTab:Toggle({
+    Title = "Auto Event Challenge Pass",
+    Value = eventSettings.autoChallengePass or false,
+    Callback = function(v)
+        cpEnabled = v
+        eventSettings.autoChallengePass = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        
+        if v then
+            getgenv().ActivityStatus.current = "Auto Event Challange Pass"
+            getgenv().ActivityStatus.trigger = true
+            
+            cpThread = task.spawn(function()
+                teleportTo(PASS_POS)
+                task.wait(4)
+                
+                while cpEnabled do
+                    if resetPassIfDone() then
+                        task.wait(5)
+                        continue
+                    end
+                    
+                    local challenges = readChallenges()
+                    if #challenges == 0 then 
+                        task.wait(5) 
+                        continue 
+                    end
+                    
+                    local allDone = true
+                    for _, c in ipairs(challenges) do if not c.complete then allDone = false; break end end
+                    
+                    if allDone then
+                        claimChallenges()
+                        claimTierRewards()
+                        task.wait(3)
+                        local newChallenges = readChallenges()
+                        local stillComplete = true
+                        for _, c in ipairs(newChallenges) do if not c.complete then stillComplete = false; break end end
+                        if stillComplete then task.wait(15) end
+                        continue
+                    end
+                    
+                    for _, c in ipairs(challenges) do
+                        if not cpEnabled then break end
+                        if not c.complete then doChallenge(c) end
+                    end
+                    
+                    task.wait(2)
+                end
+            end)
+        else
+            if cpThread then task.cancel(cpThread); cpThread = nil end
+        end
+    end,
+})
+
+-- ======================================
 -- UI - REBIRTH SHOP (Dynamic)
 -- ======================================
 EventTab:Section({ Title = "Rebirth Shop" })
@@ -576,7 +854,6 @@ EventTab:Button({
         for i = #rebirthShopDropdown.Values, 1, -1 do rebirthShopDropdown.Values[i] = nil end
         for _, v in ipairs(currentRebirthShopItems) do table.insert(rebirthShopDropdown.Values, v) end
         pcall(function() rebirthShopDropdown:Select(rebirthShopDropdown.Value) end)
-        print("[Event] Rebirth Shop Rescanned.")
     end,
 })
 
@@ -643,7 +920,6 @@ EventTab:Button({
         for i = #eventShopDropdown.Values, 1, -1 do eventShopDropdown.Values[i] = nil end
         for _, v in ipairs(currentEventShopItems) do table.insert(eventShopDropdown.Values, v) end
         pcall(function() eventShopDropdown:Select(eventShopDropdown.Value) end)
-        print("[Event] Event Shop Rescanned.")
     end,
 })
 
@@ -681,7 +957,7 @@ EventTab:Toggle({
 })
 
 -- ======================================
--- UI - EVENT SHRINE (NEW)
+-- UI - EVENT SHRINE
 -- ======================================
 EventTab:Section({ Title = "Event Shrine" })
 
@@ -737,10 +1013,10 @@ EventTab:Toggle({
                                 local total = 12 * 3600
                                 local remaining = total - elapsed
                                 
-                                if remaining < 10800 then -- Less than 3 hours
+                                if remaining < 10800 then
                                     getgenv().ActivityStatus.current = "Buff almost ran out,Updating.. -Event Shrine"
                                     getgenv().ActivityStatus.trigger = true
-                                    foundTarget = false -- trigger found message again after refresh
+                                    foundTarget = false
                                     pcall(function() Remote:FireServer("RerollHalloweenShrine") end)
                                     task.wait(3)
                                 else
@@ -762,6 +1038,147 @@ EventTab:Toggle({
             end)
         else
             if shrineThread then task.cancel(shrineThread) end
+        end
+    end,
+})
+
+-- ======================================
+-- UI - EVENT ALTAR / REBIRTH MACHINE
+-- ======================================
+EventTab:Section({ Title = "Event Altar/Rebirth Machine" })
+
+EventTab:Paragraph({
+    Title = "⚠️ Warning",
+    Desc = "Make sure to LOCK your Rainshine if you don't want it to be used!",
+})
+
+EventTab:Paragraph({
+    Title = "Priority",
+    Desc = "Celestial (Rainshine) > Secret (Empyrean Bolt). Groups by variant: Normal, Shiny, Mythic, ShinyMythic, XL.",
+})
+
+local altarTrackerParagraph = EventTab:Paragraph({
+    Title = "Last Used: None",
+    Desc = "Waiting for first conversion",
+})
+
+local altarEnabled = false
+local altarThread = nil
+
+local function getTrueRarity_WA(info)
+    if not info then return "None" end
+    if info.Void then return "Void" end
+    if info.Infinity then return "Infinity" end
+    if info.Celestial then return "Celestial" end
+    if info.Rarity == "Secret" then return "Secret" end
+    return info.Rarity or "None"
+end
+
+local function isWinterAltarEligible(pet, info)
+    if not pet or not info then return false end
+    if info.Egg ~= "Wintery Egg" then return false end
+    if getTrueRarity_WA(info) ~= "Secret" then return false end
+    if pet.Super then return false end
+    if pet.XL then return false end
+    if pet.Locked then return false end
+    return true
+end
+
+local function getWinterGroups()
+    local data = LocalData:Get()
+    local groups = {Normal = {}, Shiny = {}, Mythic = {}, ShinyMythic = {}}
+    if not data or not data.Pets then return groups end
+    for _, pet in pairs(data.Pets) do
+        local info = Pets[pet.Name]
+        if isWinterAltarEligible(pet, info) then
+            if pet.Shiny and pet.Mythic then table.insert(groups.ShinyMythic, pet)
+            elseif pet.Shiny then table.insert(groups.Shiny, pet)
+            elseif pet.Mythic then table.insert(groups.Mythic, pet)
+            else table.insert(groups.Normal, pet) end
+        end
+    end
+    return groups
+end
+
+local function getWinterCooldown()
+    local data = LocalData:Get()
+    if data and data.NextWinterAltarUse then
+        return math.max(0, data.NextWinterAltarUse - os.time())
+    end
+    return 0
+end
+
+EventTab:Toggle({
+    Title = "Auto Event Altar/Rebirth Machine",
+    Desc = "Merges 3 Wintery Egg Secrets of same variant (waits for cooldown)",
+    Value = eventSettings.autoWinterAltar or false,
+    Callback = function(v)
+        altarEnabled = v
+        eventSettings.autoWinterAltar = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        
+        if v then
+            getgenv().ActivityStatus.current = "Auto Winter Altar started"
+            getgenv().ActivityStatus.trigger = true
+            
+            altarThread = task.spawn(function()
+                while altarEnabled do
+                    local remaining = getWinterCooldown()
+                    if remaining > 0 then
+                        pcall(function()
+                            altarTrackerParagraph:SetTitle("Status: Waiting")
+                            altarTrackerParagraph:SetDesc(string.format("Cooldown: %dm %ds", math.floor(remaining/60), remaining%60))
+                        end)
+                        task.wait(math.min(remaining + 2, 60))
+                        continue
+                    end
+                    
+                    local groups = getWinterGroups()
+                    local group, variantName = nil, nil
+                    if #groups.Normal >= 3 then group, variantName = groups.Normal, "Normal"
+                    elseif #groups.Shiny >= 3 then group, variantName = groups.Shiny, "Shiny"
+                    elseif #groups.Mythic >= 3 then group, variantName = groups.Mythic, "Mythic"
+                    elseif #groups.ShinyMythic >= 3 then group, variantName = groups.ShinyMythic, "Shiny Mythic" end
+                    
+                    if not group then
+                        pcall(function()
+                            altarTrackerParagraph:SetTitle("Status: Idle")
+                            altarTrackerParagraph:SetDesc("Not enough Wintery Egg Secrets of same variant")
+                        end)
+                        altarEnabled = false
+                        break
+                    end
+                    
+                    local payload = {
+                        tostring(group[1].Id),
+                        tostring(group[2].Id),
+                        tostring(group[3].Id),
+                    }
+                    local names = group[1].Name .. ", " .. group[2].Name .. ", " .. group[3].Name
+                    
+                    local NetworkRemote = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteFunction
+                    pcall(function()
+                        NetworkRemote:InvokeServer("UseRebirthMachine", "WinterAltar", payload)
+                    end)
+                    
+                    pcall(function()
+                        altarTrackerParagraph:SetTitle("Last Merge: " .. variantName)
+                        altarTrackerParagraph:SetDesc(names)
+                    end)
+                    
+                    getgenv().ActivityStatus.current = "Winter Altar merged (" .. variantName .. "): " .. names
+                    getgenv().ActivityStatus.trigger = true
+                    
+                    task.wait(3)
+                end
+            end)
+        else
+            if altarThread then task.cancel(altarThread); altarThread = nil end
+            pcall(function()
+                altarTrackerParagraph:SetTitle("Status: Idle")
+                altarTrackerParagraph:SetDesc("Stopped")
+            end)
         end
     end,
 })
@@ -945,103 +1362,6 @@ EventTab:Toggle({
 })
 
 -- ======================================
--- UI - NONE (Event Altar)
--- ======================================
-EventTab:Section({ Title = "None" })
-
-EventTab:Paragraph({
-    Title = "⚠️ Warning",
-    Desc = "Make sure to LOCK your Rainshine if you don't want it to be used!",
-})
-
-EventTab:Paragraph({
-    Title = "Priority",
-    Desc = "Celestial (Rainshine) > Secret (Empyrean Bolt). Groups by variant: Normal, Shiny, Mythic, ShinyMythic, XL.",
-})
-
-local altarTrackerParagraph = EventTab:Paragraph({
-    Title = "Last Used: None",
-    Desc = "Waiting for first conversion",
-})
-
-local altarEnabled = false
-local altarThread = nil
-
-EventTab:Toggle({
-    Title = "Auto Event Altar",
-    Value = false,
-    Callback = function(v)
-        altarEnabled = v
-        if v then
-            altarThread = task.spawn(function()
-                while altarEnabled do
-                    local cooldownText = getCooldownText()
-                    local cooldownSeconds = parseCooldown(cooldownText)
-                    
-                    if cooldownSeconds and cooldownSeconds > 0 then
-                        pcall(function() altarTrackerParagraph:SetDesc("Cooldown: " .. cooldownText) end)
-                        task.wait(math.min(cooldownSeconds + 5, 60))
-                    else
-                        local groups = getSkyAltarPets()
-                        local selectedPets = {}
-                        local mode = ""
-                        
-                        if #groups.Celestial.Normal >= 3 then
-                            selectedPets = groups.Celestial.Normal
-                            mode = "Celestial Normal"
-                        elseif #groups.Celestial.Shiny >= 3 then
-                            selectedPets = groups.Celestial.Shiny
-                            mode = "Celestial Shiny"
-                        elseif #groups.Celestial.Mythic >= 3 then
-                            selectedPets = groups.Celestial.Mythic
-                            mode = "Celestial Mythic"
-                        elseif #groups.Celestial.ShinyMythic >= 3 then
-                            selectedPets = groups.Celestial.ShinyMythic
-                            mode = "Celestial Shiny Mythic"
-                        elseif #groups.Celestial.XL >= 3 then
-                            selectedPets = groups.Celestial.XL
-                            mode = "Celestial XL"
-                        elseif #groups.Secret.Normal >= 3 then
-                            selectedPets = groups.Secret.Normal
-                            mode = "Secret Normal"
-                        elseif #groups.Secret.Shiny >= 3 then
-                            selectedPets = groups.Secret.Shiny
-                            mode = "Secret Shiny"
-                        elseif #groups.Secret.Mythic >= 3 then
-                            selectedPets = groups.Secret.Mythic
-                            mode = "Secret Mythic"
-                        elseif #groups.Secret.ShinyMythic >= 3 then
-                            selectedPets = groups.Secret.ShinyMythic
-                            mode = "Secret Shiny Mythic"
-                        elseif #groups.Secret.XL >= 3 then
-                            selectedPets = groups.Secret.XL
-                            mode = "Secret XL"
-                        end
-                        
-                        if #selectedPets >= 3 then
-                            pcall(function() altarTrackerParagraph:SetTitle("Converting: " .. mode) end)
-                            local success = useSkyAltar(selectedPets)
-                            if success then
-                                getgenv().ActivityStatus.current = "Event Altar used (" .. mode .. ")"
-                                getgenv().ActivityStatus.trigger = true
-                                task.wait(10)
-                            else
-                                task.wait(5)
-                            end
-                        else
-                            pcall(function() altarTrackerParagraph:SetDesc("Not enough pets (same variant)") end)
-                            task.wait(60)
-                        end
-                    end
-                end
-            end)
-        else
-            if altarThread then task.cancel(altarThread) end
-        end
-    end,
-})
-
--- ======================================
 -- AUTO-START SAVED TOGGLES
 -- ======================================
 task.spawn(function()
@@ -1183,7 +1503,7 @@ task.spawn(function()
                             local total = 12 * 3600
                             local remaining = total - elapsed
                             
-                            if remaining < 10800 then -- Less than 3 hours
+                            if remaining < 10800 then
                                 getgenv().ActivityStatus.current = "Buff almost ran out,Updating.. -Event Shrine"
                                 getgenv().ActivityStatus.trigger = true
                                 foundTarget = false
@@ -1322,6 +1642,109 @@ task.spawn(function()
                     sendSummonWebhook(false)
                 end
                 task.wait(3300)
+            end
+        end)
+    end
+    
+    if eventSettings.autoChallengePass then
+        cpEnabled = true
+        getgenv().ActivityStatus.current = "Auto Event Challange Pass"
+        getgenv().ActivityStatus.trigger = true
+        
+        cpThread = task.spawn(function()
+            teleportTo(PASS_POS)
+            task.wait(4)
+            
+            while cpEnabled do
+                if resetPassIfDone() then
+                    task.wait(5)
+                    continue
+                end
+                
+                local challenges = readChallenges()
+                if #challenges == 0 then 
+                    task.wait(5) 
+                    continue 
+                end
+                
+                local allDone = true
+                for _, c in ipairs(challenges) do if not c.complete then allDone = false; break end end
+                
+                if allDone then
+                    claimChallenges()
+                    claimTierRewards()
+                    task.wait(3)
+                    local newChallenges = readChallenges()
+                    local stillComplete = true
+                    for _, c in ipairs(newChallenges) do if not c.complete then stillComplete = false; break end end
+                    if stillComplete then task.wait(15) end
+                    continue
+                end
+                
+                for _, c in ipairs(challenges) do
+                    if not cpEnabled then break end
+                    if not c.complete then doChallenge(c) end
+                end
+                
+                task.wait(2)
+            end
+        end)
+    end
+    
+    if eventSettings.autoWinterAltar then
+        altarEnabled = true
+        getgenv().ActivityStatus.current = "Auto Winter Altar started"
+        getgenv().ActivityStatus.trigger = true
+        
+        altarThread = task.spawn(function()
+            while altarEnabled do
+                local remaining = getWinterCooldown()
+                if remaining > 0 then
+                    pcall(function()
+                        altarTrackerParagraph:SetTitle("Status: Waiting")
+                        altarTrackerParagraph:SetDesc(string.format("Cooldown: %dm %ds", math.floor(remaining/60), remaining%60))
+                    end)
+                    task.wait(math.min(remaining + 2, 60))
+                    continue
+                end
+                
+                local groups = getWinterGroups()
+                local group, variantName = nil, nil
+                if #groups.Normal >= 3 then group, variantName = groups.Normal, "Normal"
+                elseif #groups.Shiny >= 3 then group, variantName = groups.Shiny, "Shiny"
+                elseif #groups.Mythic >= 3 then group, variantName = groups.Mythic, "Mythic"
+                elseif #groups.ShinyMythic >= 3 then group, variantName = groups.ShinyMythic, "Shiny Mythic" end
+                
+                if not group then
+                    pcall(function()
+                        altarTrackerParagraph:SetTitle("Status: Idle")
+                        altarTrackerParagraph:SetDesc("Not enough Wintery Egg Secrets of same variant")
+                    end)
+                    altarEnabled = false
+                    break
+                end
+                
+                local payload = {
+                    tostring(group[1].Id),
+                    tostring(group[2].Id),
+                    tostring(group[3].Id),
+                }
+                local names = group[1].Name .. ", " .. group[2].Name .. ", " .. group[3].Name
+                
+                local NetworkRemote = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteFunction
+                pcall(function()
+                    NetworkRemote:InvokeServer("UseRebirthMachine", "WinterAltar", payload)
+                end)
+                
+                pcall(function()
+                    altarTrackerParagraph:SetTitle("Last Merge: " .. variantName)
+                    altarTrackerParagraph:SetDesc(names)
+                end)
+                
+                getgenv().ActivityStatus.current = "Winter Altar merged (" .. variantName .. "): " .. names
+                getgenv().ActivityStatus.trigger = true
+                
+                task.wait(3)
             end
         end)
     end
