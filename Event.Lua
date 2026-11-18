@@ -815,7 +815,7 @@ EventTab:Toggle({
                 task.wait(4)
                 
                 while cpEnabled do
-                    if resetPassIfDone() then
+                    if checkAndReset() then
                         task.wait(5)
                         continue
                     end
