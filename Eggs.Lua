@@ -1,5 +1,5 @@
 -- ================================================
--- EGGS TAB (WINDUI VERSION)
+-- EGGS TAB (WINDUI VERSION) - FAST
 -- ================================================
 repeat task.wait() until getgenv().Window
 local Window = getgenv().Window
@@ -508,7 +508,7 @@ task.spawn(function()
                                 end
                             end
                             pcall(function() Remote:FireServer("HatchEgg", egg.Name, HATCH_AMOUNT) end)
-                            task.wait(0.1)
+                            task.wait(0.03)
                         else
                             getgenv().questActive = false
                             getgenv().questEgg = nil
@@ -551,7 +551,7 @@ task.spawn(function()
                                 end
                             end
                             pcall(function() Remote:FireServer("HatchEgg", "Admin Shadow Egg", HATCH_AMOUNT) end)
-                            task.wait(0.1)
+                            task.wait(0.03)
                         elseif SpecialEventUtil.IsEventActive("event-shadowadmin") then
                             local root = getRoot()
                             if root then root.CFrame = CFrame.new(128, 10, 89) end
@@ -591,7 +591,7 @@ task.spawn(function()
                             task.wait(0.3)
                             while doodleEnabled and isRiftExists("doodle-rift") do
                                 pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
-                                task.wait(0.1)
+                                task.wait(0.03)
                             end
                             getgenv().questActive = false
                             getgenv().questEgg = nil
@@ -622,7 +622,7 @@ task.spawn(function()
     EggsTab:Button({
         Title = "Re Scan The Egg Dropdown",
         Callback = function()
-            task.wait(1) -- Let Roblox stream in nearby eggs
+            task.wait(1)
             local found = scanAndDiscoverEggs()
             local newCount = 0
 
@@ -719,7 +719,7 @@ task.spawn(function()
                         
                         teleportToEgg(selectedEgg)
                         pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
-                        task.wait(0.1)
+                        task.wait(0.03) -- FASTER
                     end
                 end)
             elseif autoHatchThread then
@@ -740,14 +740,14 @@ task.spawn(function()
                 spamEThread = task.spawn(function()
                     while spamEEnabled do
                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                        task.wait(0.1)
+                        task.wait(0.03)
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
                         
                         local eggToHatch = getgenv().questActive and getgenv().questEgg or (bountyEnabled and currentBountyEgg or selectedEgg)
                         if eggToHatch then
                             pcall(function() Remote:FireServer("HatchEgg", eggToHatch, HATCH_AMOUNT) end)
                         end
-                        task.wait(0.1)
+                        task.wait(0.03) -- FASTER
                     end
                 end)
             elseif spamEThread then
@@ -834,7 +834,7 @@ task.spawn(function()
                         if matchesFilter and currentBountyEgg ~= "None" and not getgenv().questActive and not specialEggActive then
                             teleportToEgg(currentBountyEgg)
                             pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
-                            task.wait(0.1)
+                            task.wait(0.03) -- FASTER
                         else
                             task.wait(0.5)
                         end
@@ -897,7 +897,7 @@ task.spawn(function()
                     while xlBountyRunning do
                         teleportToEgg(selectedXLEgg)
                         pcall(function() Remote:FireServer("HatchEgg", selectedXLEgg, HATCH_AMOUNT) end)
-                        task.wait(0.1)
+                        task.wait(0.03) -- FASTER
                     end
                 end)
             elseif xlBountyThread then
@@ -924,7 +924,7 @@ task.spawn(function()
                         if ok and pivot then root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 5, 0)) end
                     end
                     pcall(function() Remote:FireServer("HatchEgg", egg.Name, HATCH_AMOUNT) end)
-                    task.wait(0.1)
+                    task.wait(0.03)
                 else
                     getgenv().questActive = false
                     getgenv().questEgg = nil
@@ -950,7 +950,7 @@ task.spawn(function()
                         if ok and pivot then root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 5, 0)) end
                     end
                     pcall(function() Remote:FireServer("HatchEgg", "Admin Shadow Egg", HATCH_AMOUNT) end)
-                    task.wait(0.1)
+                    task.wait(0.03)
                 elseif SpecialEventUtil.IsEventActive("event-shadowadmin") then
                     local root = getRoot()
                     if root then root.CFrame = CFrame.new(128, 10, 89) end
@@ -977,7 +977,7 @@ task.spawn(function()
                     task.wait(0.3)
                     while doodleEnabled and isRiftExists("doodle-rift") do
                         pcall(function() Remote:FireServer("HatchEgg", "Doodle Egg", HATCH_AMOUNT) end)
-                        task.wait(0.1)
+                        task.wait(0.03)
                     end
                     getgenv().questActive = false
                     getgenv().questEgg = nil
@@ -1029,7 +1029,7 @@ task.spawn(function()
                 
                 teleportToEgg(selectedEgg)
                 pcall(function() Remote:FireServer("HatchEgg", selectedEgg, HATCH_AMOUNT) end)
-                task.wait(0.1)
+                task.wait(0.03) -- FASTER
             end
         end)
     end
@@ -1038,13 +1038,13 @@ task.spawn(function()
         spamEThread = task.spawn(function()
             while spamEEnabled do
                 VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                task.wait(0.1)
+                task.wait(0.03)
                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
                 local eggToHatch = getgenv().questActive and getgenv().questEgg or (bountyEnabled and currentBountyEgg or selectedEgg)
                 if eggToHatch then
                     pcall(function() Remote:FireServer("HatchEgg", eggToHatch, HATCH_AMOUNT) end)
                 end
-                task.wait(0.1)
+                task.wait(0.03)
             end
         end)
     end
@@ -1065,7 +1065,7 @@ task.spawn(function()
                 if matchesFilter and currentBountyEgg ~= "None" and not getgenv().questActive and not specialEggActive then
                     teleportToEgg(currentBountyEgg)
                     pcall(function() Remote:FireServer("HatchEgg", currentBountyEgg, HATCH_AMOUNT) end)
-                    task.wait(0.1)
+                    task.wait(0.03)
                 else
                     task.wait(0.5)
                 end
