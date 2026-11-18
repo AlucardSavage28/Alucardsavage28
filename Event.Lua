@@ -564,6 +564,8 @@ EventTab:Paragraph({
 
 local cpEnabled = false
 local cpThread = nil
+local claimEnabled = false
+local claimThread = nil
 local PASS_POS = Vector3.new(77, 8, 46)
 
 local EGG_LOCATIONS = {
@@ -574,10 +576,11 @@ local EGG_LOCATIONS = {
     ["Mining Egg"] = Vector3.new(-122, 11, -69), ["Neon Egg"] = Vector3.new(-81, 10, -61),
     ["Cyber Egg"] = Vector3.new(-92, 10, -67), ["Rainbow Egg"] = Vector3.new(-140, 10, -57),
     ["Nightmare Egg"] = Vector3.new(-146, 10, -47), ["Infinity Egg"] = Vector3.new(-106, 12, -28),
-    ["Secret Egg"] = Vector3.new(-19438, 8, 18839), ["Spikey Egg"] = Vector3.new(-128, 10, 9),
-    ["Magma Egg"] = Vector3.new(-137, 11, 3), ["Crystal Egg"] = Vector3.new(-144, 10, -5),
-    ["Lunar Egg"] = Vector3.new(-148, 11, -15), ["Void Egg"] = Vector3.new(-150, 11, -26),
-    ["Hell Egg"] = Vector3.new(-149, 11, -37),
+    ["Secret Egg"] = Vector3.new(-19438, 8, 18839), ["Showman Egg"] = Vector3.new(-130, 10, -60),
+    ["Spikey Egg"] = Vector3.new(-128, 10, 9), ["Magma Egg"] = Vector3.new(-137, 11, 3),
+    ["Crystal Egg"] = Vector3.new(-144, 10, -5), ["Lunar Egg"] = Vector3.new(-148, 11, -15),
+    ["Void Egg"] = Vector3.new(-150, 11, -26), ["Hell Egg"] = Vector3.new(-149, 11, -37),
+    ["Harvest Egg"] = Vector3.new(292, 9, 197), ["Neon Pumpkin Egg"] = Vector3.new(284, 9, 207),
 }
 
 local KNOWN_EGGS = {}
@@ -602,6 +605,10 @@ end
 local function classify(text)
     local num = text:match("Blow%s+([%d,]+)%s+Bubbles")
     if num then return { type = "Bubbles", amount = parseNumber(num), raw = text } end
+    
+    local mins = text:match("Play%s+for%s+([%d,]+)%s+minutes")
+    if mins then return { type = "Playtime", amount = parseNumber(mins), raw = text } end
+
     local hatchNum, hatchTarget = text:match("Hatch%s+([%d,]+)%s+(.+)$")
     if hatchNum then
         local amount = parseNumber(hatchNum)
@@ -611,10 +618,13 @@ local function classify(text)
         if not eggName:find("Egg") then eggName = eggName .. " Egg" end
         if KNOWN_EGGS[eggName] then return { type = "HatchEgg", egg = eggName, amount = amount, raw = text } end
         if KNOWN_RARITIES[cleanTarget] then return { type = "HatchRarity", rarity = cleanTarget, amount = amount, raw = text } end
+        if eggName:find("Egg") then return { type = "HatchEgg", egg = eggName, amount = amount, raw = text } end
         return { type = "HatchUnknown", target = cleanTarget, amount = amount, raw = text }
     end
+    
     local collectNum, collectTarget = text:match("Collect%s+([%d,]+)%s+(.+)$")
     if collectNum then return { type = "Collect", currency = collectTarget, amount = parseNumber(collectNum), raw = text } end
+    
     return { type = "Unknown", raw = text }
 end
 
@@ -645,47 +655,6 @@ local function readChallenges()
         end
     end
     return results
-end
-
-local function claimChallenges()
-    pcall(function() RE:FireServer("ChallengePassClaimReward") end)
-    task.wait(1)
-end
-
-local function claimTierRewards()
-    local data = LocalData:Get()
-    if not data or not data.ChallengePass then return end
-    local points = data.ChallengePass.Points or 0
-    local claimed = data.ChallengePass.Claimed or {}
-    local claimedMap = {}
-    for _, v in ipairs(claimed) do claimedMap[v] = true end
-    
-    for tier = 1, 15 do
-        if not claimedMap[tier] then
-            pcall(function() RE:FireServer("ChallengePassClaimReward") end)
-            task.wait(0.5)
-        end
-    end
-end
-
-local function resetPassIfDone()
-    local data = LocalData:Get()
-    if not data or not data.ChallengePass then return false end
-    local claimed = data.ChallengePass.Claimed or {}
-    local claimedMap = {}
-    for _, v in ipairs(claimed) do claimedMap[v] = true end
-    
-    local allClaimed = true
-    for tier = 1, 15 do
-        if not claimedMap[tier] then allClaimed = false; break end
-    end
-    
-    if allClaimed then
-        pcall(function() RE:FireServer("ChallengePassReset") end)
-        task.wait(2)
-        return true
-    end
-    return false
 end
 
 local function doBubbles(challenge)
@@ -730,30 +699,46 @@ local function doHatch(challenge, eggName)
     local hit100 = false
     local overkillTimer = 0
     
-    while cpEnabled do
-        for i = 1, 5 do
-            pcall(function() Remote:FireServer("HatchEgg", eggName, 500) end)
-            task.wait(0.1)
+    -- HARDCODED SPAM E THREAD (Matches Eggs.lua exactly)
+    local spamEThread = task.spawn(function()
+        while cpEnabled do
+            if hit100 and (os.clock() - overkillTimer >= 5) then break end
+            
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait(0.03)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            
+            local eggToHatch = eggName or "Infinity Egg"
+            if eggToHatch then
+                pcall(function() Remote:FireServer("HatchEgg", eggToHatch, 12) end)
+            end
+            task.wait(0.03)
         end
+    end)
+    
+    while cpEnabled do
         if not hit100 then
             task.wait(1)
             local fresh = readChallenges()
             local found = nil
             for _, c in ipairs(fresh) do if c.raw == challenge.raw then found = c; break end end
+            
             if not found or found.complete then
                 hit100 = true; overkillTimer = os.clock()
             elseif found.progress > startProg then
                 startProg = found.progress; stallCount = 0
             else
                 stallCount = stallCount + 1
-                if stallCount >= 30 then return false end
+                if stallCount >= 30 then break end
             end
         else
-            if os.clock() - overkillTimer >= 5 then return true end
+            if os.clock() - overkillTimer >= 5 then break end
             task.wait(0.5) 
         end
     end
-    return false
+    
+    task.cancel(spamEThread)
+    return true
 end
 
 local function doChallenge(challenge)
@@ -762,9 +747,54 @@ local function doChallenge(challenge)
     elseif challenge.type == "HatchEgg" then return doHatch(challenge, challenge.egg)
     elseif challenge.type == "HatchAny" then return doHatch(challenge, "Infinity Egg")
     elseif challenge.type == "HatchRarity" then return doHatch(challenge, "Nightmare Egg")
+    elseif challenge.type == "Playtime" then return doHatch(challenge, "Infinity Egg")
     elseif challenge.type == "HatchUnknown" then return false
     elseif challenge.type == "Collect" then return false
     else return false end
+end
+
+-- ================================================
+-- AUTO CLAIM & RESET LOGIC
+-- ================================================
+local function claimAllRewards()
+    pcall(function() RE:FireServer("ChallengePassClaimReward") end)
+    
+    local cp = getChallengeFrame()
+    if cp then
+        local btn = cp:FindFirstChild("Button", true)
+        local claimFrame = cp:FindFirstChild("ClaimAll", true)
+        if claimFrame then btn = claimFrame:FindFirstChild("Button") or btn end
+        
+        if btn and btn:IsA("ImageButton") then
+            local center = btn.AbsolutePosition + (btn.AbsoluteSize / 2)
+            pcall(function()
+                VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 1)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 1)
+            end)
+        end
+    end
+end
+
+local function checkAndReset()
+    local data = LocalData:Get()
+    if not data or not data.ChallengePass then return false end
+    
+    local claimed = data.ChallengePass.Claimed or {}
+    local claimedMap = {}
+    for _, v in ipairs(claimed) do claimedMap[v] = true end
+    
+    local allClaimed = true
+    for tier = 1, 15 do
+        if not claimedMap[tier] then allClaimed = false; break end
+    end
+    
+    if allClaimed then
+        pcall(function() RE:FireServer("ChallengePassReset") end)
+        task.wait(3)
+        return true
+    end
+    return false
 end
 
 EventTab:Toggle({
@@ -800,8 +830,6 @@ EventTab:Toggle({
                     for _, c in ipairs(challenges) do if not c.complete then allDone = false; break end end
                     
                     if allDone then
-                        claimChallenges()
-                        claimTierRewards()
                         task.wait(3)
                         local newChallenges = readChallenges()
                         local stillComplete = true
@@ -820,6 +848,32 @@ EventTab:Toggle({
             end)
         else
             if cpThread then task.cancel(cpThread); cpThread = nil end
+        end
+    end,
+})
+
+EventTab:Toggle({
+    Title = "Auto Claim & Reset Pass",
+    Desc = "Spams claim every 3s and resets when all 15 tiers are claimed",
+    Value = eventSettings.autoClaimPass or false,
+    Callback = function(v)
+        claimEnabled = v
+        eventSettings.autoClaimPass = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        
+        if v then
+            claimThread = task.spawn(function()
+                while claimEnabled do
+                    claimAllRewards()
+                    task.wait(3)
+                    if checkAndReset() then
+                        task.wait(5)
+                    end
+                end
+            end)
+        else
+            if claimThread then task.cancel(claimThread); claimThread = nil end
         end
     end,
 })
@@ -1656,7 +1710,7 @@ task.spawn(function()
             task.wait(4)
             
             while cpEnabled do
-                if resetPassIfDone() then
+                if checkAndReset() then
                     task.wait(5)
                     continue
                 end
@@ -1671,8 +1725,6 @@ task.spawn(function()
                 for _, c in ipairs(challenges) do if not c.complete then allDone = false; break end end
                 
                 if allDone then
-                    claimChallenges()
-                    claimTierRewards()
                     task.wait(3)
                     local newChallenges = readChallenges()
                     local stillComplete = true
@@ -1687,6 +1739,19 @@ task.spawn(function()
                 end
                 
                 task.wait(2)
+            end
+        end)
+    end
+
+    if eventSettings.autoClaimPass then
+        claimEnabled = true
+        claimThread = task.spawn(function()
+            while claimEnabled do
+                claimAllRewards()
+                task.wait(3)
+                if checkAndReset() then
+                    task.wait(5)
+                end
             end
         end)
     end
