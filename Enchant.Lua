@@ -25,29 +25,67 @@ if not settings.enchant then settings.enchant = {} end
 local enchantSettings = settings.enchant
 
 -- ======================================
--- SETTINGS
+-- ENCHANT DATA
 -- ======================================
-local TARGET_ENCHANTS = {
-    { Id = enchantSettings.slot1 or "ultra-roller" },
-    { Id = enchantSettings.slot2 or "secret-hunter" }
-}
+local EnchantsData = require(ReplicatedStorage.Shared.Data.Enchants)
+
 local COOLDOWN = 0.5
 local enchantRunning = false
 local enchantThread = nil
 local monitorRunning = false
 local monitorThread = nil
 
-local ALL_ENCHANTS = {}
-local ENCHANT_DISPLAY = {}
+-- Build ALL_ENCHANTS with display name + max level
+local ALL_ENCHANTS = {}        -- list of display labels for dropdown
+local DISPLAY_TO_ID = {}       -- "Looter (max V)" → "looter"
+local ID_TO_MAX = {}           -- "looter" → 5
+local ID_TO_DISPLAY = {}       -- "looter" → "Looter (max V)"
 
-local EnchantsData = require(ReplicatedStorage.Shared.Data.Enchants)
+-- Roman numeral helper
+local function toRoman(n)
+    local numerals = {
+        [1]="I",[2]="II",[3]="III",[4]="IV",[5]="V",
+        [6]="VI",[7]="VII",[8]="VIII",[9]="IX",[10]="X",
+    }
+    return numerals[n] or tostring(n)
+end
+
 for id, data in pairs(EnchantsData) do
-    if not id:find("^super-") or id == "super-burst" or id == "super-duplication" then
-        table.insert(ALL_ENCHANTS, id)
-        ENCHANT_DISPLAY[id] = data.DisplayName or id
+    -- Skip super enchants (except burst + duplication, matching original filter)
+    local shouldInclude = false
+    if not id:find("^super-") then
+        shouldInclude = true
+    elseif id == "super-burst" or id == "super-duplication" then
+        shouldInclude = true
+    end
+    
+    if shouldInclude then
+        local displayName = data.DisplayName or id
+        local maxLevel = data.Levels or 1
+        
+        local label
+        if maxLevel > 1 then
+            label = displayName .. " (max " .. toRoman(maxLevel) .. ")"
+        else
+            label = displayName
+        end
+        
+        table.insert(ALL_ENCHANTS, label)
+        DISPLAY_TO_ID[label] = id
+        ID_TO_MAX[id] = maxLevel
+        ID_TO_DISPLAY[id] = displayName
     end
 end
 table.sort(ALL_ENCHANTS)
+
+-- ======================================
+-- SETTINGS
+-- ======================================
+-- Default: slot1 = ultra-roller, slot2 = secret-hunter (matching original)
+local TARGET_ENCHANTS = {
+    { Id = enchantSettings.slot1 or "ultra-roller" },
+    { Id = enchantSettings.slot2 or "secret-hunter" }
+}
 
 -- ======================================
 -- FUNCTIONS
@@ -97,24 +135,41 @@ local function isSecretOnly(enchantId)
     return data and data.IsSecretOnly
 end
 
+local function getMaxLevel(enchantId)
+    return ID_TO_MAX[enchantId] or 1
+end
+
+-- Check if pet's enchant slot already has MAX tier of target
+local function isEnchantMaxed(enchant, targetId)
+    if not enchant then return false end
+    if enchant.Id ~= targetId then return false end
+    local maxLevel = getMaxLevel(targetId)
+    return (enchant.Level or 1) >= maxLevel
+end
+
 local function enchantSingleSlot(petId, targetSlot, targetEnchantId)
     local targetIsSecret = isSecretOnly(targetEnchantId)
+    local maxLevel = getMaxLevel(targetEnchantId)
     
     while enchantRunning do
         local pet = findPetById(petId)
         if not pet then return false end
         
         local currentEnchant = (pet.Enchants or {})[targetSlot]
-        if currentEnchant and currentEnchant.Id == targetEnchantId then
+        
+        -- ✅ Already at max tier? Done.
+        if isEnchantMaxed(currentEnchant, targetEnchantId) then
             return true
         end
         
+        -- If target is on other slot at max, don't waste rolls
         local otherSlot = (targetSlot == 1) and 2 or 1
         local otherEnchant = (pet.Enchants or {})[otherSlot]
-        if otherEnchant and otherEnchant.Id == targetEnchantId then
+        if isEnchantMaxed(otherEnchant, targetEnchantId) then
             return false
         end
         
+        -- Roll
         if targetIsSecret then
             local lockSlot = (targetSlot == 1) and 2 or 1
             RemoteEvent:FireServer("UseShadowCrystal", petId, lockSlot)
@@ -133,13 +188,11 @@ local function checkEnchantStatus()
     for _, pet in ipairs(pets) do
         local enchants = pet.Enchants or {}
         
-        local slot1Enchant = enchants[1]
-        if not (slot1Enchant and slot1Enchant.Id == TARGET_ENCHANTS[1].Id) then
+        if not isEnchantMaxed(enchants[1], TARGET_ENCHANTS[1].Id) then
             missing.slot1 = missing.slot1 + 1
         end
         
-        local slot2Enchant = enchants[2]
-        if not (slot2Enchant and slot2Enchant.Id == TARGET_ENCHANTS[2].Id) then
+        if not isEnchantMaxed(enchants[2], TARGET_ENCHANTS[2].Id) then
             missing.slot2 = missing.slot2 + 1
         end
     end
@@ -155,8 +208,7 @@ local function reEnchantMissingSlots(missing)
         for i, pet in ipairs(pets) do
             if not enchantRunning then break end
             local enchants = pet.Enchants or {}
-            local slot1Enchant = enchants[1]
-            if not (slot1Enchant and slot1Enchant.Id == TARGET_ENCHANTS[1].Id) then
+            if not isEnchantMaxed(enchants[1], TARGET_ENCHANTS[1].Id) then
                 enchantSingleSlot(pet.Id, 1, TARGET_ENCHANTS[1].Id)
                 task.wait(0.5)
             end
@@ -167,8 +219,7 @@ local function reEnchantMissingSlots(missing)
         for i, pet in ipairs(pets) do
             if not enchantRunning then break end
             local enchants = pet.Enchants or {}
-            local slot2Enchant = enchants[2]
-            if not (slot2Enchant and slot2Enchant.Id == TARGET_ENCHANTS[2].Id) then
+            if not isEnchantMaxed(enchants[2], TARGET_ENCHANTS[2].Id) then
                 enchantSingleSlot(pet.Id, 2, TARGET_ENCHANTS[2].Id)
                 task.wait(0.5)
             end
@@ -190,14 +241,14 @@ local function startMonitor()
 end
 
 -- ======================================
--- ENCHANT RUNNER (reusable for callback + auto-start)
+-- ENCHANT RUNNER
 -- ======================================
 local function startEnchant()
     if enchantRunning then return end
     enchantRunning = true
     monitorRunning = true
     
-    getgenv().ActivityStatus.current = "Auto Enchanting with " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ENCHANT_DISPLAY[TARGET_ENCHANTS[2].Id]
+    getgenv().ActivityStatus.current = "Auto Enchanting with " .. ID_TO_DISPLAY[TARGET_ENCHANTS[1].Id] .. " + " .. ID_TO_DISPLAY[TARGET_ENCHANTS[2].Id]
     getgenv().ActivityStatus.trigger = true
     
     monitorThread = task.spawn(startMonitor)
@@ -243,25 +294,37 @@ EnchantTab:Paragraph({
     Desc = "Make sure to check your Pets Enchant. If Secret Hunter is in Slot 1 but some pets already have it on Slot 2, it will roll endlessly!",
 })
 
+-- Slot 1 dropdown
+local defaultSlot1Label = ID_TO_DISPLAY[TARGET_ENCHANTS[1].Id]
+    and (ID_TO_MAX[TARGET_ENCHANTS[1].Id] > 1 and (ID_TO_DISPLAY[TARGET_ENCHANTS[1].Id] .. " (max " .. toRoman(ID_TO_MAX[TARGET_ENCHANTS[1].Id]) .. ")") or ID_TO_DISPLAY[TARGET_ENCHANTS[1].Id])
+    or ALL_ENCHANTS[1]
+
 EnchantTab:Dropdown({
     Title = "Slot 1 Enchant",
     Values = ALL_ENCHANTS,
-    Value = TARGET_ENCHANTS[1].Id,
+    Value = defaultSlot1Label,
     Callback = function(v)
-        TARGET_ENCHANTS[1].Id = v
-        enchantSettings.slot1 = v
+        local id = DISPLAY_TO_ID[v] or v
+        TARGET_ENCHANTS[1].Id = id
+        enchantSettings.slot1 = id
         getgenv().HubSettings.enchant = enchantSettings
         saveHubSettings()
     end,
 })
 
+-- Slot 2 dropdown
+local defaultSlot2Label = ID_TO_DISPLAY[TARGET_ENCHANTS[2].Id]
+    and (ID_TO_MAX[TARGET_ENCHANTS[2].Id] > 1 and (ID_TO_DISPLAY[TARGET_ENCHANTS[2].Id] .. " (max " .. toRoman(ID_TO_MAX[TARGET_ENCHANTS[2].Id]) .. ")") or ID_TO_DISPLAY[TARGET_ENCHANTS[2].Id])
+    or ALL_ENCHANTS[1]
+
 EnchantTab:Dropdown({
     Title = "Slot 2 Enchant",
     Values = ALL_ENCHANTS,
-    Value = TARGET_ENCHANTS[2].Id,
+    Value = defaultSlot2Label,
     Callback = function(v)
-        TARGET_ENCHANTS[2].Id = v
-        enchantSettings.slot2 = v
+        local id = DISPLAY_TO_ID[v] or v
+        TARGET_ENCHANTS[2].Id = id
+        enchantSettings.slot2 = id
         getgenv().HubSettings.enchant = enchantSettings
         saveHubSettings()
     end,
@@ -269,7 +332,7 @@ EnchantTab:Dropdown({
 
 EnchantTab:Toggle({
     Title = "Auto Enchant All Equipped (Monitor Mode)",
-    Desc = "Continuously monitors and re-enchants pets when enchants are lost",
+    Desc = "Continuously monitors and re-enchants pets until MAX tier is reached",
     Value = enchantSettings.autoEnchant or false,
     Callback = function(v)
         enchantSettings.autoEnchant = v
@@ -284,7 +347,7 @@ EnchantTab:Toggle({
 })
 
 -- ======================================
--- SIMPLE ENCHANT (PRESETS)
+-- SIMPLE ENCHANT (PRESETS) — UNTOUCHED
 -- ======================================
 EnchantTab:Section({ Title = "Simple Enchant" })
 
@@ -374,7 +437,6 @@ EnchantTab:Button({
 task.spawn(function()
     task.wait(1.5)
     
-    -- Auto Enchant (Monitor Mode)
     if enchantSettings.autoEnchant then
         startEnchant()
     end
