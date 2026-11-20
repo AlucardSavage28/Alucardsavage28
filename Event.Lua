@@ -101,62 +101,13 @@ local TARGET_BUFF_OPTIONS = {"Luck", "Shiny", "Mythic", "Secret", "Infinity"}
 local targetShrineBuff = eventSettings.targetShrineBuff or "Luck"
 
 -- ======================================
--- THANKSGIVING SHOP SCANNER (NEW)
+-- DYNAMIC SHOP SCANNER (Read from Data Module)
 -- ======================================
-local function getThanksgivingShopItems()
-    local items = {}
-    local pg = player:FindFirstChild("PlayerGui")
-    local sg = pg and pg:FindFirstChild("ScreenGui")
-    local shop = sg and sg:FindFirstChild("ItemShop")
-    
-    if shop then
-        local wasVis = shop.Visible
-        shop.Visible = true
-        task.wait(0.5)
-        
-        local main = shop.Frame and shop.Frame:FindFirstChild("Main")
-        local scroll = main and main:FindFirstChild("ScrollingFrame")
-        
-        if scroll then
-            for _, item in ipairs(scroll:GetChildren()) do
-                if item.Name:find("Item") then
-                    local itemName = "Unknown Item"
-                    -- Find the label that holds the name
-                    for _, desc in ipairs(item:GetDescendants()) do
-                        if desc:IsA("TextLabel") and desc.Name == "Label" and desc.Text ~= "" then
-                            -- Strip rich text tags
-                            local cleanText = desc.Text:gsub("<[^>]+>", "")
-                            if cleanText ~= "Unlock with Mastery" and cleanText ~= "Open" and not cleanText:match("^[%d,]+[KM]?$") then
-                                itemName = cleanText
-                                break
-                            end
-                        end
-                    end
-                    table.insert(items, item.Name .. " | " .. itemName)
-                end
-            end
-        end
-        shop.Visible = wasVis
-    end
-    
-    if #items == 0 then
-        items = {"Item13 | Lantern Light"} -- Fallback
-    end
-    return items
-end
-
-local currentEventShopItems = getThanksgivingShopItems()
-local selectedShopItems = eventSettings.selectedShopItems or {}
-if type(selectedShopItems) == "string" then selectedShopItems = {selectedShopItems} end
-
--- ======================================
--- DYNAMIC SHOP SCANNER (REBIRTH)
--- ======================================
-local function getRebirthShopItems()
+local function getShopItems(shopKey)
     local items = {}
     local ok, Shops = pcall(function() return require(ReplicatedStorage.Shared.Data.Shops) end)
-    if ok and Shops and Shops["hw26rebirth-shop"] and Shops["hw26rebirth-shop"].PermanentItems then
-        for i, slot in ipairs(Shops["hw26rebirth-shop"].PermanentItems) do
+    if ok and Shops and Shops[shopKey] and Shops[shopKey].PermanentItems then
+        for i, slot in ipairs(Shops[shopKey].PermanentItems) do
             local p = slot.Item or slot
             local prod = p.Product
             if prod then
@@ -171,16 +122,31 @@ local function getRebirthShopItems()
                 elseif prod.Amount and prod.Amount > 1 then
                     name = name .. " x" .. tostring(prod.Amount)
                 end
-                table.insert(items, name)
+                table.insert(items, "Item" .. i .. " | " .. name)
             end
         end
     end
     return items
 end
 
-local currentRebirthShopItems = getRebirthShopItems()
+local currentRebirthShopItems = getShopItems("hw26rebirth-shop")
 local selectedRebirthItems = eventSettings.selectedRebirthItems or {}
 if type(selectedRebirthItems) == "string" then selectedRebirthItems = {selectedRebirthItems} end
+
+-- THANKSGIVING SHOP
+local currentEventShopItems = getShopItems("thanksgiving26-shop")
+if #currentEventShopItems == 0 then
+    currentEventShopItems = {
+        "Item1 | Lucky Infinity", "Item2 | Speed Infinity", "Item3 | Mythic Infinity",
+        "Item4 | Infinity Elixir", "Item5 | Secret Elixir", "Item6 | Ultra Infinity Elixir",
+        "Item7 | Green Fragment", "Item8 | Blue Fragment", "Item9 | Purple Fragment",
+        "Item10 | Rainbow Fragment", "Item11 | Shrine Ticket", "Item12 | Leaf Elixir IV",
+        "Item13 | Lantern Light"
+    }
+end
+
+local selectedShopItems = eventSettings.selectedShopItems or {}
+if type(selectedShopItems) == "string" then selectedShopItems = {selectedShopItems} end
 
 -- ======================================
 -- EVENT BOARD READER
@@ -997,7 +963,7 @@ EventTab:Button({
     Title = "Re Scan Rebirth Shop",
     Desc = "Refreshes the list of items",
     Callback = function()
-        currentRebirthShopItems = getRebirthShopItems()
+        currentRebirthShopItems = getShopItems("hw26rebirth-shop")
         for i = #rebirthShopDropdown.Values, 1, -1 do rebirthShopDropdown.Values[i] = nil end
         for _, v in ipairs(currentRebirthShopItems) do table.insert(rebirthShopDropdown.Values, v) end
         pcall(function() rebirthShopDropdown:Select(rebirthShopDropdown.Value) end)
@@ -1063,7 +1029,16 @@ EventTab:Button({
     Title = "Re Scan Event Shop",
     Desc = "Refreshes the list of items",
     Callback = function()
-        currentEventShopItems = getThanksgivingShopItems()
+        currentEventShopItems = getShopItems("thanksgiving26-shop")
+        if #currentEventShopItems == 0 then
+            currentEventShopItems = {
+                "Item1 | Lucky Infinity", "Item2 | Speed Infinity", "Item3 | Mythic Infinity",
+                "Item4 | Infinity Elixir", "Item5 | Secret Elixir", "Item6 | Ultra Infinity Elixir",
+                "Item7 | Green Fragment", "Item8 | Blue Fragment", "Item9 | Purple Fragment",
+                "Item10 | Rainbow Fragment", "Item11 | Shrine Ticket", "Item12 | Leaf Elixir IV",
+                "Item13 | Lantern Light"
+            }
+        end
         for i = #eventShopDropdown.Values, 1, -1 do eventShopDropdown.Values[i] = nil end
         for _, v in ipairs(currentEventShopItems) do table.insert(eventShopDropdown.Values, v) end
         pcall(function() eventShopDropdown:Select(eventShopDropdown.Value) end)
