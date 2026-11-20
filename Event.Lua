@@ -53,6 +53,11 @@ local EVENTS = {
     "Secret Event", "Infinity Event", "XL Event", "Super Palooza"
 }
 
+-- Wheel Spin
+local wheelSpinEnabled = false
+local wheelSpinThread = nil
+local wheelSpinDelay = eventSettings.wheelSpinDelay or 3
+
 -- ======================================
 -- HALLOWEEN UPGRADES
 -- ======================================
@@ -96,13 +101,62 @@ local TARGET_BUFF_OPTIONS = {"Luck", "Shiny", "Mythic", "Secret", "Infinity"}
 local targetShrineBuff = eventSettings.targetShrineBuff or "Luck"
 
 -- ======================================
--- DYNAMIC SHOP SCANNER
+-- THANKSGIVING SHOP SCANNER (NEW)
 -- ======================================
-local function getShopItems(shopKey)
+local function getThanksgivingShopItems()
+    local items = {}
+    local pg = player:FindFirstChild("PlayerGui")
+    local sg = pg and pg:FindFirstChild("ScreenGui")
+    local shop = sg and sg:FindFirstChild("ItemShop")
+    
+    if shop then
+        local wasVis = shop.Visible
+        shop.Visible = true
+        task.wait(0.5)
+        
+        local main = shop.Frame and shop.Frame:FindFirstChild("Main")
+        local scroll = main and main:FindFirstChild("ScrollingFrame")
+        
+        if scroll then
+            for _, item in ipairs(scroll:GetChildren()) do
+                if item.Name:find("Item") then
+                    local itemName = "Unknown Item"
+                    -- Find the label that holds the name
+                    for _, desc in ipairs(item:GetDescendants()) do
+                        if desc:IsA("TextLabel") and desc.Name == "Label" and desc.Text ~= "" then
+                            -- Strip rich text tags
+                            local cleanText = desc.Text:gsub("<[^>]+>", "")
+                            if cleanText ~= "Unlock with Mastery" and cleanText ~= "Open" and not cleanText:match("^[%d,]+[KM]?$") then
+                                itemName = cleanText
+                                break
+                            end
+                        end
+                    end
+                    table.insert(items, item.Name .. " | " .. itemName)
+                end
+            end
+        end
+        shop.Visible = wasVis
+    end
+    
+    if #items == 0 then
+        items = {"Item13 | Lantern Light"} -- Fallback
+    end
+    return items
+end
+
+local currentEventShopItems = getThanksgivingShopItems()
+local selectedShopItems = eventSettings.selectedShopItems or {}
+if type(selectedShopItems) == "string" then selectedShopItems = {selectedShopItems} end
+
+-- ======================================
+-- DYNAMIC SHOP SCANNER (REBIRTH)
+-- ======================================
+local function getRebirthShopItems()
     local items = {}
     local ok, Shops = pcall(function() return require(ReplicatedStorage.Shared.Data.Shops) end)
-    if ok and Shops and Shops[shopKey] and Shops[shopKey].PermanentItems then
-        for i, slot in ipairs(Shops[shopKey].PermanentItems) do
+    if ok and Shops and Shops["hw26rebirth-shop"] and Shops["hw26rebirth-shop"].PermanentItems then
+        for i, slot in ipairs(Shops["hw26rebirth-shop"].PermanentItems) do
             local p = slot.Item or slot
             local prod = p.Product
             if prod then
@@ -124,14 +178,9 @@ local function getShopItems(shopKey)
     return items
 end
 
-local currentRebirthShopItems = getShopItems("hw26rebirth-shop")
-local currentEventShopItems = getShopItems("spooky-shop")
-
+local currentRebirthShopItems = getRebirthShopItems()
 local selectedRebirthItems = eventSettings.selectedRebirthItems or {}
 if type(selectedRebirthItems) == "string" then selectedRebirthItems = {selectedRebirthItems} end
-
-local selectedShopItems = eventSettings.selectedShopItems or {}
-if type(selectedShopItems) == "string" then selectedShopItems = {selectedShopItems} end
 
 -- ======================================
 -- EVENT BOARD READER
@@ -401,6 +450,50 @@ EventTab:Toggle({
             end)
         else
             if eventThread then task.cancel(eventThread) end
+        end
+    end,
+})
+
+-- ======================================
+-- UI - EVENT WHEEL SPIN
+-- ======================================
+EventTab:Section({ Title = "Event WheelSpin" })
+
+EventTab:Input({
+    Title = "Spin Delay (Seconds)",
+    Value = tostring(wheelSpinDelay),
+    Placeholder = "3",
+    Callback = function(v)
+        local n = tonumber(v)
+        if n then
+            wheelSpinDelay = n
+            eventSettings.wheelSpinDelay = n
+            getgenv().HubSettings.event = eventSettings
+            saveHubSettings()
+        end
+    end,
+})
+
+EventTab:Toggle({
+    Title = "Auto Spin Event Wheel",
+    Desc = "Automatically spins the Thanksgiving Wheel",
+    Value = eventSettings.autoWheelSpin or false,
+    Callback = function(v)
+        wheelSpinEnabled = v
+        eventSettings.autoWheelSpin = v
+        getgenv().HubSettings.event = eventSettings
+        saveHubSettings()
+        if v then
+            wheelSpinThread = task.spawn(function()
+                while wheelSpinEnabled do
+                    pcall(function()
+                        RemoteFunction:InvokeServer("ThanksgivingWheelSpin")
+                    end)
+                    task.wait(wheelSpinDelay)
+                end
+            end)
+        else
+            if wheelSpinThread then task.cancel(wheelSpinThread) end
         end
     end,
 })
@@ -904,7 +997,7 @@ EventTab:Button({
     Title = "Re Scan Rebirth Shop",
     Desc = "Refreshes the list of items",
     Callback = function()
-        currentRebirthShopItems = getShopItems("hw26rebirth-shop")
+        currentRebirthShopItems = getRebirthShopItems()
         for i = #rebirthShopDropdown.Values, 1, -1 do rebirthShopDropdown.Values[i] = nil end
         for _, v in ipairs(currentRebirthShopItems) do table.insert(rebirthShopDropdown.Values, v) end
         pcall(function() rebirthShopDropdown:Select(rebirthShopDropdown.Value) end)
@@ -945,7 +1038,7 @@ EventTab:Toggle({
 })
 
 -- ======================================
--- UI - EVENT SHOP (Dynamic)
+-- UI - EVENT SHOP (THANKSGIVING SHOP)
 -- ======================================
 EventTab:Section({ Title = "Event Shop" })
 
@@ -970,7 +1063,7 @@ EventTab:Button({
     Title = "Re Scan Event Shop",
     Desc = "Refreshes the list of items",
     Callback = function()
-        currentEventShopItems = getShopItems("spooky-shop")
+        currentEventShopItems = getThanksgivingShopItems()
         for i = #eventShopDropdown.Values, 1, -1 do eventShopDropdown.Values[i] = nil end
         for _, v in ipairs(currentEventShopItems) do table.insert(eventShopDropdown.Values, v) end
         pcall(function() eventShopDropdown:Select(eventShopDropdown.Value) end)
@@ -993,11 +1086,13 @@ EventTab:Toggle({
                         if not eventShopBuying then break end
                         local value = type(item) == "table" and item[1] or item
                         local slotIndex = nil
-                        for i, name in ipairs(currentEventShopItems) do
-                            if name == value then slotIndex = i; break end
-                        end
+                        
+                        -- Extract slot number from "Item1 | Name"
+                        local slotStr = value:match("Item(%d+)")
+                        if slotStr then slotIndex = tonumber(slotStr) end
+                        
                         if slotIndex then
-                            pcall(function() RE:FireServer("BuyShopItem", "spooky-shop", slotIndex, true) end)
+                            pcall(function() RE:FireServer("BuyShopItem", "thanksgiving26-shop", slotIndex, false) end)
                             task.wait(0.5)
                         end
                     end
@@ -1436,6 +1531,18 @@ task.spawn(function()
         end)
     end
     
+    if eventSettings.autoWheelSpin then
+        wheelSpinEnabled = true
+        wheelSpinThread = task.spawn(function()
+            while wheelSpinEnabled do
+                pcall(function()
+                    RemoteFunction:InvokeServer("ThanksgivingWheelSpin")
+                end)
+                task.wait(wheelSpinDelay)
+            end
+        end)
+    end
+    
     if eventSettings.autoClaimHalloweenChest then
         halloweenChestClaiming = true
         halloweenChestThread = task.spawn(function()
@@ -1495,11 +1602,11 @@ task.spawn(function()
                     if not eventShopBuying then break end
                     local value = type(item) == "table" and item[1] or item
                     local slotIndex = nil
-                    for i, name in ipairs(currentEventShopItems) do
-                        if name == value then slotIndex = i; break end
-                    end
+                    local slotStr = value:match("Item(%d+)")
+                    if slotStr then slotIndex = tonumber(slotStr) end
+                    
                     if slotIndex then
-                        pcall(function() RE:FireServer("BuyShopItem", "spooky-shop", slotIndex, true) end)
+                        pcall(function() RE:FireServer("BuyShopItem", "thanksgiving26-shop", slotIndex, false) end)
                         task.wait(0.5)
                     end
                 end
